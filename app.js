@@ -32,7 +32,6 @@ const sheetUrls = {
 };
 
 const volOrder = ["vol1", "vol2", "vol3", "vol4"];
-const challengeTimes = [1000, 1500, 3000];
 
 const STORAGE_KEYS = {
   vol: "tango_current_vol",
@@ -185,11 +184,6 @@ function bindUIEvents() {
   nextWordBtnEl?.addEventListener("click", nextWord);
   speakWordBtnEl?.addEventListener("click", speakWord);
 
-  challengeBtnEl?.addEventListener("contextmenu", (event) => {
-    event.preventDefault();
-    cycleChallengeTime();
-  });
-
   if (timeSlider) {
 
       timeSlider.value = challengeTime / 1000;
@@ -296,7 +290,7 @@ function bindTouchEvents() {
 
       const touchDuration = Date.now() - touchStartTime;
 
-      if(touchDuration >= 1000) {
+      if (touchDuration >= 1000) {
         swipeEnabled = false;
         return;
       }
@@ -366,7 +360,7 @@ function loadSavedState() {
 
   if (savedChallengeTime !== null) {
     const parsedTime = Number(savedChallengeTime);
-    if (challengeTimes.includes(parsedTime)) {
+    if (!Number.isNaN(parsedTime)) {
       challengeTime = parsedTime;
     }
   }
@@ -978,27 +972,10 @@ function updateAutoSpeakButton() {
 
 function updateChallengeButton() {
   updateToggleButton(challengeBtnEl, "想起学習", challengeMode);
-
-  if (challengeBtnEl) {
-    challengeBtnEl.title = `想起学習（${challengeTime / 1000}秒）`;
-  }
 }
 
 function updateRandomButton() {
   updateToggleButton(randomBtnEl, "ランダム", randomMode);
-}
-
-function cycleChallengeTime() {
-  const currentIndex = challengeTimes.indexOf(challengeTime);
-  const nextIndex = (currentIndex + 1) % challengeTimes.length;
-  challengeTime = challengeTimes[nextIndex];
-
-  saveChallengeTimeState();
-  updateChallengeButton();
-
-  if (challengeMode) {
-    renderCurrentWord();
-  }
 }
 
 function updateMeaningDisplay(meaning) {
