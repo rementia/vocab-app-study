@@ -184,7 +184,7 @@ function bindUIEvents() {
   nextWordBtnEl?.addEventListener("click", nextWord);
   speakWordBtnEl?.addEventListener("click", speakWord);
 
-  if (timeSlider) {
+  if (timeSlider && timeValue) {
 
       timeSlider.value = challengeTime / 1000;
       timeValue.textContent = (challengeTime / 1000).toFixed(1);
