@@ -727,7 +727,7 @@ function applyWordOrder(resetIndex = false) {
     const cacheValid =
       Array.isArray(currentCache) &&
       currentCache.length === baseWords.length &&
-      currentCache.every((item, i) => item.id === currentCache[i].id);
+      currentCache.every((item, i) => item.id === baseWords[i].id);
 
     if (!cacheValid) {
       shuffledWordsMap[shuffleKey] = shuffleArray(baseWords);
@@ -1161,6 +1161,7 @@ function prevWord() {
     if (historyIndex !== null) {
       index = historyIndex;
       renderCurrentWord();
+      scheduleAutoSpeak();
       return;
     }
   }
@@ -1177,6 +1178,7 @@ function nextWord() {
     if (historyIndex !== null) {
       index = historyIndex;
       renderCurrentWord();
+      scheduleAutoSpeak();
       return;
     }
   }
