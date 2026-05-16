@@ -390,6 +390,7 @@ function setupAuthListener() {
       index = 0;
       requestListRebuild();
       render();
+      finishInitialLoading();
       return;
     }
 
@@ -405,6 +406,7 @@ function setupAuthListener() {
       index = 0;
       requestListRebuild();
       render();
+      finishInitialLoading();
 
       alert("このアプリは現在、管理者のみ利用できます。");
       await signOut(auth);
@@ -423,7 +425,11 @@ function setupAuthListener() {
       vol4: []
     };
 
+    clearAllShuffleCache();
+    clearNavigationHistory();
+
     await loadSheet(currentVol);
+    finishInitialLoading();
   });
 }
 
