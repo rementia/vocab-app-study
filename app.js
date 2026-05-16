@@ -24,12 +24,7 @@ const firebaseConfig = {
   measurementId: "G-XYZMESKJRM"
 };
 
-const sheetUrls = {
-  vol1: "https://docs.google.com/spreadsheets/d/1Kih8sWJwP1TgzUfQrHIAN-f0fiHCOrvNU3554A_DMK0/export?format=csv&gid=0",
-  vol2: "https://docs.google.com/spreadsheets/d/1Kih8sWJwP1TgzUfQrHIAN-f0fiHCOrvNU3554A_DMK0/export?format=csv&gid=1906065075",
-  vol3: "https://docs.google.com/spreadsheets/d/1Kih8sWJwP1TgzUfQrHIAN-f0fiHCOrvNU3554A_DMK0/export?format=csv&gid=769789994",
-  vol4: "https://docs.google.com/spreadsheets/d/1Kih8sWJwP1TgzUfQrHIAN-f0fiHCOrvNU3554A_DMK0/export?format=csv&gid=297106222"
-};
+const sheetUrls = {};
 
 const volOrder = ["vol1", "vol2", "vol3", "vol4"];
 
@@ -548,9 +543,11 @@ async function fetchWithRetry(url, retryCount = 1) {
 }
 
 async function fetchWordsForVol(volName) {
-  const response = await fetchWithRetry(sheetUrls[volName], 1);
-  const text = await response.text();
-  return parseCsvToWords(text, volName);
+  if (currentUser?.email !== "1992kirby427@gmail.com") {
+    return [];
+  }
+
+  return [];
 }
 
 async function ensureVolLoaded(volName) {
