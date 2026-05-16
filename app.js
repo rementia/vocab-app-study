@@ -28,6 +28,7 @@ const volOrder = ["vol1", "vol2", "vol3", "vol4"];
 
 const STORAGE_KEYS = {
   vol: "tango_current_vol",
+  currentMode: "tango_current_mode",
   indexByVol: "tango_index_by_vol",
   sidebarOpen: "tango_sidebar_open",
   autoSpeak: "tango_auto_speak",
@@ -326,6 +327,7 @@ function isSwipeAllowedTarget(target) {
 
 function loadSavedState() {
   const savedVol = localStorage.getItem(STORAGE_KEYS.vol);
+  const savedCurrentMode = localStorage.getItem(STORAGE_KEYS.currentMode);
   const savedSidebarOpen = localStorage.getItem(STORAGE_KEYS.sidebarOpen);
   const savedAutoSpeak = localStorage.getItem(STORAGE_KEYS.autoSpeak);
   const savedIndexByVol = localStorage.getItem(STORAGE_KEYS.indexByVol);
@@ -335,7 +337,9 @@ function loadSavedState() {
   const savedChallengeTime = localStorage.getItem(STORAGE_KEYS.challengeTime);
   const savedRandomMode = localStorage.getItem(STORAGE_KEYS.randomMode);
 
-  if (savedVol && sheetUrls[savedVol]) currentVol = savedVol;
+  if (savedVol && volOrder.includes(savedVol)) {
+    currentVol = savedVol;
+  }
   if (savedSidebarOpen !== null) sidebarOpen = savedSidebarOpen === "true";
   if (savedAutoSpeak !== null) autoSpeak = savedAutoSpeak === "true";
 
@@ -345,6 +349,10 @@ function loadSavedState() {
     } catch (error) {
       console.warn("indexByVol restore failed", error);
     }
+  }
+
+  if (savedCurrentMode === "vol" || savedCurrentMode === "favorites") {
+    currentMode = savedCurrentMode;
   }
 
   if (savedFavorites) {
@@ -424,6 +432,26 @@ function setupAuthListener() {
     clearAllShuffleCache();
     clearNavigationHistory();
 
+    const savedCurrentMode = localStorage.getItem(STORAGE_KEYS.currentMode);
+
+    if (savedCurrentMode === "favorites") {
+      await ensureAllVolumesLoaded();
+
+      const favoriteEntries = buildFavoriteEntries();
+
+      if (favoriteEntries.length > 0) {
+        currentMode = "favorites";
+        applyWordOrder(false);
+        index = Math.min(indexByVol.favorites || 0, words.length - 1);
+        requestListRebuild();
+        render();
+        finishInitialLoading();
+
+        preloadOtherVolumesInBackground();
+        return;
+      }
+    }
+
     await loadSheet(currentVol);
     finishInitialLoading();
   });
@@ -466,13 +494,15 @@ function setAppLocked(isLocked, message = "Googleログインしてください"
 
     words = [];
     index = 0;
-    currentMode = "vol";
 
     sidebarOpen = false;
     applySidebarState();
 
     if (listEl) listEl.innerHTML = "";
-    if (wordEl) wordEl.textContent = message;
+    if (wordEl) {
+      wordEl.textContent = message;
+      wordEl.classList.add("status-message");
+    }
     if (meaningEl) meaningEl.textContent = "";
     if (progressEl) progressEl.textContent = "";
     if (pronunciationEl) pronunciationEl.textContent = "";
@@ -548,6 +578,10 @@ function subscribeFavoritesRealtime() {
 
 function saveCurrentVol() {
   localStorage.setItem(STORAGE_KEYS.vol, currentVol);
+}
+
+function saveCurrentMode() {
+  localStorage.setItem(STORAGE_KEYS.currentMode, currentMode);
 }
 
 function saveIndexByVol() {
@@ -757,6 +791,7 @@ async function loadSheet(volName) {
     currentVol = volName;
     clearNavigationHistory();
     saveCurrentVol();
+    saveCurrentMode();
 
     await ensureVolLoaded(volName);
     applyWordOrder(false);
@@ -972,7 +1007,10 @@ function renderCurrentWord() {
 }
 
 function renderWordText(current) {
-  if (wordEl) wordEl.textContent = current.word;
+  if (!wordEl) return;
+
+  wordEl.classList.remove("status-message");
+  wordEl.textContent = current.word;
 }
 
 function updateCurrentStateMeta() {
@@ -1262,6 +1300,7 @@ async function loadFavoritesMode() {
   }
 
   currentMode = "favorites";
+  saveCurrentMode();
   clearNavigationHistory();
   applyWordOrder(false);
   index = Math.min(indexByVol.favorites || 0, words.length - 1);
