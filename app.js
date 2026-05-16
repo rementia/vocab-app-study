@@ -201,13 +201,24 @@ function bindUIEvents() {
 
   volButtons.forEach((button) => {
     button.addEventListener("click", () => {
+      if (!currentUser) {
+        if (wordEl) wordEl.textContent = "Googleログインしてください";
+        if (meaningEl) meaningEl.textContent = "";
+        return;
+      }
+
+      if (currentUser.email !== "1992kirby427@gmail.com") {
+        if (wordEl) wordEl.textContent = "このアプリは管理者のみ利用できます";
+        if (meaningEl) meaningEl.textContent = "";
+        return;
+      }
+
       const volName = button.dataset.vol;
       if (volName) {
         loadSheet(volName);
       }
     });
   });
-
   listEl?.addEventListener("click", (event) => {
     const target = event.target instanceof Element ? event.target.closest(".word-item") : null;
     if (!(target instanceof HTMLElement)) return;
@@ -379,33 +390,13 @@ function setupAuthListener() {
     }
 
     if (!user) {
-      allWordsByVol = {
-        vol1: [],
-        vol2: [],
-        vol3: [],
-        vol4: []
-      };
-
-      words = [];
-      index = 0;
-      requestListRebuild();
-      render();
+      setAppLocked(true, "Googleログインしてください");
       finishInitialLoading();
       return;
     }
 
     if (user.email !== "1992kirby427@gmail.com") {
-      allWordsByVol = {
-        vol1: [],
-        vol2: [],
-        vol3: [],
-        vol4: []
-      };
-
-      words = [];
-      index = 0;
-      requestListRebuild();
-      render();
+      setAppLocked(true, "このアプリは管理者のみ利用できます");
       finishInitialLoading();
 
       alert("このアプリは現在、管理者のみ利用できます。");
@@ -414,6 +405,8 @@ function setupAuthListener() {
       updateAuthUI();
       return;
     }
+
+    setAppLocked(false);
 
     await loadFavoritesFromCloud();
     subscribeFavoritesRealtime();
@@ -442,6 +435,67 @@ function updateAuthUI() {
   if (!loginBtnEl || !logoutBtnEl) return;
   loginBtnEl.style.display = currentUser ? "none" : "inline-block";
   logoutBtnEl.style.display = currentUser ? "inline-block" : "none";
+}
+
+function setAppLocked(isLocked, message = "Googleログインしてください") {
+  const controls = [
+    toggleSidebarBtnEl,
+    favoriteListBtnEl,
+    autoSpeakBtnEl,
+    challengeBtnEl,
+    randomBtnEl,
+    favoriteToggleBtnEl,
+    prevWordBtnEl,
+    nextWordBtnEl,
+    speakWordBtnEl,
+    timeSlider,
+    ...volButtons
+  ];
+
+  controls.forEach((control) => {
+    if (!control) return;
+    control.disabled = isLocked;
+    control.classList.toggle("disabled", isLocked);
+  });
+
+  if (isLocked) {
+    allWordsByVol = {
+      vol1: [],
+      vol2: [],
+      vol3: [],
+      vol4: []
+    };
+
+    words = [];
+    index = 0;
+    currentMode = "vol";
+
+    sidebarOpen = false;
+    applySidebarState();
+
+    if (listEl) listEl.innerHTML = "";
+    if (wordEl) wordEl.textContent = message;
+    if (meaningEl) meaningEl.textContent = "";
+    if (progressEl) progressEl.textContent = "";
+    if (pronunciationEl) pronunciationEl.textContent = "";
+    if (prevHintEl) prevHintEl.textContent = "";
+    if (nextHintEl) nextHintEl.textContent = "";
+
+    clearMeaningRevealTimer();
+    clearAutoSpeakTimer();
+    clearNavigationHistory();
+    requestListRebuild();
+    updateFavoriteToggleButton();
+    updateTopButtons();
+    updateRandomButton();
+    return;
+  }
+
+  updateTopButtons();
+  updateRandomButton();
+  updateAutoSpeakButton();
+  updateChallengeButton();
+  updateFavoriteToggleButton();
 }
 
 async function signInWithGoogle() {
@@ -710,6 +764,14 @@ function parseCsvToWords(text, volName) {
 }
 
 async function loadSheet(volName) {
+  if (!currentUser) {
+    return;
+  }
+
+  if (currentUser.email !== "1992kirby427@gmail.com") {
+    return;
+  }
+
   try {
     currentMode = "vol";
     currentVol = volName;
@@ -729,7 +791,7 @@ async function loadSheet(volName) {
   } catch (error) {
     console.error(error);
     finishInitialLoading();
-    alert("読み込みに失敗しました。スプレッドシートの共有設定をご確認ください。");
+    alert("読み込みに失敗しました。");
   }
 }
 
@@ -1199,6 +1261,18 @@ function toggleFavoriteCurrentWord() {
 }
 
 async function loadFavoritesMode() {
+  if (!currentUser) {
+    if (wordEl) wordEl.textContent = "Googleログインしてください";
+    if (meaningEl) meaningEl.textContent = "";
+    return;
+  }
+
+  if (currentUser.email !== "1992kirby427@gmail.com") {
+    if (wordEl) wordEl.textContent = "このアプリは管理者のみ利用できます";
+    if (meaningEl) meaningEl.textContent = "";
+    return;
+  }
+
   await ensureAllVolumesLoaded();
 
   const favoriteEntries = buildFavoriteEntries();
@@ -1254,8 +1328,10 @@ function updateSpeechButtonAvailability() {
   if (!speakWordBtnEl) return;
 
   speakWordBtnEl.disabled = !supported;
-  speakWordBtnEl.style.opacity = supported ? "1" : "0.5";
   speakWordBtnEl.title = supported ? "発音" : "この端末では発音未対応";
+
+  // opacityはCSS側で管理する
+  speakWordBtnEl.style.removeProperty("opacity");
 }
 
 function speakWord() {

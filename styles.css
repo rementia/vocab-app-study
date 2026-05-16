@@ -433,6 +433,21 @@ body.loading {
   width: 160px;
 }
 
+button:disabled,
+input:disabled,
+.disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  pointer-events: none;
+  filter: grayscale(1);
+}
+
+/* 発音ボタンだけ通常時の専用色があるため、disabled時は戻る・進むと揃える */
+.main-btn.speak-btn:disabled {
+  background: var(--app-text);
+  color: var(--app-bg);
+}
+
 @media (max-width: 900px) {
   :root {
     --sidebar-width: 118px;
