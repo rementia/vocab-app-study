@@ -378,12 +378,40 @@ function setupAuthListener() {
       favoritesUnsubscribe = null;
     }
 
-    if (!user) return;
+    if (!user) {
+      allWordsByVol = {
+        vol1: [],
+        vol2: [],
+        vol3: [],
+        vol4: []
+      };
+
+      words = [];
+      index = 0;
+      requestListRebuild();
+      render();
+      return;
+    }
+
+    if (user.email !== "1992kirby427@gmail.com") {
+      alert("このアプリは現在、管理者のみ利用できます。");
+      await signOut(auth);
+      currentUser = null;
+      updateAuthUI();
+      return;
+    }
 
     await loadFavoritesFromCloud();
     subscribeFavoritesRealtime();
-    requestListRebuild();
-    render();
+
+    allWordsByVol = {
+      vol1: [],
+      vol2: [],
+      vol3: [],
+      vol4: []
+    };
+
+    await loadSheet(currentVol);
   });
 }
 
