@@ -143,7 +143,7 @@ function init() {
     window.visualViewport.addEventListener("resize", handleViewportChange);
   }
 
-  loadSheet(currentVol);
+  finishInitialLoading();
 }
 
 function handleViewportChange() {
@@ -394,6 +394,18 @@ function setupAuthListener() {
     }
 
     if (user.email !== "1992kirby427@gmail.com") {
+      allWordsByVol = {
+        vol1: [],
+        vol2: [],
+        vol3: [],
+        vol4: []
+      };
+
+      words = [];
+      index = 0;
+      requestListRebuild();
+      render();
+
       alert("このアプリは現在、管理者のみ利用できます。");
       await signOut(auth);
       currentUser = null;
