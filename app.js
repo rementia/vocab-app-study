@@ -24,8 +24,6 @@ const firebaseConfig = {
   measurementId: "G-XYZMESKJRM"
 };
 
-const sheetUrls = {};
-
 const volOrder = ["vol1", "vol2", "vol3", "vol4"];
 
 const STORAGE_KEYS = {
@@ -627,24 +625,6 @@ async function saveFavoritesToCloud() {
   } catch (error) {
     console.error("クラウド保存失敗:", error);
   }
-}
-
-async function fetchWithRetry(url, retryCount = 1) {
-  let lastError = null;
-
-  for (let attempt = 0; attempt <= retryCount; attempt += 1) {
-    try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      return response;
-    } catch (error) {
-      lastError = error;
-    }
-  }
-
-  throw lastError;
 }
 
 async function fetchWordsForVol(volName) {
