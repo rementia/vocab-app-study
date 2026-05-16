@@ -543,11 +543,25 @@ async function fetchWithRetry(url, retryCount = 1) {
 }
 
 async function fetchWordsForVol(volName) {
-  if (currentUser?.email !== "1992kirby427@gmail.com") {
+  if (!currentUser) {
     return [];
   }
 
-  return [];
+  if (currentUser.email !== "1992kirby427@gmail.com") {
+    return [];
+  }
+
+  const ref = doc(db, "privateWords", volName);
+  const snap = await getDoc(ref);
+
+  if (!snap.exists()) {
+    return [];
+  }
+
+  const data = snap.data();
+  const csv = typeof data.csv === "string" ? data.csv : "";
+
+  return parseCsvToWords(csv, volName);
 }
 
 async function ensureVolLoaded(volName) {
