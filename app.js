@@ -418,6 +418,11 @@ function setupAuthListener() {
     await loadFavoritesFromCloud();
     subscribeFavoritesRealtime();
 
+    const savedVol = localStorage.getItem(STORAGE_KEYS.vol);
+    if (savedVol && volOrder.includes(savedVol)) {
+      currentVol = savedVol;
+    }
+
     allWordsByVol = {
       vol1: [],
       vol2: [],
