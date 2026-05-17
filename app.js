@@ -44,6 +44,10 @@ const auth = getAuth(firebaseApp);
 const db = getFirestore(firebaseApp);
 const provider = new GoogleAuthProvider();
 
+provider.setCustomParameters({
+  prompt: "select_account"
+});
+
 const listEl = document.getElementById("list");
 const sidebarEl = document.getElementById("sidebar");
 const wordEl = document.getElementById("word");
