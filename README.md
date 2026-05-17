@@ -40,16 +40,6 @@ https://rementia.github.io/vocab-app-study/
 
 ![Main Screen](./images/main.png)
 
-### Vocabulary List
-
-![Vocabulary List](./images/list.png)
-
-### Mobile View
-
-![Mobile View](./images/mobile.png)
-
-※ `images` フォルダ内にスクリーンショット画像を配置すると表示されます。
-
 ## Technologies Used
 
 - HTML
