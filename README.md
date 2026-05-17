@@ -1,77 +1,79 @@
 # English Vocabulary App
 
-A web-based vocabulary learning app focused on recall-based learning and efficient review.
-
-## Screenshots
-
-![Main Screen](./images/main.png)
+英単語学習を効率化するために制作した、ブラウザ上で動作する英単語帳アプリです。  
+単語の確認、意味の表示、発音、ランダム学習、お気に入り登録、想起学習などを通して、英単語を効率よく復習できるように設計しました。
 
 ## Demo
 
-👉 https://rementia.github.io/vocab-app/
+GitHub Pagesで公開しています。
 
----
+https://rementia.github.io/vocab-app-study/
+
+※ 上記URLは公開先に合わせて変更してください。
 
 ## Overview
 
-This app focuses on **recall-based learning**, rather than simple memorization, to improve long-term retention of English vocabulary.
+このアプリは、英単語を単に日本語訳で暗記するのではなく、繰り返し思い出す「想起学習」を取り入れることで、記憶の定着を高めることを目的としています。
 
-Users practice recalling meanings within a short time, and efficiently review words using features such as favorites and multiple learning modes.
-
----
+単語データはGoogle Sheetsで管理し、Google Apps Scriptを用いてCSV形式に変換したうえでCloud Firestoreへ同期しています。  
+アプリ本体はFirestoreから単語データを取得する構成にしており、公開リポジトリ上にスプレッドシートURLや管理用データを直接置かないようにしています。
 
 ## Features
 
-* Level-based learning (vol.1–4)
-* Random mode
-* Favorite word management (★)
-* Pronunciation feature
-* Recall mode (time-limited)
-* Responsive design (mobile support)
+- vol.1〜vol.4の英単語リスト切り替え
+- 英単語と意味の表示
+- 発音機能
+- 自動発音機能
+- お気に入り登録機能
+- お気に入り一覧表示
+- ランダム学習モード
+- 想起学習モード
+- 想起時間の調整
+- 学習中の進捗表示
+- Googleログイン機能
+- ログイン状態に応じた利用制限
+- お気に入り情報のクラウド保存
+- 前回の表示状態の復元
+- PC・スマートフォン対応のレスポンシブデザイン
 
----
+## Screenshots
 
-## Technologies
+### Main Screen
 
-* HTML
-* CSS
-* JavaScript
-* GitHub Pages
+![Main Screen](./images/main.png)
 
----
+### Vocabulary List
 
-## Usage
+![Vocabulary List](./images/list.png)
 
-1. Select a level (vol.1–4)
-2. Try to recall the meaning within a short time
-3. Available controls:
+### Mobile View
 
-   * `← →` : Navigate words
-   * `Space` : Pronounce
-   * `F` : Toggle favorite
-4. Use random mode or favorites for efficient review
+![Mobile View](./images/mobile.png)
 
----
+※ `images` フォルダ内にスクリーンショット画像を配置すると表示されます。
 
-## Key Design Ideas
+## Technologies Used
 
-This app is designed with the following principles:
+- HTML
+- CSS
+- JavaScript
+- Firebase Authentication
+- Cloud Firestore
+- Google Apps Script
+- Google Sheets
+- GitHub Pages
 
-* Treat vocabulary as **connected meanings rather than isolated translations**
-* Improve retention through **spaced recall**
-* Enable efficient review by identifying and focusing on difficult words
+## Data Flow
 
----
+このアプリでは、単語データを以下の流れで管理しています。
 
-## Future Improvements
-
-* Improve UI for landscape mode on mobile
-* Enhance progress tracking
-* Improve random mode behavior
-* Strengthen data persistence features
-
----
-
-## Author
-
-Anonymous
+```txt
+Google Sheets
+↓
+Google Apps Script
+↓
+CSV形式に変換
+↓
+Cloud Firestore
+↓
+Web App
