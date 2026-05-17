@@ -9,8 +9,6 @@ GitHub Pagesで公開しています。
 
 https://rementia.github.io/vocab-app-study/
 
-※ 上記URLは公開先に合わせて変更してください。
-
 ## Overview
 
 このアプリは、英単語を単に日本語訳で暗記するのではなく、繰り返し思い出す「想起学習」を取り入れることで、記憶の定着を高めることを目的としています。
