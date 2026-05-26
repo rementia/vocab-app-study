@@ -1,4 +1,4 @@
-/* Theme and layout tokens */
+﻿/* Theme and layout tokens */
 :root {
   --app-bg: #ffffff;
   --app-text: #111111;
@@ -739,12 +739,12 @@ body.loading {
 @media (max-width: 768px) and (orientation: landscape) {
   :root {
     --login-bottom: 8px;
-    --login-left: 0px;
+    --login-right: 0px;
   }
 
   .login-btn {
-    left: var(--login-left);
-    right: auto;
+    left: auto;
+    right: var(--login-right);
   }
 
   .app {
@@ -777,7 +777,7 @@ body.loading {
   .side-adjustments {
     position: absolute;
     right: 0px;
-    top: 70%;
+    top: 40%;
     transform: none;
     margin-top: 0;
   }
