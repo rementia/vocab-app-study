@@ -1,159 +1,481 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
+﻿import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-auth.js";
+import { availableVolumes, fetchWordsForVol } from './data.js';
+import { getDomElements } from './dom.js';
+import { auth, db, provider } from './firebaseClient.js';
 import {
-  getAuth,
-  GoogleAuthProvider,
-  signInWithPopup,
-  onAuthStateChanged,
-  signOut
-} from "https://www.gstatic.com/firebasejs/12.12.0/firebase-auth.js";
+  FAVORITES_COLLECTION,
+  volOrder,
+  createInitialIndexByVol,
+  createInitialWordsByVol
+} from './state.js';
+import { signInWithGoogle, signOutUser } from './auth.js';
 import {
-  getFirestore,
-  doc,
-  getDoc,
-  setDoc,
-  onSnapshot
-} from "https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyCgVh9fmwib7ox-I1Q9c5IU-B4909XkhkU",
-  authDomain: "svl-app-65204.firebaseapp.com",
-  projectId: "svl-app-65204",
-  storageBucket: "svl-app-65204.firebasestorage.app",
-  messagingSenderId: "512772798709",
-  appId: "1:512772798709:web:d28cb5154b15fccae26dbc",
-  measurementId: "G-XYZMESKJRM"
-};
-
-const volOrder = ["vol1", "vol2", "vol3", "vol4"];
-
-const STORAGE_KEYS = {
-  vol: "tango_current_vol",
-  currentMode: "tango_current_mode",
-  indexByVol: "tango_index_by_vol",
-  sidebarOpen: "tango_sidebar_open",
-  autoSpeak: "tango_auto_speak",
-  favorites: "tango_favorites",
-  favoritesUpdatedAt: "tango_favorites_updated_at",
-  challengeMode: "tango_challenge_mode",
-  challengeTime: "tango_challenge_time",
-  randomMode: "tango_random_mode"
-};
-
-const firebaseApp = initializeApp(firebaseConfig);
-const auth = getAuth(firebaseApp);
-const db = getFirestore(firebaseApp);
-const provider = new GoogleAuthProvider();
-
-provider.setCustomParameters({
-  prompt: "select_account"
-});
-
-const listEl = document.getElementById("list");
-const sidebarEl = document.getElementById("sidebar");
-const wordEl = document.getElementById("word");
-const meaningEl = document.getElementById("meaning");
-const progressEl = document.getElementById("progress");
-const pronunciationEl = document.getElementById("pronunciation");
-const prevHintEl = document.getElementById("prevHint");
-const nextHintEl = document.getElementById("nextHint");
-const currentEl = document.getElementById("current");
-const timeSlider = document.getElementById("timeSlider");
-const timeValue = document.getElementById("timeValue");
-
-const favoriteToggleBtnEl = document.getElementById("favoriteToggleBtn");
-const favoriteListBtnEl = document.getElementById("favoriteListBtn");
-const autoSpeakBtnEl = document.getElementById("autoSpeakBtn");
-const challengeBtnEl = document.getElementById("challengeBtn");
-const randomBtnEl = document.getElementById("randomBtn");
-const loginBtnEl = document.getElementById("loginBtn");
-const logoutBtnEl = document.getElementById("logoutBtn");
-const toggleSidebarBtnEl = document.getElementById("toggleSidebarBtn");
-const prevWordBtnEl = document.getElementById("prevWordBtn");
-const nextWordBtnEl = document.getElementById("nextWordBtn");
-const speakWordBtnEl = document.getElementById("speakWordBtn");
-const volButtons = Array.from(document.querySelectorAll(".vol-btn"));
+  STORAGE_KEYS,
+  safeGetItem,
+  saveCurrentVol,
+  saveCurrentModeState,
+  saveIndexByVol,
+  saveSidebarState,
+  saveSpeechSyncState,
+  saveFavoritesToLocalOnly,
+  saveFavoritesUpdatedAt,
+  saveDifficultsToLocalOnly,
+  saveReviewScoresToLocalOnly,
+  saveChallengeModeState,
+  saveChallengeTimeState,
+  saveDisplayTimeState,
+  saveTranslationModeState,
+  saveAutoPlayState,
+  saveRandomModeState,
+  saveFrequencyModeState
+} from './storage.js';
+import {
+  renderApp,
+  renderCurrentWord as renderCurrentWordUI,
+  updateSpeechSyncButton as uiUpdateSpeechSyncButton,
+  updateChallengeButton as uiUpdateChallengeButton,
+  updateRecallTimeControl as uiUpdateRecallTimeControl,
+  updateTranslationButton as uiUpdateTranslationButton,
+  updateAutoPlayButton as uiUpdateAutoPlayButton,
+  updateRandomButton as uiUpdateRandomButton,
+  updateFrequencyButton as uiUpdateFrequencyButton,
+  updateFavoriteToggleButton as uiUpdateFavoriteToggleButton,
+  updateDifficultToggleButton as uiUpdateDifficultToggleButton,
+  updateReviewButtons as uiUpdateReviewButtons,
+  applySidebarState as uiApplySidebarState,
+  updateAuthUI as uiUpdateAuthUI
+} from './ui.js';
+import {
+  buildFavoriteEntries,
+  isFavorite,
+  toggleFavoriteCurrentWord as toggleFavoriteCurrentWordManager,
+  loadFavoritesMode as loadFavoritesModeManager
+} from './favoritesManager.js';
+import {
+  buildDifficultEntries,
+  isDifficult,
+  toggleDifficultCurrentWord as toggleDifficultCurrentWordManager,
+  loadDifficultsMode as loadDifficultsModeManager
+} from './difficultsManager.js';
+import {
+  getReviewScore,
+  updateReviewScore,
+  resetReviewScore,
+  sortByReviewScore
+} from './reviewManager.js';
+import {
+  bindKeyboardEvents,
+  bindTouchEvents,
+  isSwipeAllowedTarget,
+  handleViewportChange
+} from './events.js';
+import {
+  initNavigation,
+  moveToIndex as navMoveToIndex,
+  getRandomPrevIndexFromHistory as navGetRandomPrevIndexFromHistory,
+  getRandomNextIndexFromHistory as navGetRandomNextIndexFromHistory,
+  clearNavigationHistory as navClearNavigationHistory,
+  getHistoryBackStack,
+  getHistoryForwardStack
+} from './navigation.js';
+import {
+  initPronunciation,
+  updateSpeechButtonAvailability,
+  speakWord,
+  loadPronunciation
+} from './pronunciation.js';
+import {
+  loadFavoritesFromCloudRemote,
+  subscribeFavoritesRealtimeRemote,
+  saveFavoritesToCloudRemote,
+  syncFavoritesWithCloud,
+  resolveFavoritesSnapshot
+} from './favorites.js';
+const {
+  searchInputEl,
+  listEl,
+  sidebarEl,
+  wordEl,
+  meaningEl,
+  progressEl,
+  pronunciationEl,
+  prevHintEl,
+  nextHintEl,
+  currentEl,
+  recallTimeControlEl,
+  displayTimeControlEl,
+  timeSlider,
+  timeValue,
+  displayTimeSlider,
+  displayTimeValue,
+  favoriteToggleBtnEl,
+  difficultToggleBtnEl,
+  reviewScoreLabelEl,
+  decreaseReviewBtnEl,
+  resetReviewBtnEl,
+  increaseReviewBtnEl,
+  favoriteListBtnEl,
+  difficultListBtnEl,
+  speechSyncBtnEl,
+  challengeBtnEl,
+  translationBtnEl,
+  autoPlayBtnEl,
+  randomBtnEl,
+  frequencyBtnEl,
+  loginBtnEl,
+  logoutBtnEl,
+  toggleSidebarBtnEl,
+  prevWordBtnEl,
+  nextWordBtnEl,
+  speakWordBtnEl,
+  volButtons
+} = getDomElements();
 
 let currentUser = null;
 let favoritesUnsubscribe = null;
 
-let allWordsByVol = {
-  vol1: [],
-  vol2: [],
-  vol3: [],
-  vol4: []
-};
+let allWordsByVol = createInitialWordsByVol();
 
 let words = [];
 let index = 0;
 let currentVol = "vol1";
 let currentMode = "vol";
 let sidebarOpen = true;
-let autoSpeak = false;
+let speechSync = false;
 let favorites = {};
+let difficults = {};
+let reviewScores = {};
 let favoritesUpdatedAt = 0;
 let challengeMode = false;
 let challengeTime = 1500;
+let displayTime = 1500;
+let translationMode = false;
+let autoPlayMode = "off";
+let autoPlayOnceStartIndex = null;
 let randomMode = false;
+let frequencyMode = false;
 
 let meaningRevealTimer = null;
-let autoSpeakTimer = null;
-let currentPronunciationController = null;
-let lastPronunciationRequest = "";
+let speechSyncTimer = null;
+let autoPlayTimer = null;
+let autoPlayDisplayPhaseTimer = null;
+let autoPlayWaitStartedAt = 0;
+let wordOrderUpdatePending = false;
 let hasFinishedInitialLoading = false;
 
 let listNeedsRebuild = true;
 let renderedListVersion = "";
 let listVersion = 0;
 let favoritesVersion = 0;
+let difficultsVersion = 0;
+let reviewScoresVersion = 0;
+let searchQuery = "";
 
-let indexByVol = {
-  vol1: 0,
-  vol2: 0,
-  vol3: 0,
-  vol4: 0,
-  favorites: 0
+let indexByVol = createInitialIndexByVol();
+
+const uiContext = {
+  getState: () => ({
+    words,
+    currentMode,
+    currentVol,
+    randomMode,
+    frequencyMode,
+    listNeedsRebuild,
+    renderedListVersion,
+    listVersion,
+    favoritesVersion,
+    difficultsVersion,
+    reviewScoresVersion,
+    searchQuery,
+    index,
+    challengeMode,
+    challengeTime,
+    displayTime,
+    translationMode,
+    autoPlayMode,
+    historyBackStack: getHistoryBackStack(),
+    historyForwardStack: getHistoryForwardStack(),
+    sidebarOpen,
+    speechSync,
+    currentUser
+  }),
+  dom: {
+    searchInputEl,
+    listEl,
+    sidebarEl,
+    wordEl,
+    meaningEl,
+    progressEl,
+    pronunciationEl,
+    prevHintEl,
+    nextHintEl,
+    currentEl,
+    recallTimeControlEl,
+    displayTimeControlEl,
+    displayTimeSlider,
+    displayTimeValue,
+    favoriteToggleBtnEl,
+    difficultToggleBtnEl,
+    reviewScoreLabelEl,
+    decreaseReviewBtnEl,
+    resetReviewBtnEl,
+    increaseReviewBtnEl,
+    favoriteListBtnEl,
+    difficultListBtnEl,
+    speechSyncBtnEl,
+    challengeBtnEl,
+    translationBtnEl,
+    autoPlayBtnEl,
+    randomBtnEl,
+    frequencyBtnEl,
+    loginBtnEl,
+    logoutBtnEl,
+    toggleSidebarBtnEl,
+    volButtons
+  },
+  callbacks: {
+    isFavorite: (item) => isFavorite(favorites, item),
+    isDifficult: (item) => isDifficult(difficults, item),
+    getReviewScore: (item) => getReviewScore(reviewScores, item),
+    getCurrentWord,
+    persistCurrentIndex,
+    loadPronunciation,
+    clearMeaningRevealTimer,
+    clearSpeechSyncTimer,
+    setMeaningRevealTimer,
+    setListNeedsRebuild,
+    setRenderedListVersion,
+    setSearchQuery
+  }
 };
 
+const AUTO_PLAY_SKIP_LOCK_MS = 500;
+
 let shuffledWordsMap = {};
-let touchStartX = 0;
-let touchStartY = 0;
-let touchEndX = 0;
-let touchEndY = 0;
-let lastTouchEnd = 0;
-let touchStartTime = 0;
-let swipeEnabled = false;
 
-let viewportResizeTimer = null;
-
-/**
- * ランダム中の「戻る」を履歴ベースにするための履歴
- */
-let historyBackStack = [];
-let historyForwardStack = [];
-
-function init() {
+async function init() {
   loadSavedState();
-  bindTouchEvents();
+  initNavigation({
+    getIndex: () => index,
+    setIndex: (n) => { index = n; },
+    renderCurrentWord,
+    scheduleSpeechSync,
+    getWordsLength: () => words.length
+  });
+  bindTouchEvents({ prevWord, nextWord, isSwipeAllowedTarget });
   bindUIEvents();
-  bindKeyboardEvents();
+  bindKeyboardEvents({
+    prevWord,
+    nextWord,
+    speakWord: handleSpeakCurrentWord,
+    handleToggleFavoriteCurrentWord,
+    handleToggleDifficultCurrentWord,
+    decreaseReviewScore: () => handleReviewCurrentWord(-1, decreaseReviewBtnEl),
+    resetReviewScore: handleResetReviewCurrentWord,
+    increaseReviewScore: () => handleReviewCurrentWord(1, increaseReviewBtnEl),
+    focusSearch,
+    clearSearch,
+    selectNextSearchResult,
+    selectPreviousSearchResult,
+    closeSidebar,
+    toggleSidebar,
+    toggleRandomMode
+  });
   setupAuthListener();
-  updateSpeechButtonAvailability();
+  initPronunciation({ el: pronunciationEl, getCurrentWord });
+  updateSpeechButtonAvailability(speakWordBtnEl);
 
-  window.addEventListener("resize", handleViewportChange);
-  window.addEventListener("orientationchange", handleViewportChange);
+  window.addEventListener("resize", handleViewportResize);
+  window.addEventListener("orientationchange", handleViewportResize);
 
   if (window.visualViewport) {
-    window.visualViewport.addEventListener("resize", handleViewportChange);
+    window.visualViewport.addEventListener("resize", handleViewportResize);
   }
 
+  handleViewportResize();
+
+  setAppLocked(true, "Googleログインしてください");
   finishInitialLoading();
 }
 
-function handleViewportChange() {
-  clearTimeout(viewportResizeTimer);
-  viewportResizeTimer = setTimeout(() => {
-    render();
-  }, 250);
+const handleViewportResize = handleViewportChange(renderLayout);
+
+async function handleLoadFavoritesMode() {
+  const result = await loadFavoritesModeManager(
+    { allWordsByVol, currentMode, currentVol, indexByVol, favorites, words, randomMode, frequencyMode },
+    {
+      ensureAllVolumesLoaded,
+      saveCurrentModeState,
+      saveRandomModeState,
+      saveFrequencyModeState,
+      clearNavigationHistory: navClearNavigationHistory,
+      applyWordOrder,
+      requestListRebuild,
+      render,
+      updateRandomButton,
+      updateFrequencyButton,
+      updateFavoriteToggleButton,
+      getWords: () => words,
+      getCurrentWord,
+      setCurrentMode: (mode) => { currentMode = mode; },
+      setRandomMode: (value) => { randomMode = value; },
+      setFrequencyMode: (value) => { frequencyMode = value; }
+    },
+    volOrder
+  );
+
+  if (result) {
+    currentMode = result.currentMode;
+    index = result.index;
+    if (typeof result.randomMode === "boolean") {
+      randomMode = result.randomMode;
+    }
+    if (typeof result.frequencyMode === "boolean") {
+      frequencyMode = result.frequencyMode;
+    }
+    scheduleSpeechSyncAfterRender();
+    scheduleAutoPlayAfterRender();
+  }
+}
+
+
+async function handleLoadDifficultsMode() {
+  const result = await loadDifficultsModeManager(
+    { allWordsByVol, currentMode, indexByVol, difficults, words, randomMode, frequencyMode },
+    {
+      ensureAllVolumesLoaded,
+      saveCurrentModeState,
+      saveRandomModeState,
+      saveFrequencyModeState,
+      clearNavigationHistory: navClearNavigationHistory,
+      applyWordOrder,
+      requestListRebuild,
+      render,
+      updateRandomButton,
+      updateFrequencyButton,
+      updateDifficultToggleButton,
+      getWords: () => words,
+      setCurrentMode: (mode) => { currentMode = mode; },
+      setRandomMode: (value) => { randomMode = value; },
+      setFrequencyMode: (value) => { frequencyMode = value; }
+    },
+    volOrder
+  );
+
+  if (result) {
+    currentMode = result.currentMode;
+    index = result.index;
+    if (typeof result.randomMode === "boolean") {
+      randomMode = result.randomMode;
+    }
+    if (typeof result.frequencyMode === "boolean") {
+      frequencyMode = result.frequencyMode;
+    }
+    scheduleSpeechSyncAfterRender();
+    scheduleAutoPlayAfterRender();
+  }
+}
+function handleToggleFavoriteCurrentWord() {
+  const result = toggleFavoriteCurrentWordManager(
+    {
+      favorites,
+      favoritesUpdatedAt,
+      favoritesVersion,
+      currentMode,
+      currentUser,
+      words,
+      index,
+      indexByVol
+    },
+    {
+      getCurrentWord,
+      getWords: () => words,
+      saveFavoritesToLocalOnly,
+      saveFavoritesUpdatedAt,
+      clearAllShuffleCache,
+      requestListRebuild,
+      updateFavoriteToggleButton,
+      saveFavoritesToCloud,
+      applyWordOrder,
+      saveIndexByVol,
+      render
+    }
+  );
+
+  if (result) {
+    if (typeof result.index === "number") index = result.index;
+    if (result.currentMode) currentMode = result.currentMode;
+    if (result.indexByVol) indexByVol = result.indexByVol;
+    if (typeof result.favoritesUpdatedAt === "number") favoritesUpdatedAt = result.favoritesUpdatedAt;
+    if (typeof result.favoritesVersion === "number") favoritesVersion = result.favoritesVersion;
+    scheduleSpeechSyncAfterRender();
+    scheduleAutoPlayAfterRender();
+  }
+}
+
+
+function handleToggleDifficultCurrentWord() {
+  const result = toggleDifficultCurrentWordManager(
+    {
+      difficults,
+      difficultsVersion,
+      currentMode,
+      words,
+      index,
+      indexByVol
+    },
+    {
+      getCurrentWord,
+      getWords: () => words,
+      saveDifficultsToLocalOnly,
+      clearAllShuffleCache,
+      requestListRebuild,
+      updateDifficultToggleButton,
+      applyWordOrder,
+      saveIndexByVol,
+      render
+    }
+  );
+
+  if (result) {
+    if (typeof result.index === "number") index = result.index;
+    if (result.indexByVol) indexByVol = result.indexByVol;
+    if (typeof result.difficultsVersion === "number") difficultsVersion = result.difficultsVersion;
+    scheduleSpeechSyncAfterRender();
+    scheduleAutoPlayAfterRender();
+  }
+}
+
+function handleReviewCurrentWord(delta, button) {
+  const current = getCurrentWord();
+  if (!current) return;
+
+  flashReviewButton(button);
+  updateReviewScore(reviewScores, current, delta);
+  finishReviewScoreChange();
+}
+
+function handleResetReviewCurrentWord() {
+  const current = getCurrentWord();
+  if (!current) return;
+
+  flashReviewButton(resetReviewBtnEl);
+  resetReviewScore(reviewScores, current);
+  finishReviewScoreChange();
+}
+
+function finishReviewScoreChange() {
+  reviewScoresVersion += 1;
+  saveReviewScoresToLocalOnly(reviewScores);
+  renderLayout();
+  updateReviewButtons();
+}
+function flashReviewButton(button) {
+  if (!button) return;
+  button.classList.remove("review-flash");
+  void button.offsetWidth;
+  button.classList.add("review-flash");
+  window.setTimeout(() => button.classList.remove("review-flash"), 500);
 }
 
 function finishInitialLoading() {
@@ -170,58 +492,70 @@ function finishInitialLoading() {
 }
 
 function bindUIEvents() {
-  loginBtnEl?.addEventListener("click", signInWithGoogle);
-  logoutBtnEl?.addEventListener("click", signOutUser);
+  loginBtnEl?.addEventListener("click", () => signInWithGoogle(auth, provider));
+  logoutBtnEl?.addEventListener("click", () => signOutUser(auth));
   toggleSidebarBtnEl?.addEventListener("click", toggleSidebar);
-  autoSpeakBtnEl?.addEventListener("click", toggleAutoSpeak);
+  speechSyncBtnEl?.addEventListener("click", toggleSpeechSync);
   challengeBtnEl?.addEventListener("click", toggleChallengeMode);
+  translationBtnEl?.addEventListener("click", toggleTranslationMode);
+  autoPlayBtnEl?.addEventListener("click", toggleAutoPlay);
   randomBtnEl?.addEventListener("click", toggleRandomMode);
-  favoriteListBtnEl?.addEventListener("click", loadFavoritesMode);
-  favoriteToggleBtnEl?.addEventListener("click", toggleFavoriteCurrentWord);
+  frequencyBtnEl?.addEventListener("click", toggleFrequencyMode);
+  favoriteListBtnEl?.addEventListener("click", handleLoadFavoritesMode);
+  difficultListBtnEl?.addEventListener("click", handleLoadDifficultsMode);
+  favoriteToggleBtnEl?.addEventListener("click", handleToggleFavoriteCurrentWord);
+  difficultToggleBtnEl?.addEventListener("click", handleToggleDifficultCurrentWord);
+  decreaseReviewBtnEl?.addEventListener("click", () => handleReviewCurrentWord(-1, decreaseReviewBtnEl));
+  resetReviewBtnEl?.addEventListener("click", handleResetReviewCurrentWord);
+  increaseReviewBtnEl?.addEventListener("click", () => handleReviewCurrentWord(1, increaseReviewBtnEl));
+  [decreaseReviewBtnEl, resetReviewBtnEl, increaseReviewBtnEl].forEach((button) => {
+    button?.addEventListener("mouseenter", updateReviewButtons);
+    button?.addEventListener("focus", updateReviewButtons);
+  });
   prevWordBtnEl?.addEventListener("click", prevWord);
   nextWordBtnEl?.addEventListener("click", nextWord);
-  speakWordBtnEl?.addEventListener("click", speakWord);
+  speakWordBtnEl?.addEventListener("click", handleSpeakCurrentWord);
+  document.querySelector(".center-box")?.addEventListener("click", handleAutoPlaySkipRequest);
+
+  searchInputEl?.addEventListener("input", () => {
+    setSearchQuery(searchInputEl.value);
+    requestListRebuild();
+    renderLayout();
+  });
 
   if (timeSlider && timeValue) {
+    timeSlider.value = Math.min(challengeTime / 1000, Number(timeSlider.max));
+    timeValue.textContent = (challengeTime / 1000).toFixed(1);
 
-      timeSlider.value = challengeTime / 1000;
-      timeValue.textContent = (challengeTime / 1000).toFixed(1);
+    timeSlider.addEventListener("input", () => {
+      challengeTime = parseFloat(timeSlider.value) * 1000;
+      timeValue.textContent = parseFloat(timeSlider.value).toFixed(1);
+      saveChallengeTimeState(challengeTime);
 
-      timeSlider.addEventListener("input", () => {
+      if (challengeMode && !isAutoPlayActive()) {
+        renderCurrentWord();
+      }
+    });
+  }
+  if (displayTimeSlider && displayTimeValue) {
+    displayTimeSlider.value = Math.min(displayTime / 1000, Number(displayTimeSlider.max));
+    displayTimeValue.textContent = (displayTime / 1000).toFixed(1);
 
-        challengeTime = parseFloat(timeSlider.value) * 1000;
-
-        timeValue.textContent = parseFloat(timeSlider.value).toFixed(1);
-
-        saveChallengeTimeState();
-
-        if (challengeMode) {
-          renderCurrentWord();
-        }
-
-      });
-    }
-
+    displayTimeSlider.addEventListener("input", () => {
+      displayTime = parseFloat(displayTimeSlider.value) * 1000;
+      displayTimeValue.textContent = parseFloat(displayTimeSlider.value).toFixed(1);
+      saveDisplayTimeState(displayTime);
+    });
+  }
   volButtons.forEach((button) => {
     button.addEventListener("click", () => {
-      if (!currentUser) {
-        if (wordEl) wordEl.textContent = "Googleログインしてください";
-        if (meaningEl) meaningEl.textContent = "";
-        return;
-      }
-
-      if (currentUser.email !== "1992kirby427@gmail.com") {
-        if (wordEl) wordEl.textContent = "このアプリは管理者のみ利用できます";
-        if (meaningEl) meaningEl.textContent = "";
-        return;
-      }
-
       const volName = button.dataset.vol;
       if (volName) {
         loadSheet(volName);
       }
     });
   });
+
   listEl?.addEventListener("click", (event) => {
     const target = event.target instanceof Element ? event.target.closest(".word-item") : null;
     if (!(target instanceof HTMLElement)) return;
@@ -229,123 +563,35 @@ function bindUIEvents() {
     const nextIndex = Number(target.dataset.index);
     if (Number.isNaN(nextIndex)) return;
 
-    moveToIndex(nextIndex, { pushHistory: true });
+    navMoveToIndex(nextIndex, { pushHistory: true });
+    scheduleAutoPlayAfterRender();
   });
 }
 
-function bindKeyboardEvents() {
-  document.addEventListener("keydown", (event) => {
-    const target = event.target;
-    if (
-      target instanceof HTMLInputElement ||
-      target instanceof HTMLTextAreaElement ||
-      target instanceof HTMLSelectElement
-    ) {
-      return;
-    }
-
-    if (event.key === "ArrowLeft") {
-      event.preventDefault();
-      prevWord();
-      return;
-    }
-
-    if (event.key === "ArrowRight") {
-      event.preventDefault();
-      nextWord();
-      return;
-    }
-
-    if (event.key === " " || event.code === "Space") {
-      event.preventDefault();
-      speakWord();
-      return;
-    }
-
-    if (event.key.toLowerCase() === "f") {
-      event.preventDefault();
-      toggleFavoriteCurrentWord();
-      return;
-    }
-
-    if (event.key.toLowerCase() === "r") {
-      event.preventDefault();
-      toggleRandomMode();
-    }
-  });
+function getDefaultSidebarOpen() {
+  return !window.matchMedia?.("(pointer: coarse)").matches;
 }
-
-function bindTouchEvents() {
-  document.addEventListener(
-    "touchstart",
-    (event) => {
-      touchStartTime = Date.now();
-      const touch = event.changedTouches[0];
-      if (!touch) return;
-
-      const startTarget = event.target instanceof Element ? event.target : null;
-      swipeEnabled = isSwipeAllowedTarget(startTarget);
-      touchStartX = touch.screenX;
-      touchStartY = touch.screenY;
-    },
-    { passive: true }
-  );
-
-  document.addEventListener(
-    "touchend",
-    (event) => {
-      const touch = event.changedTouches[0];
-      if (!touch) return;
-
-      const touchDuration = Date.now() - touchStartTime;
-
-      if (touchDuration >= 1000) {
-        swipeEnabled = false;
-        return;
-      }
-
-      touchEndX = touch.screenX;
-      touchEndY = touch.screenY;
-
-      if (swipeEnabled) {
-        handleSwipe();
-      }
-
-      const now = Date.now();
-      if (now - lastTouchEnd <= 300) {
-        event.preventDefault();
-      }
-      lastTouchEnd = now;
-      swipeEnabled = false;
-    },
-    { passive: false }
-  );
-}
-
-function isSwipeAllowedTarget(target) {
-  if (!(target instanceof Element)) return true;
-  if (target.closest("button, a, input, textarea, select, label")) return false;
-  if (target.closest("#sidebar")) return false;
-  return true;
-}
-
 function loadSavedState() {
-  const savedVol = localStorage.getItem(STORAGE_KEYS.vol);
-  const savedCurrentMode = localStorage.getItem(STORAGE_KEYS.currentMode);
-  const savedSidebarOpen = localStorage.getItem(STORAGE_KEYS.sidebarOpen);
-  const savedAutoSpeak = localStorage.getItem(STORAGE_KEYS.autoSpeak);
-  const savedIndexByVol = localStorage.getItem(STORAGE_KEYS.indexByVol);
-  const savedFavorites = localStorage.getItem(STORAGE_KEYS.favorites);
-  const savedFavoritesUpdatedAt = localStorage.getItem(STORAGE_KEYS.favoritesUpdatedAt);
-  const savedChallengeMode = localStorage.getItem(STORAGE_KEYS.challengeMode);
-  const savedChallengeTime = localStorage.getItem(STORAGE_KEYS.challengeTime);
-  const savedRandomMode = localStorage.getItem(STORAGE_KEYS.randomMode);
+  const savedVol = safeGetItem(STORAGE_KEYS.vol);
+  const savedSidebarOpen = safeGetItem(STORAGE_KEYS.sidebarOpen);
+  const savedSpeechSync = safeGetItem(STORAGE_KEYS.speechSync);
+  const savedIndexByVol = safeGetItem(STORAGE_KEYS.indexByVol);
+  const savedFavorites = safeGetItem(STORAGE_KEYS.favorites);
+  const savedDifficults = safeGetItem(STORAGE_KEYS.difficults);
+  const savedReviewScores = safeGetItem(STORAGE_KEYS.reviewScores);
+  const savedFavoritesUpdatedAt = safeGetItem(STORAGE_KEYS.favoritesUpdatedAt);
+  const savedChallengeMode = safeGetItem(STORAGE_KEYS.challengeMode);
+  const savedChallengeTime = safeGetItem(STORAGE_KEYS.challengeTime);
+  const savedDisplayTime = safeGetItem(STORAGE_KEYS.displayTime);
+  const savedTranslationMode = safeGetItem(STORAGE_KEYS.translationMode);
+  const savedAutoPlay = safeGetItem(STORAGE_KEYS.autoPlay);
+  const savedRandomMode = safeGetItem(STORAGE_KEYS.randomMode);
+  const savedFrequencyMode = safeGetItem(STORAGE_KEYS.frequencyMode);
+  const savedMode = safeGetItem(STORAGE_KEYS.mode);
 
-  if (savedVol && volOrder.includes(savedVol)) {
-    currentVol = savedVol;
-  }
-  if (savedSidebarOpen !== null) sidebarOpen = savedSidebarOpen === "true";
-  if (savedAutoSpeak !== null) autoSpeak = savedAutoSpeak === "true";
+  if (savedVol && availableVolumes[savedVol]) currentVol = savedVol;
+  sidebarOpen = savedSidebarOpen !== null ? savedSidebarOpen === "true" : getDefaultSidebarOpen();
+  if (savedSpeechSync !== null) speechSync = savedSpeechSync === "true";
 
   if (savedIndexByVol) {
     try {
@@ -355,8 +601,8 @@ function loadSavedState() {
     }
   }
 
-  if (savedCurrentMode === "vol" || savedCurrentMode === "favorites") {
-    currentMode = savedCurrentMode;
+  if (savedMode === "favorites" || savedMode === "difficults") {
+    currentMode = savedMode;
   }
 
   if (savedFavorites) {
@@ -365,6 +611,24 @@ function loadSavedState() {
       favorites = parsedFavorites && typeof parsedFavorites === "object" ? parsedFavorites : {};
     } catch {
       favorites = {};
+    }
+  }
+
+
+  if (savedDifficults) {
+    try {
+      const parsedDifficults = JSON.parse(savedDifficults);
+      difficults = parsedDifficults && typeof parsedDifficults === "object" ? parsedDifficults : {};
+    } catch {
+      difficults = {};
+    }
+  }
+  if (savedReviewScores) {
+    try {
+      const parsedReviewScores = JSON.parse(savedReviewScores);
+      reviewScores = parsedReviewScores && typeof parsedReviewScores === "object" ? parsedReviewScores : {};
+    } catch {
+      reviewScores = {};
     }
   }
 
@@ -377,22 +641,41 @@ function loadSavedState() {
   if (savedChallengeTime !== null) {
     const parsedTime = Number(savedChallengeTime);
     if (!Number.isNaN(parsedTime)) {
-      challengeTime = parsedTime;
+      challengeTime = Math.min(Math.max(parsedTime, 1000), 3000);
     }
   }
 
-  if (savedRandomMode !== null) randomMode = savedRandomMode === "true";
+  if (savedDisplayTime !== null) {
+    const parsedTime = Number(savedDisplayTime);
+    if (!Number.isNaN(parsedTime)) {
+      displayTime = Math.min(Math.max(parsedTime, 1000), 3000);
+    }
+  }
 
-  updateAutoSpeakButton();
+  if (savedTranslationMode !== null) translationMode = savedTranslationMode === "true";
+  if (savedAutoPlay === "once") {
+    autoPlayMode = "once";
+  } else if (savedAutoPlay === "loop") {
+    autoPlayMode = "loop";
+  } else if (savedAutoPlay === "true") {
+    autoPlayMode = "loop";
+  }
+  if (savedRandomMode !== null) randomMode = savedRandomMode === "true";
+  if (savedFrequencyMode !== null) frequencyMode = savedFrequencyMode === "true";
+
+  updateSpeechSyncButton();
   updateChallengeButton();
+  updateTranslationButton();
+  updateAutoPlayButton();
   updateRandomButton();
+  updateFrequencyButton();
   applySidebarState();
 }
 
 function setupAuthListener() {
   onAuthStateChanged(auth, async (user) => {
     currentUser = user;
-    updateAuthUI();
+    uiUpdateAuthUI(uiContext);
 
     if (favoritesUnsubscribe) {
       favoritesUnsubscribe();
@@ -405,80 +688,47 @@ function setupAuthListener() {
       return;
     }
 
-    if (user.email !== "1992kirby427@gmail.com") {
-      setAppLocked(true, "このアプリは管理者のみ利用できます");
-      finishInitialLoading();
-
-      alert("このアプリは現在、管理者のみ利用できます。");
-      await signOut(auth);
-      currentUser = null;
-      updateAuthUI();
-      return;
-    }
-
     setAppLocked(false);
 
     await loadFavoritesFromCloud();
     subscribeFavoritesRealtime();
 
-    const savedVol = localStorage.getItem(STORAGE_KEYS.vol);
-    if (savedVol && volOrder.includes(savedVol)) {
-      currentVol = savedVol;
-    }
-
-    allWordsByVol = {
-      vol1: [],
-      vol2: [],
-      vol3: [],
-      vol4: []
-    };
-
+    allWordsByVol = createInitialWordsByVol();
     clearAllShuffleCache();
-    clearNavigationHistory();
+    navClearNavigationHistory();
 
-    const savedCurrentMode = localStorage.getItem(STORAGE_KEYS.currentMode);
-
-    if (savedCurrentMode === "favorites") {
-      await ensureAllVolumesLoaded();
-
-      const favoriteEntries = buildFavoriteEntries();
-
-      if (favoriteEntries.length > 0) {
-        currentMode = "favorites";
-        applyWordOrder(false);
-        index = Math.min(indexByVol.favorites || 0, words.length - 1);
-        requestListRebuild();
-        render();
-        finishInitialLoading();
-
-        preloadOtherVolumesInBackground();
-        return;
-      }
+    if (currentMode === "favorites") {
+      await handleLoadFavoritesMode();
+    } else if (currentMode === "difficults") {
+      await handleLoadDifficultsMode();
+    } else {
+      await loadSheet(currentVol);
     }
-
-    await loadSheet(currentVol);
-    finishInitialLoading();
   });
-}
-
-function updateAuthUI() {
-  if (!loginBtnEl || !logoutBtnEl) return;
-  loginBtnEl.style.display = currentUser ? "none" : "inline-block";
-  logoutBtnEl.style.display = currentUser ? "inline-block" : "none";
 }
 
 function setAppLocked(isLocked, message = "Googleログインしてください") {
   const controls = [
     toggleSidebarBtnEl,
     favoriteListBtnEl,
-    autoSpeakBtnEl,
+    difficultListBtnEl,
+    speechSyncBtnEl,
     challengeBtnEl,
+    translationBtnEl,
+    autoPlayBtnEl,
     randomBtnEl,
+    frequencyBtnEl,
     favoriteToggleBtnEl,
+    difficultToggleBtnEl,
+    decreaseReviewBtnEl,
+    resetReviewBtnEl,
+    increaseReviewBtnEl,
     prevWordBtnEl,
     nextWordBtnEl,
     speakWordBtnEl,
     timeSlider,
+    displayTimeSlider,
+    searchInputEl,
     ...volButtons
   ];
 
@@ -488,86 +738,63 @@ function setAppLocked(isLocked, message = "Googleログインしてください"
     control.classList.toggle("disabled", isLocked);
   });
 
-  if (isLocked) {
-    allWordsByVol = {
-      vol1: [],
-      vol2: [],
-      vol3: [],
-      vol4: []
-    };
-
-    words = [];
-    index = 0;
-
-    sidebarOpen = false;
-    applySidebarState();
-
-    if (listEl) listEl.innerHTML = "";
-    if (wordEl) {
-      wordEl.textContent = message;
-      wordEl.classList.add("status-message");
-    }
-    if (meaningEl) meaningEl.textContent = "";
-    if (progressEl) progressEl.textContent = "";
-    if (pronunciationEl) pronunciationEl.textContent = "";
-    if (prevHintEl) prevHintEl.textContent = "";
-    if (nextHintEl) nextHintEl.textContent = "";
-
-    clearMeaningRevealTimer();
-    clearAutoSpeakTimer();
-    clearNavigationHistory();
-    requestListRebuild();
-    updateFavoriteToggleButton();
-    updateTopButtons();
+  if (!isLocked) {
+    wordEl?.classList.remove("status-message");
+    updateSpeechSyncButton();
+    updateChallengeButton();
+    updateTranslationButton();
+    updateAutoPlayButton();
     updateRandomButton();
+    updateFrequencyButton();
+    updateFavoriteToggleButton();
+    updateDifficultToggleButton();
+    updateReviewButtons();
+    applySidebarState();
     return;
   }
 
-  updateTopButtons();
-  updateRandomButton();
-  updateAutoSpeakButton();
-  updateChallengeButton();
+  allWordsByVol = createInitialWordsByVol();
+  words = [];
+  index = 0;
+  sidebarOpen = false;
+  clearMeaningRevealTimer();
+  clearSpeechSyncTimer();
+  clearAutoPlayTimer();
+  navClearNavigationHistory();
+  requestListRebuild();
+  applySidebarState();
+
+  if (listEl) listEl.innerHTML = "";
+  if (wordEl) {
+    wordEl.textContent = message;
+    wordEl.classList.add("status-message");
+  }
+  if (meaningEl) meaningEl.textContent = "";
+  if (progressEl) progressEl.textContent = "";
+  if (pronunciationEl) pronunciationEl.textContent = "";
+  if (prevHintEl) prevHintEl.textContent = "";
+  if (nextHintEl) nextHintEl.textContent = "";
+
   updateFavoriteToggleButton();
-}
-
-async function signInWithGoogle() {
-  try {
-    await signInWithPopup(auth, provider);
-  } catch (error) {
-    console.error("Googleログイン失敗:", error);
-    alert("ログインに失敗しました。");
-  }
-}
-
-async function signOutUser() {
-  try {
-    await signOut(auth);
-  } catch (error) {
-    console.error("ログアウト失敗:", error);
-    alert("ログアウトに失敗しました。");
-  }
+  updateDifficultToggleButton();
+  updateReviewButtons();
+  updateRandomButton();
+  updateFrequencyButton();
 }
 
 function subscribeFavoritesRealtime() {
   if (!currentUser) return;
 
-  const ref = doc(db, "privateUsers", currentUser.uid);
+  favoritesUnsubscribe = subscribeFavoritesRealtimeRemote(db, FAVORITES_COLLECTION, currentUser.uid, (snap) => {
+    const result = resolveFavoritesSnapshot(snap, favoritesUpdatedAt);
+    if (!result) return;
 
-  favoritesUnsubscribe = onSnapshot(ref, (snap) => {
-    if (!snap.exists()) return;
-
-    const data = snap.data();
-    const cloudFavorites = data?.favorites && typeof data.favorites === "object" ? data.favorites : {};
-    const cloudUpdatedAt = Number(data?.favoritesUpdatedAt) || 0;
-
-    if (cloudUpdatedAt <= favoritesUpdatedAt) return;
-
-    favorites = cloudFavorites;
-    favoritesUpdatedAt = cloudUpdatedAt;
+    favorites = result.favorites;
+    favoritesUpdatedAt = result.favoritesUpdatedAt;
     favoritesVersion += 1;
 
-    saveFavoritesToLocalOnly();
-    saveFavoritesUpdatedAt();
+    saveFavoritesToLocalOnly(favorites);
+    saveFavoritesUpdatedAt(favoritesUpdatedAt);
     clearAllShuffleCache();
     requestListRebuild();
 
@@ -577,78 +804,28 @@ function subscribeFavoritesRealtime() {
     }
 
     render();
+    scheduleSpeechSyncAfterRender();
+    scheduleAutoPlayAfterRender();
   });
-}
-
-function saveCurrentVol() {
-  localStorage.setItem(STORAGE_KEYS.vol, currentVol);
-}
-
-function saveCurrentMode() {
-  localStorage.setItem(STORAGE_KEYS.currentMode, currentMode);
-}
-
-function saveIndexByVol() {
-  localStorage.setItem(STORAGE_KEYS.indexByVol, JSON.stringify(indexByVol));
-}
-
-function saveSidebarState() {
-  localStorage.setItem(STORAGE_KEYS.sidebarOpen, String(sidebarOpen));
-}
-
-function saveAutoSpeakState() {
-  localStorage.setItem(STORAGE_KEYS.autoSpeak, String(autoSpeak));
-}
-
-function saveFavoritesToLocalOnly() {
-  localStorage.setItem(STORAGE_KEYS.favorites, JSON.stringify(favorites));
-}
-
-function saveFavoritesUpdatedAt() {
-  localStorage.setItem(STORAGE_KEYS.favoritesUpdatedAt, String(favoritesUpdatedAt));
-}
-
-function saveChallengeModeState() {
-  localStorage.setItem(STORAGE_KEYS.challengeMode, String(challengeMode));
-}
-
-function saveChallengeTimeState() {
-  localStorage.setItem(STORAGE_KEYS.challengeTime, String(challengeTime));
-}
-
-function saveRandomModeState() {
-  localStorage.setItem(STORAGE_KEYS.randomMode, String(randomMode));
 }
 
 async function loadFavoritesFromCloud() {
   if (!currentUser) return;
 
   try {
-    const ref = doc(db, "privateUsers", currentUser.uid);
-    const snap = await getDoc(ref);
+    const result = await syncFavoritesWithCloud(
+      db,
+      FAVORITES_COLLECTION,
+      currentUser.uid,
+      favorites,
+      favoritesUpdatedAt
+    );
 
-    if (!snap.exists()) {
-      if (Object.keys(favorites).length > 0) {
-        favoritesUpdatedAt = Date.now();
-        await setDoc(ref, { favorites, favoritesUpdatedAt }, { merge: true });
-      }
-      return;
-    }
-
-    const data = snap.data();
-    const cloudFavorites = data?.favorites && typeof data.favorites === "object" ? data.favorites : {};
-    const cloudUpdatedAt = Number(data?.favoritesUpdatedAt) || 0;
-
-    if (cloudUpdatedAt >= favoritesUpdatedAt) {
-      favorites = cloudFavorites;
-      favoritesUpdatedAt = cloudUpdatedAt;
-    } else {
-      await setDoc(ref, { favorites, favoritesUpdatedAt }, { merge: true });
-    }
-
+    favorites = result.favorites;
+    favoritesUpdatedAt = result.favoritesUpdatedAt;
     favoritesVersion += 1;
-    saveFavoritesToLocalOnly();
-    saveFavoritesUpdatedAt();
+    saveFavoritesToLocalOnly(favorites);
+    saveFavoritesUpdatedAt(favoritesUpdatedAt);
   } catch (error) {
     console.error("クラウド読み込み失敗:", error);
   }
@@ -658,33 +835,10 @@ async function saveFavoritesToCloud() {
   if (!currentUser) return;
 
   try {
-    const ref = doc(db, "privateUsers", currentUser.uid);
-    await setDoc(ref, { favorites, favoritesUpdatedAt }, { merge: true });
+    await saveFavoritesToCloudRemote(db, FAVORITES_COLLECTION, currentUser.uid, favorites, favoritesUpdatedAt);
   } catch (error) {
     console.error("クラウド保存失敗:", error);
   }
-}
-
-async function fetchWordsForVol(volName) {
-  if (!currentUser) {
-    return [];
-  }
-
-  if (currentUser.email !== "1992kirby427@gmail.com") {
-    return [];
-  }
-
-  const ref = doc(db, "privateWords", volName);
-  const snap = await getDoc(ref);
-
-  if (!snap.exists()) {
-    return [];
-  }
-
-  const data = snap.data();
-  const csv = typeof data.csv === "string" ? data.csv : "";
-
-  return parseCsvToWords(csv, volName);
 }
 
 async function ensureVolLoaded(volName) {
@@ -694,91 +848,16 @@ async function ensureVolLoaded(volName) {
 }
 
 async function ensureAllVolumesLoaded() {
-  for (const vol of volOrder) {
-    await ensureVolLoaded(vol);
-  }
-}
+  const results = await Promise.allSettled(volOrder.map((vol) => ensureVolLoaded(vol)));
+  const failures = results.filter((result) => result.status === "rejected");
 
-function parseCsv(text) {
-  const rows = [];
-  let row = [];
-  let cell = "";
-  let inQuotes = false;
-
-  for (let i = 0; i < text.length; i += 1) {
-    const char = text[i];
-    const nextChar = text[i + 1];
-
-    if (char === '"') {
-      if (inQuotes && nextChar === '"') {
-        cell += '"';
-        i += 1;
-      } else {
-        inQuotes = !inQuotes;
-      }
-      continue;
-    }
-
-    if (char === "," && !inQuotes) {
-      row.push(cell);
-      cell = "";
-      continue;
-    }
-
-    if ((char === "\n" || char === "\r") && !inQuotes) {
-      if (char === "\r" && nextChar === "\n") {
-        i += 1;
-      }
-      row.push(cell);
-      rows.push(row);
-      row = [];
-      cell = "";
-      continue;
-    }
-
-    cell += char;
+  if (failures.length === results.length) {
+    throw failures[0].reason;
   }
 
-  if (cell.length > 0 || row.length > 0) {
-    row.push(cell);
-    rows.push(row);
+  if (failures.length > 0) {
+    console.warn("Some volumes failed to load", failures.map((failure) => failure.reason));
   }
-
-  return rows;
-}
-
-function parseCsvToWords(text, volName) {
-  const rows = parseCsv(text)
-    .map((cols) => cols.map((col) => String(col ?? "").trim()))
-    .filter((cols) => cols.some((col) => col !== ""));
-
-  let startIndex = 0;
-  if (rows.length > 0) {
-    const firstCell = (rows[0][0] || "").toLowerCase();
-    const secondCell = (rows[0][1] || "").toLowerCase();
-    if (
-      firstCell === "word" ||
-      firstCell === "単語" ||
-      secondCell === "meaning" ||
-      secondCell === "意味"
-    ) {
-      startIndex = 1;
-    }
-  }
-
-  return rows.slice(startIndex)
-    .map((cols, rowIndex) => {
-      const word = cols[0] || "";
-      const meaning = cols.slice(1).join(",").replace(/,+$/, "").trim();
-      const id = `${volName}-${rowIndex + startIndex}-${normalizeWord(word)}`;
-      return {
-        id,
-        word,
-        meaning,
-        sourceVol: volName
-      };
-    })
-    .filter((item) => item.word);
 }
 
 async function loadSheet(volName) {
@@ -786,67 +865,50 @@ async function loadSheet(volName) {
     return;
   }
 
-  if (currentUser.email !== "1992kirby427@gmail.com") {
-    return;
-  }
-
   try {
     currentMode = "vol";
     currentVol = volName;
-    clearNavigationHistory();
-    saveCurrentVol();
-    saveCurrentMode();
-
+    navClearNavigationHistory();
+    wordOrderUpdatePending = false;
+    saveCurrentVol(currentVol);
+    saveCurrentModeState(currentMode);
+    // 指定ボリュームを先に読み込み、words を確実に設定する
     await ensureVolLoaded(volName);
-    applyWordOrder(false);
-
+    clearAllShuffleCache();
+    applyWordOrder();
     index = Math.min(indexByVol[volName] || 0, Math.max(words.length - 1, 0));
 
     requestListRebuild();
     render();
     finishInitialLoading();
+    scheduleSpeechSyncAfterRender();
+    scheduleAutoPlayAfterRender();
 
     preloadOtherVolumesInBackground();
   } catch (error) {
     console.error(error);
     finishInitialLoading();
-    alert("読み込みに失敗しました。");
+    if (error?.code === "permission-denied") {
+      setAppLocked(true, "このアプリは管理者のみ利用できます");
+      alert("このアプリは現在、管理者のみ利用できます。");
+      return;
+    }
+    alert("読み込みに失敗しました。Firestoreの単語CSVデータをご確認ください。");
   }
 }
 
 async function preloadOtherVolumesInBackground() {
   const otherVols = volOrder.filter((vol) => vol !== currentVol);
-  for (const vol of otherVols) {
-    ensureVolLoaded(vol).catch(() => {});
-  }
+  await Promise.all(otherVols.map((vol) => ensureVolLoaded(vol).catch(() => {})));
 }
 
-function normalizeWord(word) {
-  return String(word).toLowerCase().trim();
-}
-
-function makeFavoriteKey(item) {
-  return item.id;
-}
-
-function isFavorite(item) {
-  return !!favorites[makeFavoriteKey(item)];
-}
-
-function buildFavoriteEntries() {
-  const entries = [];
-  volOrder.forEach((vol) => {
-    (allWordsByVol[vol] || []).forEach((item) => {
-      if (isFavorite(item)) {
-        entries.push(item);
-      }
-    });
-  });
-  return entries;
-}
-
-function makeShuffleKey() {
-  return currentMode === "favorites" ? "favorites:all" : `vol:${currentVol}`;
+function makeShuffleKey(orderMode) {
+  const scope = currentMode === "favorites"
+    ? "favorites:all"
+    : currentMode === "difficults"
+      ? "difficults:all"
+      : `vol:${currentVol}`;
+  return `${orderMode}:${scope}`;
 }
 
 function shuffleArray(array) {
@@ -858,22 +920,31 @@ function shuffleArray(array) {
   return copied;
 }
 
-function applyWordOrder(resetIndex = false) {
+function applyWordOrder(resetIndex = false, preserveCurrentId = null) {
   const baseWords = currentMode === "favorites"
-    ? buildFavoriteEntries()
-    : [...(allWordsByVol[currentVol] || [])];
+    ? buildFavoriteEntries(allWordsByVol, volOrder, favorites)
+    : currentMode === "difficults"
+      ? buildDifficultEntries(allWordsByVol, volOrder, difficults)
+      : [...(allWordsByVol[currentVol] || [])];
 
-  if (randomMode) {
-    const shuffleKey = makeShuffleKey();
+  if (randomMode || frequencyMode) {
+    const orderMode = randomMode && frequencyMode
+      ? "frequency-random"
+      : frequencyMode
+        ? "frequency"
+        : "random";
+    const shuffleKey = makeShuffleKey(orderMode);
     const currentCache = shuffledWordsMap[shuffleKey];
 
     const cacheValid =
       Array.isArray(currentCache) &&
       currentCache.length === baseWords.length &&
-      currentCache.every((item, i) => item.id === baseWords[i].id);
+      currentCache.every((item) => baseWords.some((base) => base.id === item.id));
 
     if (!cacheValid) {
-      shuffledWordsMap[shuffleKey] = shuffleArray(baseWords);
+      shuffledWordsMap[shuffleKey] = frequencyMode
+        ? sortByReviewScore(baseWords, (item) => getReviewScore(reviewScores, item), { randomizeTies: randomMode })
+        : shuffleArray(baseWords);
     }
 
     words = shuffledWordsMap[shuffleKey];
@@ -881,45 +952,16 @@ function applyWordOrder(resetIndex = false) {
     words = baseWords;
   }
 
-  index = resetIndex ? 0 : Math.min(index, Math.max(words.length - 1, 0));
+  if (preserveCurrentId) {
+    const preservedIndex = words.findIndex((item) => item && item.id === preserveCurrentId);
+    index = preservedIndex >= 0 ? preservedIndex : Math.min(index, Math.max(words.length - 1, 0));
+  } else {
+    index = resetIndex ? 0 : Math.min(index, Math.max(words.length - 1, 0));
+  }
 }
 
 function clearAllShuffleCache() {
   shuffledWordsMap = {};
-}
-
-function clearNavigationHistory() {
-  historyBackStack = [];
-  historyForwardStack = [];
-}
-
-function moveToIndex(nextIndex, { pushHistory = false } = {}) {
-  if (!words.length) return;
-  if (nextIndex < 0 || nextIndex >= words.length) return;
-  if (nextIndex === index) return;
-
-  if (pushHistory) {
-    historyBackStack.push(index);
-    historyForwardStack = [];
-  }
-
-  index = nextIndex;
-  renderCurrentWord();
-  scheduleAutoSpeak();
-}
-
-function getRandomPrevIndexFromHistory() {
-  if (!historyBackStack.length) return null;
-  const prev = historyBackStack.pop();
-  historyForwardStack.push(index);
-  return prev;
-}
-
-function getRandomNextIndexFromHistory() {
-  if (!historyForwardStack.length) return null;
-  const next = historyForwardStack.pop();
-  historyBackStack.push(index);
-  return next;
 }
 
 function requestListRebuild() {
@@ -927,244 +969,92 @@ function requestListRebuild() {
   listVersion += 1;
 }
 
-function getListRenderVersion() {
-  return `${currentMode}|${currentVol}|${randomMode ? 1 : 0}|${listVersion}|${favoritesVersion}`;
+function setListNeedsRebuild(value) {
+  listNeedsRebuild = value;
 }
 
-function render() {
-  renderList();
-  renderCurrentWord();
-  updateCurrentLabel();
-  updateTopButtons();
-  updateRandomButton();
-  applySidebarState();
+function setRenderedListVersion(value) {
+  renderedListVersion = value;
 }
 
-function renderList() {
-  if (!listEl) return;
-
-  const nextVersion = getListRenderVersion();
-  if (!listNeedsRebuild && renderedListVersion === nextVersion) {
-    highlightActiveWord();
-    return;
+function setSearchQuery(value) {
+  searchQuery = value.trim();
+  if (searchInputEl && searchInputEl.value !== value) {
+    searchInputEl.value = value;
   }
-
-  listEl.innerHTML = "";
-  const fragment = document.createDocumentFragment();
-
-  words.forEach((item, itemIndex) => {
-    const row = document.createElement("div");
-    row.className = "word-item";
-    row.dataset.index = String(itemIndex);
-
-    const label = document.createElement("span");
-    label.className = "word-label";
-    label.textContent = currentMode === "favorites"
-      ? `${item.word} (${item.sourceVol.replace("vol", "vol.")})`
-      : item.word;
-    row.appendChild(label);
-
-    if (isFavorite(item)) {
-      const star = document.createElement("span");
-      star.className = "item-star";
-      star.textContent = "★";
-      row.appendChild(star);
-    }
-
-    fragment.appendChild(row);
-  });
-
-  listEl.appendChild(fragment);
-  listNeedsRebuild = false;
-  renderedListVersion = nextVersion;
-  highlightActiveWord();
-}
-
-function renderCurrentWord() {
-  clearMeaningRevealTimer();
-  clearAutoSpeakTimer();
-
-  const current = getCurrentWord();
-  if (!current) {
-    if (wordEl) {
-      wordEl.textContent = currentMode === "favorites"
-        ? "お気に入りがありません"
-        : "単語がありません";
-    }
-    if (meaningEl) {
-      meaningEl.textContent = currentMode === "favorites"
-        ? "☆を付けるとここに表示されます"
-        : "";
-    }
-    if (progressEl) progressEl.textContent = "";
-    if (pronunciationEl) pronunciationEl.textContent = "";
-    if (prevHintEl) prevHintEl.textContent = "";
-    if (nextHintEl) nextHintEl.textContent = "";
-    updateFavoriteToggleButton();
-    return;
-  }
-
-  renderWordText(current);
-  updateMeaningDisplay(current.meaning);
-  updateCurrentStateMeta();
-  loadPronunciation(current.word);
-}
-
-function renderWordText(current) {
-  if (!wordEl) return;
-
-  wordEl.classList.remove("status-message");
-  wordEl.textContent = current.word;
-}
-
-function updateCurrentStateMeta() {
-  persistCurrentIndex();
-  const activeItem = highlightActiveWord();
-  scrollActiveWordIntoView(activeItem);
-  updateNavHints();
-  updateFavoriteToggleButton();
-  updateProgress();
 }
 
 function persistCurrentIndex() {
-  if (currentMode === "vol") {
-    indexByVol[currentVol] = index;
-  } else {
+  if (currentMode === "favorites") {
     indexByVol.favorites = index;
+  } else if (currentMode === "difficults") {
+    indexByVol.difficults = index;
+  } else {
+    indexByVol[currentVol] = index;
   }
-  saveIndexByVol();
+  saveIndexByVol(indexByVol);
 }
 
-function updateCurrentLabel() {
-  if (!currentEl) return;
-
-  let label = currentMode === "favorites"
-    ? "☆"
-    : `vol.${currentVol.replace("vol", "")}`;
-
-  if (randomMode) {
-    label += " / ランダム";
-  }
-
-  currentEl.textContent = label;
+function setMeaningRevealTimer(timer) {
+  meaningRevealTimer = timer;
 }
 
-function updateTopButtons() {
-  volButtons.forEach((button) => {
-    const isActive = currentMode === "vol" && button.dataset.vol === currentVol;
-    button.classList.toggle("active-vol", isActive);
-  });
-
-  if (favoriteListBtnEl) {
-    favoriteListBtnEl.classList.toggle("active-vol", currentMode === "favorites");
-  }
+function render() {
+  renderApp(uiContext);
 }
 
-function updateToggleButton(button, label, isActive) {
-  if (!button) return;
-  button.textContent = label;
-  button.classList.toggle("active", isActive);
-  button.classList.toggle("active-blue", isActive);
+function renderCurrentWord() {
+  renderCurrentWordUI(uiContext);
 }
 
-function updateFavoriteToggleButton() {
-  const current = getCurrentWord();
-  if (!favoriteToggleBtnEl || !current) return;
-
-  const active = isFavorite(current);
-  favoriteToggleBtnEl.textContent = active ? "★" : "☆";
-  favoriteToggleBtnEl.classList.toggle("active", active);
-  favoriteToggleBtnEl.title = active ? "★解除" : "★登録";
-  favoriteToggleBtnEl.setAttribute("aria-label", active ? "お気に入り解除" : "お気に入り登録");
+function renderLayout() {
+  renderApp(uiContext, { skipCurrentWord: true });
 }
 
-function updateNavHints() {
-  if (!prevHintEl || !nextHintEl) return;
-  if (!words.length) {
-    prevHintEl.textContent = "";
-    nextHintEl.textContent = "";
-    return;
-  }
-
-  const prevIndex = randomMode && historyBackStack.length
-    ? historyBackStack[historyBackStack.length - 1]
-    : (index - 1 + words.length) % words.length;
-
-  const nextIndex = randomMode && historyForwardStack.length
-    ? historyForwardStack[historyForwardStack.length - 1]
-    : (index + 1) % words.length;
-
-  prevHintEl.textContent = words[prevIndex]?.word || "";
-  nextHintEl.textContent = words[nextIndex]?.word || "";
+function updateSpeechSyncButton() {
+  uiUpdateSpeechSyncButton(uiContext);
 }
 
-function updateProgress() {
-  if (!progressEl) return;
-
-  if (randomMode) {
-    progressEl.textContent = "";
-    return;
-  }
-
-  const total = words.length;
-  const current = total === 0 ? 0 : index + 1;
-
-  progressEl.textContent = `${current} / ${total}`;
-}
-
-function updateAutoSpeakButton() {
-  updateToggleButton(autoSpeakBtnEl, "自動発音", autoSpeak);
+function updateRecallTimeControl() {
+  uiUpdateRecallTimeControl(uiContext);
 }
 
 function updateChallengeButton() {
-  updateToggleButton(challengeBtnEl, "想起学習", challengeMode);
+  uiUpdateChallengeButton(uiContext);
+  updateRecallTimeControl();
+}
+
+function updateTranslationButton() {
+  uiUpdateTranslationButton(uiContext);
+}
+
+function updateAutoPlayButton() {
+  uiUpdateAutoPlayButton(uiContext);
+  updateRecallTimeControl();
 }
 
 function updateRandomButton() {
-  updateToggleButton(randomBtnEl, "ランダム", randomMode);
+  uiUpdateRandomButton(uiContext);
 }
 
-function updateMeaningDisplay(meaning) {
-  if (!meaningEl) return;
-  clearMeaningRevealTimer();
-
-  if (!challengeMode) {
-    meaningEl.textContent = meaning;
-    return;
-  }
-
-  meaningEl.textContent = "・・・";
-  meaningRevealTimer = setTimeout(() => {
-    meaningEl.textContent = meaning;
-  }, challengeTime);
+function updateFrequencyButton() {
+  uiUpdateFrequencyButton(uiContext);
 }
 
-function highlightActiveWord() {
-  const currentActive = listEl?.querySelector(".word-item.active");
-  const nextActive = listEl?.querySelector(`.word-item[data-index="${index}"]`);
-
-  if (currentActive && currentActive !== nextActive) {
-    currentActive.classList.remove("active");
-  }
-  if (nextActive) {
-    nextActive.classList.add("active");
-  }
-  return nextActive || null;
+function updateFavoriteToggleButton() {
+  uiUpdateFavoriteToggleButton(uiContext);
 }
 
-function scrollActiveWordIntoView(activeItem) {
-  if (!activeItem) return;
+function updateDifficultToggleButton() {
+  uiUpdateDifficultToggleButton(uiContext);
+}
 
-  activeItem.scrollIntoView({
-    block: "center",
-    behavior: "auto"
-  });
+function updateReviewButtons() {
+  uiUpdateReviewButtons(uiContext);
 }
 
 function applySidebarState() {
-  if (!sidebarEl) return;
-  sidebarEl.classList.toggle("hidden", !sidebarOpen);
-  toggleSidebarBtnEl?.classList.toggle("active", sidebarOpen);
+  uiApplySidebarState(uiContext);
 }
 
 function clearMeaningRevealTimer() {
@@ -1174,280 +1064,344 @@ function clearMeaningRevealTimer() {
   }
 }
 
-function clearAutoSpeakTimer() {
-  if (autoSpeakTimer) {
-    clearTimeout(autoSpeakTimer);
-    autoSpeakTimer = null;
+function clearSpeechSyncTimer() {
+  if (speechSyncTimer) {
+    clearTimeout(speechSyncTimer);
+    speechSyncTimer = null;
   }
 }
 
-function scheduleAutoSpeak() {
-  if (!autoSpeak) return;
-  autoSpeakTimer = setTimeout(() => {
+function clearAutoPlayTimer() {
+  if (autoPlayTimer) {
+    clearTimeout(autoPlayTimer);
+    autoPlayTimer = null;
+  }
+
+  if (autoPlayDisplayPhaseTimer) {
+    clearTimeout(autoPlayDisplayPhaseTimer);
+    autoPlayDisplayPhaseTimer = null;
+  }
+}
+
+function isAutoPlayActive() {
+  return autoPlayMode !== "off";
+}
+
+function stopAutoPlay() {
+  autoPlayMode = "off";
+  autoPlayOnceStartIndex = null;
+  saveAutoPlayState(autoPlayMode);
+  updateAutoPlayButton();
+  clearAutoPlayTimer();
+}
+
+function shouldStopAutoPlayOnce(nextIndex) {
+  return autoPlayMode === "once" && autoPlayOnceStartIndex !== null && nextIndex === autoPlayOnceStartIndex;
+}
+function getAutoPlayDelay() {
+  return challengeMode ? challengeTime + displayTime : displayTime;
+}
+
+function getCurrentAnswerText() {
+  const current = getCurrentWord();
+  if (!current) return "";
+  return translationMode ? current.word : current.meaning;
+}
+
+function isAutoPlaySkipIgnoredTarget(target) {
+  return target instanceof Element && Boolean(target.closest("button, input, textarea, select, a, .word-item"));
+}
+
+function isAutoPlaySkipLocked() {
+  return Date.now() - autoPlayWaitStartedAt < AUTO_PLAY_SKIP_LOCK_MS;
+}
+
+function revealCurrentMeaningImmediately() {
+  if (!meaningEl || meaningEl.textContent !== "\u30fb\u30fb\u30fb") return false;
+  clearMeaningRevealTimer();
+  meaningEl.textContent = getCurrentAnswerText();
+  return true;
+}
+
+function scheduleAutoPlayToNext(delay) {
+  clearAutoPlayTimer();
+  autoPlayWaitStartedAt = Date.now();
+  autoPlayTimer = setTimeout(() => {
+    nextWord();
+  }, delay);
+}
+
+function handleAutoPlaySkipRequest(event) {
+  if (!isAutoPlayActive() || !words.length) return;
+  if (isAutoPlaySkipIgnoredTarget(event.target)) return;
+  if (isAutoPlaySkipLocked()) return;
+
+  if (challengeMode && revealCurrentMeaningImmediately()) {
+    scheduleAutoPlayToNext(displayTime);
+    return;
+  }
+
+  nextWord();
+}
+
+function scheduleAutoPlay() {
+  if (!isAutoPlayActive() || !words.length) return;
+  clearAutoPlayTimer();
+  autoPlayWaitStartedAt = Date.now();
+
+  if (challengeMode) {
+    autoPlayDisplayPhaseTimer = setTimeout(() => {
+      autoPlayWaitStartedAt = Date.now();
+      autoPlayDisplayPhaseTimer = null;
+    }, challengeTime);
+  }
+
+  autoPlayTimer = setTimeout(() => {
+    nextWord();
+  }, getAutoPlayDelay());
+}
+
+function scheduleAutoPlayAfterRender() {
+  if (!isAutoPlayActive()) return;
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      scheduleAutoPlay();
+    });
+  });
+}
+
+function startAutoPlayFromCurrentWord() {
+  scheduleAutoPlay();
+}
+function scheduleSpeechSync() {
+  if (!speechSync) return;
+  clearSpeechSyncTimer();
+  speechSyncTimer = setTimeout(() => {
     speakWord();
   }, 260);
+}
+
+function scheduleSpeechSyncAfterRender() {
+  if (!speechSync) return;
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      scheduleSpeechSync();
+    });
+  });
 }
 
 function getCurrentWord() {
   return words[index] || null;
 }
 
+function handleSpeakCurrentWord() {
+  speakWord();
+  scheduleAutoPlay();
+}
+function focusSearch() {
+  if (!searchInputEl || !currentUser) return;
+  if (!sidebarOpen) {
+    sidebarOpen = true;
+    saveSidebarState(sidebarOpen);
+    applySidebarState();
+  }
+  searchInputEl.focus();
+  searchInputEl.select();
+}
+
+function clearSearch() {
+  if (!searchInputEl || searchInputEl.value === "") return false;
+  setSearchQuery("");
+  requestListRebuild();
+  renderLayout();
+  return true;
+}
+
+function getSearchResultItems() {
+  return Array.from(listEl?.querySelectorAll(".word-item:not(.empty-result)") || [])
+    .filter((item) => item instanceof HTMLElement);
+}
+
+function moveToSearchResult(direction) {
+  const resultItems = getSearchResultItems();
+  if (!resultItems.length) return;
+
+  const activeResultIndex = resultItems.findIndex((item) => Number(item.dataset.index) === index);
+  const fallbackIndex = direction > 0 ? 0 : resultItems.length - 1;
+  const nextResultIndex = activeResultIndex >= 0
+    ? (activeResultIndex + direction + resultItems.length) % resultItems.length
+    : fallbackIndex;
+  const nextItem = resultItems[nextResultIndex];
+  if (!(nextItem instanceof HTMLElement)) return;
+
+  const nextIndex = Number(nextItem.dataset.index);
+  if (Number.isNaN(nextIndex)) return;
+
+  navMoveToIndex(nextIndex, { pushHistory: true });
+  scheduleAutoPlayAfterRender();
+}
+
+function selectNextSearchResult() {
+  moveToSearchResult(1);
+}
+
+function selectPreviousSearchResult() {
+  moveToSearchResult(-1);
+}
+
+function closeSidebar() {
+  if (!sidebarOpen) return;
+  sidebarOpen = false;
+  saveSidebarState(sidebarOpen);
+  applySidebarState();
+}
 function toggleSidebar() {
   sidebarOpen = !sidebarOpen;
-  saveSidebarState();
+  saveSidebarState(sidebarOpen);
   applySidebarState();
 }
 
-function toggleAutoSpeak() {
-  autoSpeak = !autoSpeak;
-  saveAutoSpeakState();
-  updateAutoSpeakButton();
+function toggleSpeechSync() {
+  speechSync = !speechSync;
+  saveSpeechSyncState(speechSync);
+  updateSpeechSyncButton();
 
-  if (!autoSpeak) {
-    clearAutoSpeakTimer();
+  if (!speechSync) {
+    clearSpeechSyncTimer();
   } else {
-    scheduleAutoSpeak();
+    scheduleSpeechSync();
   }
 }
 
+function refreshCurrentWordAfterSettingChange() {
+  if (isAutoPlayActive()) return;
+  renderCurrentWord();
+  scheduleSpeechSyncAfterRender();
+}
+
+function applyPendingWordOrderAsNext() {
+  if (!wordOrderUpdatePending) return false;
+
+  wordOrderUpdatePending = false;
+  applyWordOrder(true);
+  requestListRebuild();
+  render();
+  scheduleSpeechSyncAfterRender();
+  scheduleAutoPlayAfterRender();
+  persistCurrentIndex();
+  return true;
+}
 function toggleChallengeMode() {
   challengeMode = !challengeMode;
-  saveChallengeModeState();
+  saveChallengeModeState(challengeMode);
   updateChallengeButton();
-  renderCurrentWord();
+  refreshCurrentWordAfterSettingChange();
+}
+
+function toggleTranslationMode() {
+  translationMode = !translationMode;
+  saveTranslationModeState(translationMode);
+  updateTranslationButton();
+  refreshCurrentWordAfterSettingChange();
+}
+
+function toggleAutoPlay() {
+  autoPlayMode = autoPlayMode === "off" ? "once" : autoPlayMode === "once" ? "loop" : "off";
+  autoPlayOnceStartIndex = autoPlayMode === "once" ? index : null;
+  saveAutoPlayState(autoPlayMode);
+  updateAutoPlayButton();
+
+  if (!isAutoPlayActive()) {
+    clearAutoPlayTimer();
+  } else {
+    startAutoPlayFromCurrentWord();
+  }
 }
 
 function toggleRandomMode() {
   randomMode = !randomMode;
-  saveRandomModeState();
+  saveRandomModeState(randomMode);
   updateRandomButton();
-  clearNavigationHistory();
+  navClearNavigationHistory();
+  clearAllShuffleCache();
 
-  if (!randomMode) {
-    clearAllShuffleCache();
+  if (isAutoPlayActive()) {
+    wordOrderUpdatePending = true;
+    return;
   }
 
+  wordOrderUpdatePending = false;
   applyWordOrder(true);
   requestListRebuild();
   render();
+  scheduleSpeechSyncAfterRender();
 }
 
-function touchFavoritesChanged() {
-  favoritesUpdatedAt = Date.now();
-  favoritesVersion += 1;
-  saveFavoritesToLocalOnly();
-  saveFavoritesUpdatedAt();
+function toggleFrequencyMode() {
+  frequencyMode = !frequencyMode;
+  saveFrequencyModeState(frequencyMode);
+  updateFrequencyButton();
+  navClearNavigationHistory();
   clearAllShuffleCache();
-  requestListRebuild();
-}
 
-function toggleFavoriteCurrentWord() {
-  const current = getCurrentWord();
-  if (!current) return;
-
-  const key = makeFavoriteKey(current);
-
-  if (favorites[key]) {
-    delete favorites[key];
-  } else {
-    favorites[key] = {
-      addedAt: Date.now()
-    };
-  }
-
-  touchFavoritesChanged();
-  updateFavoriteToggleButton();
-
-  if (currentUser) {
-    saveFavoritesToCloud();
-  }
-
-  if (currentMode === "favorites") {
-    const currentId = current.id;
-    applyWordOrder(false);
-
-    const nextIndex = words.findIndex((item) => item.id === currentId);
-    index = nextIndex >= 0 ? nextIndex : Math.min(index, Math.max(words.length - 1, 0));
-
-    if (words.length === 0) {
-      currentMode = "vol";
-      loadSheet(currentVol);
-      return;
-    }
-
-    indexByVol.favorites = index;
-    saveIndexByVol();
-  }
-
-  render();
-}
-
-async function loadFavoritesMode() {
-  if (!currentUser) {
-    if (wordEl) wordEl.textContent = "Googleログインしてください";
-    if (meaningEl) meaningEl.textContent = "";
+  if (isAutoPlayActive()) {
+    wordOrderUpdatePending = true;
     return;
   }
 
-  if (currentUser.email !== "1992kirby427@gmail.com") {
-    if (wordEl) wordEl.textContent = "このアプリは管理者のみ利用できます";
-    if (meaningEl) meaningEl.textContent = "";
-    return;
-  }
-
-  await ensureAllVolumesLoaded();
-
-  const favoriteEntries = buildFavoriteEntries();
-  if (favoriteEntries.length === 0) {
-    alert("☆未登録");
-    return;
-  }
-
-  currentMode = "favorites";
-  saveCurrentMode();
-  clearNavigationHistory();
-  applyWordOrder(false);
-  index = Math.min(indexByVol.favorites || 0, words.length - 1);
+  wordOrderUpdatePending = false;
+  applyWordOrder(true);
   requestListRebuild();
   render();
+  scheduleSpeechSyncAfterRender();
 }
 
 function prevWord() {
   if (!words.length) return;
+  if (applyPendingWordOrderAsNext()) return;
 
   if (randomMode) {
-    const historyIndex = getRandomPrevIndexFromHistory();
+    const historyIndex = navGetRandomPrevIndexFromHistory();
     if (historyIndex !== null) {
       index = historyIndex;
       renderCurrentWord();
-      scheduleAutoSpeak();
+      scheduleSpeechSync();
+      scheduleAutoPlay();
+      persistCurrentIndex();
       return;
     }
   }
 
   const prevIndex = (index - 1 + words.length) % words.length;
-  moveToIndex(prevIndex, { pushHistory: randomMode });
+  navMoveToIndex(prevIndex, { pushHistory: randomMode });
+  scheduleAutoPlayAfterRender();
 }
 
 function nextWord() {
   if (!words.length) return;
+  if (applyPendingWordOrderAsNext()) return;
 
   if (randomMode) {
-    const historyIndex = getRandomNextIndexFromHistory();
+    const historyIndex = navGetRandomNextIndexFromHistory();
     if (historyIndex !== null) {
       index = historyIndex;
       renderCurrentWord();
-      scheduleAutoSpeak();
+      scheduleSpeechSync();
+      scheduleAutoPlay();
+      persistCurrentIndex();
       return;
     }
   }
 
   const nextIndex = (index + 1) % words.length;
-  moveToIndex(nextIndex, { pushHistory: randomMode });
-}
-
-function updateSpeechButtonAvailability() {
-  const supported = "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
-  if (!speakWordBtnEl) return;
-
-  speakWordBtnEl.disabled = !supported;
-  speakWordBtnEl.title = supported ? "発音" : "この端末では発音未対応";
-
-  // opacityはCSS側で管理する
-  speakWordBtnEl.style.removeProperty("opacity");
-}
-
-function speakWord() {
-  const current = getCurrentWord();
-  if (!current) return;
-  if (!("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) return;
-
-  window.speechSynthesis.cancel();
-
-  const utterance = new SpeechSynthesisUtterance(current.word);
-  utterance.lang = "en-US";
-  utterance.rate = 0.9;
-  utterance.pitch = 1.0;
-
-  window.speechSynthesis.speak(utterance);
-}
-
-async function loadPronunciation(word) {
-  if (!pronunciationEl) return;
-
-  const normalizedWord = normalizeWord(word);
-  const key = `pron_${normalizedWord}`;
-  lastPronunciationRequest = normalizedWord;
-
-  const cached = localStorage.getItem(key);
-  if (cached !== null) {
-    pronunciationEl.textContent = cached || "発音記号なし";
+  if (shouldStopAutoPlayOnce(nextIndex)) {
+    stopAutoPlay();
     return;
   }
-
-  if (currentPronunciationController) {
-    currentPronunciationController.abort();
-  }
-
-  currentPronunciationController = new AbortController();
-  pronunciationEl.textContent = "…";
-
-  try {
-    const response = await fetch(
-      `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`,
-      { signal: currentPronunciationController.signal }
-    );
-    const data = await response.json();
-
-    let phonetic = "";
-    if (Array.isArray(data) && data[0]) {
-      if (data[0].phonetic) {
-        phonetic = data[0].phonetic;
-      } else if (Array.isArray(data[0].phonetics)) {
-        const found = data[0].phonetics.find((item) => item && item.text);
-        phonetic = found ? found.text : "";
-      }
-    }
-
-    phonetic = phonetic.replace(/^\/|\/$/g, "");
-    localStorage.setItem(key, phonetic);
-
-    const current = getCurrentWord();
-    const currentWord = current ? normalizeWord(current.word) : "";
-    if (lastPronunciationRequest === normalizedWord && currentWord === normalizedWord) {
-      pronunciationEl.textContent = phonetic || "発音記号なし";
-    }
-  } catch (error) {
-    if (error.name !== "AbortError") {
-      const current = getCurrentWord();
-      const currentWord = current ? normalizeWord(current.word) : "";
-      if (lastPronunciationRequest === normalizedWord && currentWord === normalizedWord) {
-        pronunciationEl.textContent = "";
-      }
-    }
-  }
+  navMoveToIndex(nextIndex, { pushHistory: randomMode });
+  scheduleAutoPlayAfterRender();
 }
 
-function handleSwipe() {
-  const diffX = touchEndX - touchStartX;
-  const diffY = Math.abs(touchEndY - touchStartY);
-  const thresholdX = 50;
-  const thresholdY = 50;
+export { init, finishInitialLoading };
 
-  if (Math.abs(diffX) < thresholdX) return;
-  if (diffY > thresholdY) return;
 
-  if (diffX > 0) {
-    prevWord();
-  } else {
-    nextWord();
-  }
-}
-
-try {
-  init();
-} catch (error) {
-  console.error("初期化失敗:", error);
-  finishInitialLoading();
-  alert(`初期化失敗: ${error.message}`);
-}
