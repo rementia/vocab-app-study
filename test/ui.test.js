@@ -1,4 +1,4 @@
-import assert from "assert";
+﻿import assert from "assert";
 import { renderCurrentWord, updateAuthUI, updateAutoPlayButton, updateCurrentLabel, updateRecallTimeControl, updateReviewButtons } from "../ui.js";
 
 function makeContext(currentUser) {
@@ -79,8 +79,8 @@ updateAutoPlayButton(autoPlayContext("once"));
 assert.strictEqual(autoPlayButton.textContent, "一周再生");
 assert.strictEqual(autoPlayButton.attributes["aria-pressed"], "true");
 updateAutoPlayButton(autoPlayContext("loop"));
-assert.strictEqual(autoPlayButton.textContent, "循環再生");
-assert.strictEqual(autoPlayButton.attributes["aria-pressed"], "true");
+assert.strictEqual(autoPlayButton.textContent, "自動再生");
+assert.strictEqual(autoPlayButton.attributes["aria-pressed"], "false");
 function makeClassList() {
   return {
     values: new Set(),
@@ -194,3 +194,5 @@ assert.strictEqual(reviewContext.dom.decreaseReviewBtnEl.title, "頻度調整：
 assert.strictEqual(reviewContext.dom.increaseReviewBtnEl.title, "頻度調整：-1");
 
 console.log("All UI tests passed.");
+
+

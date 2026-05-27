@@ -1,4 +1,4 @@
-function getState(context) {
+﻿function getState(context) {
   return context.getState();
 }
 
@@ -355,12 +355,9 @@ export function updateTranslationButton(context) {
 
 export function updateAutoPlayButton(context) {
   const state = getState(context);
-  const label = state.autoPlayMode === "once"
-    ? "一周再生"
-    : state.autoPlayMode === "loop"
-      ? "循環再生"
-      : "自動再生";
-  updateToggleButton(context, getDom(context).autoPlayBtnEl, label, state.autoPlayMode !== "off");
+  const isActive = state.autoPlayMode === "once";
+  const label = isActive ? "一周再生" : "自動再生";
+  updateToggleButton(context, getDom(context).autoPlayBtnEl, label, isActive);
 }
 
 export function updateRandomButton(context) {
@@ -439,3 +436,5 @@ export function clearMeaningRevealTimer(context) {
   const callbacks = getCallbacks(context);
   callbacks.clearMeaningRevealTimer();
 }
+
+
