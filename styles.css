@@ -32,7 +32,7 @@
   --control-font-size: 14px;
   --control-padding: 10px 14px;
   --control-min-width: 104px;
-  --control-stack-gap: 10px;
+  --feature-control-list-gap: 10px;
 
   --vol-font-size: 16px;
   --vol-padding: 10px 18px;
@@ -159,7 +159,7 @@ body.loading {
 
 .header-left,
 .header-center,
-.header-right {
+.feature-controls {
   min-width: 0;
 }
 
@@ -176,7 +176,7 @@ body.loading {
   justify-content: flex-start;
 }
 
-.header-right {
+.feature-controls {
   display: flex;
   align-items: flex-start;
   justify-content: flex-end;
@@ -301,14 +301,14 @@ body.loading {
   width: 136px;
 }
 
-.control-stack {
+.feature-control-list {
   display: flex;
   flex-direction: column;
-  gap: var(--control-stack-gap);
+  gap: var(--feature-control-list-gap);
   align-items: stretch;
 }
 
-.control-stack .control-btn {
+.feature-control-list .control-btn {
   width: 108px;
   text-align: center;
 }
@@ -679,7 +679,7 @@ body.loading {
     padding: 14px 22px;
   }
 
-  .control-stack .control-btn {
+  .feature-control-list .control-btn {
     width: 100px;
   }
 
@@ -696,7 +696,7 @@ body.loading {
     padding: 8px;
   }
 
-  .control-stack .control-btn {
+  .feature-control-list .control-btn {
     width: 96px;
     font-size: 12px;
   }
@@ -742,9 +742,53 @@ body.loading {
     --login-right: 0px;
   }
 
+  .feature-controls {
+    position: absolute;
+    left: 15%;
+    right: auto;
+    top: 100%;
+    transform: none;
+    z-index: 2;
+  }
+
   .login-btn {
     left: auto;
     right: var(--login-right);
+  }
+
+  .feature-control-list {
+    display: grid;
+    grid-template-columns: repeat(2, auto);
+    gap: var(--space-current-row);
+  }
+
+  .speech-sync-btn {
+    order: 1;
+  }
+
+  .translation-btn {
+    order: 2;
+  }
+
+  .challenge-btn {
+    order: 3;
+  }
+
+  .auto-play-btn {
+    order: 4;
+  }
+
+  .side-adjustments {
+    position: absolute;
+    right: 0px;
+    top: -10%;
+    transform: none;
+    margin-top: 0;
+    z-index: 45;
+  }
+
+  .side-adjustments .time-controls {
+    gap: 10px;
   }
 
   .app {
@@ -763,6 +807,12 @@ body.loading {
     padding: 6px 10px;
   }
 
+  .feature-control-list .control-btn,
+  .order-mode-row .control-btn {
+    width: 80px;
+    min-width: 0px;
+  }
+
   .center-box {
     justify-content: center;
     padding-top: 0;
@@ -772,14 +822,6 @@ body.loading {
   .current-action-row {
     column-gap: 6px;
     row-gap: 5px;
-  }
-
-  .side-adjustments {
-    position: absolute;
-    right: 0px;
-    top: 40%;
-    transform: none;
-    margin-top: 0;
   }
 
   .review-panel {
