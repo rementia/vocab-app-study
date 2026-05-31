@@ -7,6 +7,7 @@ import {
   saveDisplayTimeState,
   saveFavoritesToLocalOnly,
   saveDifficultsToLocalOnly,
+  saveDifficultsUpdatedAt,
   saveFrequencyModeState,
   saveIndexByVol
 } from "../storage.js";
@@ -39,6 +40,12 @@ assert.strictEqual(values.get("tango_index_by_vol"), "{\"vol1\":2,\"favorites\":
 
 saveFavoritesToLocalOnly({ "vol1-2-hello": { addedAt: 123 } });
 assert.strictEqual(values.get("tango_favorites"), "{\"vol1-2-hello\":{\"addedAt\":123}}", "saveFavoritesToLocalOnly should serialize favorites");
+
+saveDifficultsToLocalOnly({ "vol1-3-hard": { addedAt: 234 } });
+assert.strictEqual(values.get("tango_difficults"), "{\"vol1-3-hard\":{\"addedAt\":234}}", "saveDifficultsToLocalOnly should serialize difficult words");
+
+saveDifficultsUpdatedAt(456);
+assert.strictEqual(values.get("tango_difficults_updated_at"), "456", "saveDifficultsUpdatedAt should store timestamps as strings");
 
 saveSpeechSyncState(true);
 assert.strictEqual(values.get("tango_auto_speak"), "true", "saveSpeechSyncState should store booleans as strings");

@@ -27,12 +27,30 @@ export async function saveFavoritesToCloudRemote(db, collectionName, userUid, fa
   }
 }
 
+export async function saveDifficultsToCloudRemote(db, collectionName, userUid, difficults, difficultsUpdatedAt) {
+  try {
+    const ref = doc(db, collectionName, userUid);
+    await setDoc(ref, { difficults, difficultsUpdatedAt }, { merge: true });
+  } catch (error) {
+    console.error("クラウド保存失敗:", error);
+    throw error;
+  }
+}
+
 export function normalizeFavoritesPayload(data) {
   return data?.favorites && typeof data.favorites === "object" ? data.favorites : {};
 }
 
+export function normalizeDifficultsPayload(data) {
+  return data?.difficults && typeof data.difficults === "object" ? data.difficults : {};
+}
+
 export function getFavoritesUpdatedAt(data) {
   return Number(data?.favoritesUpdatedAt) || 0;
+}
+
+export function getDifficultsUpdatedAt(data) {
+  return Number(data?.difficultsUpdatedAt) || 0;
 }
 
 export async function syncFavoritesWithCloud(db, collectionName, userUid, localFavorites, localUpdatedAt) {
@@ -64,6 +82,35 @@ export async function syncFavoritesWithCloud(db, collectionName, userUid, localF
   }
 }
 
+export async function syncDifficultsWithCloud(db, collectionName, userUid, localDifficults, localUpdatedAt) {
+  try {
+    const data = await loadFavoritesFromCloudRemote(db, collectionName, userUid);
+
+    if (!data) {
+      if (Object.keys(localDifficults).length > 0) {
+        const updatedAt = Date.now();
+        await saveDifficultsToCloudRemote(db, collectionName, userUid, localDifficults, updatedAt);
+        return { difficults: localDifficults, difficultsUpdatedAt: updatedAt };
+      }
+
+      return { difficults: localDifficults, difficultsUpdatedAt: localUpdatedAt };
+    }
+
+    const cloudDifficults = normalizeDifficultsPayload(data);
+    const cloudUpdatedAt = getDifficultsUpdatedAt(data);
+
+    if (cloudUpdatedAt >= localUpdatedAt) {
+      return { difficults: cloudDifficults, difficultsUpdatedAt: cloudUpdatedAt };
+    }
+
+    await saveDifficultsToCloudRemote(db, collectionName, userUid, localDifficults, localUpdatedAt);
+    return { difficults: localDifficults, difficultsUpdatedAt: localUpdatedAt };
+  } catch (error) {
+    console.error("クラウド同期失敗:", error);
+    throw error;
+  }
+}
+
 export function resolveFavoritesSnapshot(snap, localUpdatedAt) {
   if (!snap.exists()) return null;
 
@@ -76,5 +123,20 @@ export function resolveFavoritesSnapshot(snap, localUpdatedAt) {
   return {
     favorites: cloudFavorites,
     favoritesUpdatedAt: cloudUpdatedAt
+  };
+}
+
+export function resolveDifficultsSnapshot(snap, localUpdatedAt) {
+  if (!snap.exists()) return null;
+
+  const data = snap.data();
+  const cloudDifficults = normalizeDifficultsPayload(data);
+  const cloudUpdatedAt = getDifficultsUpdatedAt(data);
+
+  if (cloudUpdatedAt <= localUpdatedAt) return null;
+
+  return {
+    difficults: cloudDifficults,
+    difficultsUpdatedAt: cloudUpdatedAt
   };
 }

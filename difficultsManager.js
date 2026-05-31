@@ -32,11 +32,17 @@ export function toggleDifficultCurrentWord(state, callbacks) {
     state.difficults[key] = { addedAt: Date.now() };
   }
 
+  state.difficultsUpdatedAt = Date.now();
   state.difficultsVersion = (Number(state.difficultsVersion) || 0) + 1;
   callbacks.saveDifficultsToLocalOnly(state.difficults);
+  callbacks.saveDifficultsUpdatedAt(state.difficultsUpdatedAt);
   callbacks.clearAllShuffleCache();
   callbacks.requestListRebuild();
   callbacks.updateDifficultToggleButton();
+
+  if (state.currentUser) {
+    callbacks.saveDifficultsToCloud();
+  }
 
   if (state.currentMode === "difficults") {
     const currentId = current.id;
@@ -52,6 +58,7 @@ export function toggleDifficultCurrentWord(state, callbacks) {
       return {
         index: state.index,
         indexByVol: state.indexByVol,
+        difficultsUpdatedAt: state.difficultsUpdatedAt,
         difficultsVersion: state.difficultsVersion
       };
     }
@@ -65,6 +72,7 @@ export function toggleDifficultCurrentWord(state, callbacks) {
   return {
     index: state.index,
     indexByVol: state.indexByVol,
+    difficultsUpdatedAt: state.difficultsUpdatedAt,
     difficultsVersion: state.difficultsVersion
   };
 }

@@ -7,6 +7,7 @@ export const STORAGE_KEYS = {
   favorites: "tango_favorites",
   favoritesUpdatedAt: "tango_favorites_updated_at",
   difficults: "tango_difficults",
+  difficultsUpdatedAt: "tango_difficults_updated_at",
   reviewScores: "tango_review_scores",
   challengeMode: "tango_challenge_mode",
   challengeTime: "tango_challenge_time",
@@ -64,6 +65,10 @@ export function saveFavoritesUpdatedAt(value) {
 
 export function saveDifficultsToLocalOnly(value) {
   safeSetItem(STORAGE_KEYS.difficults, JSON.stringify(value));
+}
+
+export function saveDifficultsUpdatedAt(value) {
+  safeSetItem(STORAGE_KEYS.difficultsUpdatedAt, String(value));
 }
 
 export function saveReviewScoresToLocalOnly(value) {
