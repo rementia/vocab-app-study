@@ -1,5 +1,14 @@
-﻿import assert from "assert";
-import { renderCurrentWord, updateAuthUI, updateAutoPlayButton, updateCurrentLabel, updateRecallTimeControl, updateReviewButtons } from "../ui.js";
+import assert from "assert";
+import {
+  renderCurrentWord,
+  updateAuthUI,
+  updateAutoPlayButton,
+  updateCurrentLabel,
+  updateDifficultToggleButton,
+  updateFavoriteToggleButton,
+  updateRecallTimeControl,
+  updateReviewButtons
+} from "../ui.js";
 
 function makeContext(currentUser) {
   return {
@@ -49,7 +58,9 @@ function makeButton() {
 
 function makeToggleButton() {
   return {
+    disabled: false,
     textContent: "",
+    title: "",
     attributes: {},
     classList: {
       values: new Set(),
@@ -59,6 +70,9 @@ function makeToggleButton() {
       },
       contains(name) {
         return this.values.has(name);
+      },
+      remove(name) {
+        this.values.delete(name);
       }
     },
     setAttribute(name, value) {
@@ -66,6 +80,27 @@ function makeToggleButton() {
     }
   };
 }
+
+const favoriteButton = makeToggleButton();
+const difficultButton = makeToggleButton();
+const loggedOutToggleContext = {
+  getState: () => ({ currentUser: null }),
+  dom: {
+    favoriteToggleBtnEl: favoriteButton,
+    difficultToggleBtnEl: difficultButton
+  },
+  callbacks: {
+    getCurrentWord: () => ({ id: "word-1", word: "create" }),
+    isFavorite: () => true,
+    isDifficult: () => true
+  }
+};
+updateFavoriteToggleButton(loggedOutToggleContext);
+updateDifficultToggleButton(loggedOutToggleContext);
+assert.strictEqual(favoriteButton.disabled, true, "favorite toggle should be disabled when logged out");
+assert.strictEqual(difficultButton.disabled, true, "difficult toggle should be disabled when logged out");
+assert.strictEqual(favoriteButton.attributes["aria-pressed"], "false");
+assert.strictEqual(difficultButton.attributes["aria-pressed"], "false");
 
 const autoPlayButton = makeToggleButton();
 const autoPlayContext = (autoPlayMode) => ({

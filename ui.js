@@ -222,14 +222,15 @@ export function updateToggleButton(context, button, label, isActive) {
 export function updateFavoriteToggleButton(context) {
   const dom = getDom(context);
   const callbacks = getCallbacks(context);
+  const state = context.getState();
   const current = callbacks.getCurrentWord();
   if (!dom.favoriteToggleBtnEl) return;
 
-  if (!current) {
+  if (!current || !state.currentUser) {
     dom.favoriteToggleBtnEl.textContent = "☆";
     dom.favoriteToggleBtnEl.classList.remove("active");
-    dom.favoriteToggleBtnEl.title = "お気に入り登録";
-    dom.favoriteToggleBtnEl.setAttribute("aria-label", "お気に入り登録");
+    dom.favoriteToggleBtnEl.title = state.currentUser ? "お気に入り登録" : "ログインするとお気に入り登録できます";
+    dom.favoriteToggleBtnEl.setAttribute("aria-label", state.currentUser ? "お気に入り登録" : "ログインするとお気に入り登録できます");
     dom.favoriteToggleBtnEl.setAttribute("aria-pressed", "false");
     dom.favoriteToggleBtnEl.disabled = true;
     return;
@@ -248,14 +249,15 @@ export function updateFavoriteToggleButton(context) {
 export function updateDifficultToggleButton(context) {
   const dom = getDom(context);
   const callbacks = getCallbacks(context);
+  const state = context.getState();
   const current = callbacks.getCurrentWord();
   if (!dom.difficultToggleBtnEl) return;
 
-  if (!current) {
+  if (!current || !state.currentUser) {
     dom.difficultToggleBtnEl.textContent = "△";
     dom.difficultToggleBtnEl.classList.remove("active");
-    dom.difficultToggleBtnEl.title = "苦手に追加";
-    dom.difficultToggleBtnEl.setAttribute("aria-label", "苦手に追加");
+    dom.difficultToggleBtnEl.title = state.currentUser ? "苦手に追加" : "ログインすると苦手に追加できます";
+    dom.difficultToggleBtnEl.setAttribute("aria-label", state.currentUser ? "苦手に追加" : "ログインすると苦手に追加できます");
     dom.difficultToggleBtnEl.setAttribute("aria-pressed", "false");
     dom.difficultToggleBtnEl.disabled = true;
     return;
