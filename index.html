@@ -13,7 +13,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <link rel="stylesheet" href="styles.css?v=8" />
+  <link rel="stylesheet" href="styles.css?v=9" />
 </head>
 <body class="loading">
   <div class="app">
@@ -110,56 +110,59 @@
       <div id="list"></div>
     </aside>
 
+    <div class="time-adjustments">
+      <div class="time-controls">
+        <div class="recall-time-control">
+          <label for="timeSlider">
+            想起時間:
+            <span id="timeValue">1.5</span>s
+          </label>
+
+          <input type="range" id="timeSlider" min="1" max="5" step="0.5" value="1.5">
+        </div>
+
+        <div class="display-time-control">
+          <label for="displayTimeSlider">
+            表示時間:
+            <span id="displayTimeValue">1.5</span>s
+          </label>
+
+          <input type="range" id="displayTimeSlider" min="1" max="5" step="0.5" value="1.5">
+        </div>
+      </div>
+    </div>
+
+    <div class="review-adjustments">
+      <div class="review-panel" aria-label="頻度調整">
+        <span class="review-score-label" id="reviewScoreLabel">頻度調整：0</span>
+        <button
+          class="control-btn review-btn decrease-review-btn"
+          id="decreaseReviewBtn"
+          aria-label="頻度調整を下げる"
+          aria-pressed="false"
+        >
+          －
+        </button>
+        <button
+          class="control-btn review-reset-btn"
+          id="resetReviewBtn"
+          aria-label="頻度調整をリセット"
+        >
+          0
+        </button>
+        <button
+          class="control-btn review-btn increase-review-btn"
+          id="increaseReviewBtn"
+          aria-label="頻度調整を上げる"
+          aria-pressed="false"
+        >
+          ＋
+        </button>
+      </div>
+    </div>
+
     <main class="main">
       <div class="main-layout">
-        <div class="side-adjustments">
-          <div class="time-controls">
-            <div class="recall-time-control">
-              <label for="timeSlider">
-                想起時間:
-                <span id="timeValue">1.5</span>s
-              </label>
-
-              <input type="range" id="timeSlider" min="1" max="5" step="0.5" value="1.5">
-            </div>
-
-            <div class="display-time-control">
-              <label for="displayTimeSlider">
-                表示時間:
-                <span id="displayTimeValue">1.5</span>s
-              </label>
-
-              <input type="range" id="displayTimeSlider" min="1" max="5" step="0.5" value="1.5">
-            </div>
-          </div>
-
-          <div class="review-panel" aria-label="頻度調整">
-            <span class="review-score-label" id="reviewScoreLabel">頻度調整：0</span>
-            <button
-              class="control-btn review-btn decrease-review-btn"
-              id="decreaseReviewBtn"
-              aria-label="頻度調整を下げる"
-              aria-pressed="false"
-            >
-              －
-            </button>
-            <button
-              class="control-btn review-reset-btn"
-              id="resetReviewBtn"
-              aria-label="頻度調整をリセット"
-            >
-              0
-            </button>
-            <button
-              class="control-btn review-btn increase-review-btn"
-              id="increaseReviewBtn"
-              aria-label="頻度調整を上げる"
-              aria-pressed="false"
-            >
-              ＋
-            </button>
-          </div>
-        </div>
         <div class="center-box">
           <div class="order-mode-row" aria-label="配列モード">
             <button

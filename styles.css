@@ -271,7 +271,7 @@ body.loading {
   flex-wrap: wrap;
 }
 
-.side-adjustments .time-controls {
+.time-adjustments .time-controls {
   flex-direction: column;
   align-items: center;
   gap: 8px;
@@ -296,8 +296,8 @@ body.loading {
   width: 160px;
 }
 
-.side-adjustments .recall-time-control input,
-.side-adjustments .display-time-control input {
+.time-adjustments .recall-time-control input,
+.time-adjustments .display-time-control input {
   width: 136px;
 }
 
@@ -484,7 +484,6 @@ body.loading {
 }
 
 .word-mark-actions,
-.side-adjustments,
 .review-panel {
   display: inline-flex;
   align-items: center;
@@ -495,14 +494,26 @@ body.loading {
   flex: 0 0 auto;
 }
 
-.side-adjustments {
-  position: absolute;
+.time-adjustments,
+.review-adjustments {
+  position: fixed;
   right: 18px;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 1;
+  z-index: 45;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.time-adjustments {
+  top: 40%;
+  bottom: auto;
   flex-direction: column;
-  justify-content: center;
+}
+
+.review-adjustments {
+  top: auto;
+  bottom: 40%;
 }
 
 .review-panel {
@@ -664,12 +675,6 @@ body.loading {
     order: 1;
   }
 
-  .side-adjustments {
-    position: static;
-    order: 2;
-    transform: none;
-    margin-top: 8px;
-  }
   .word-item {
     font-size: 13px;
     padding: 8px 6px;
@@ -682,7 +687,6 @@ body.loading {
   .feature-control-list .control-btn {
     width: 100px;
   }
-
 }
 
 @media (max-width: 520px) {
@@ -736,17 +740,44 @@ body.loading {
   }
 }
 
+@media (max-width: 768px) and (orientation: portrait) {
+  .time-adjustments {
+    right: 150px;
+    top: 150px;
+    bottom: auto;
+  }
+
+  .review-adjustments {
+    right: 8px;
+    top: auto;
+    bottom: 56px;
+  }
+
+  .time-adjustments .recall-time-control input,
+  .time-adjustments .display-time-control input {
+    width: 112px;
+  }
+
+  .review-panel {
+    width: 164px;
+  }
+}
+
 @media (max-width: 768px) and (orientation: landscape) {
   :root {
     --login-bottom: 8px;
     --login-right: 0px;
+    --landscape-feature-left: 3%;
+    --landscape-feature-top: var(--header-height);
+    --landscape-feature-button-width: 80px;
+    --landscape-feature-gap: var(--space-current-row);
   }
 
   .feature-controls {
     position: absolute;
-    left: 15%;
+    left: calc(var(--landscape-feature-left) + var(--landscape-feature-button-width) + var(--landscape-feature-gap));
     right: auto;
-    top: 100%;
+    top: var(--landscape-feature-top);
     transform: none;
     z-index: 2;
   }
@@ -754,40 +785,61 @@ body.loading {
   .login-btn {
     left: auto;
     right: var(--login-right);
+    top: 15px;
+    bottom: auto;
   }
 
   .feature-control-list {
     display: grid;
-    grid-template-columns: repeat(2, auto);
-    gap: var(--space-current-row);
+    grid-template-columns: repeat(2, var(--landscape-feature-button-width));
+    gap: var(--landscape-feature-gap);
+  }
+
+  .order-mode-row {
+    position: fixed;
+    left: var(--landscape-feature-left);
+    top: var(--landscape-feature-top);
+    z-index: 46;
+    display: grid;
+    grid-template-columns: var(--landscape-feature-button-width);
+    gap: var(--landscape-feature-gap);
   }
 
   .speech-sync-btn {
-    order: 1;
+    order: 3;
   }
 
   .translation-btn {
-    order: 2;
+    order: 1;
   }
 
   .challenge-btn {
-    order: 3;
+    order: 2;
   }
 
   .auto-play-btn {
     order: 4;
   }
 
-  .side-adjustments {
-    position: absolute;
+  .time-adjustments {
+    position: fixed;
     right: 0px;
-    top: -10%;
-    transform: none;
-    margin-top: 0;
-    z-index: 45;
+    top: 24%;
+    bottom: auto;
+    flex-direction: column;
+    pointer-events: auto;
   }
 
-  .side-adjustments .time-controls {
+  .review-adjustments {
+    position: fixed;
+    right: 0px;
+    top: auto;
+    bottom: 8%;
+    transform: none;
+    pointer-events: auto;
+  }
+
+  .time-adjustments .time-controls {
     gap: 10px;
   }
 
@@ -802,6 +854,10 @@ body.loading {
     height: calc(100dvh - var(--header-height));
   }
 
+  .sidebar {
+    z-index: 60;
+  }
+
   .login-btn {
     font-size: 12px;
     padding: 6px 10px;
@@ -809,7 +865,7 @@ body.loading {
 
   .feature-control-list .control-btn,
   .order-mode-row .control-btn {
-    width: 80px;
+    width: var(--landscape-feature-button-width);
     min-width: 0px;
   }
 
