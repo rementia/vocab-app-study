@@ -68,13 +68,25 @@ function bindWithCalls(calls, clearSearchResult = false) {
   });
 }
 
-function dispatchKey({ key, code = "", target = {}, shiftKey = false, isComposing = false }) {
+function dispatchKey({
+  key,
+  code = "",
+  target = {},
+  shiftKey = false,
+  ctrlKey = false,
+  metaKey = false,
+  altKey = false,
+  isComposing = false
+}) {
   let prevented = false;
   keydownHandler({
     key,
     code,
     target,
     shiftKey,
+    ctrlKey,
+    metaKey,
+    altKey,
     isComposing,
     preventDefault() {
       prevented = true;
@@ -146,5 +158,16 @@ assert.strictEqual(inputWithText.blurred, false, "Escape should keep focus when 
 
 assert.strictEqual(dispatchKey({ key: "ArrowRight", isComposing: true }), false);
 assert.strictEqual(calls.nextWord, 0, "IME composing keys should be ignored");
+
+calls = makeCalls();
+bindWithCalls(calls);
+assert.strictEqual(dispatchKey({ key: "-", ctrlKey: true }), false);
+assert.strictEqual(calls.decreaseReview, 0, "Ctrl+- should keep browser zoom behavior");
+assert.strictEqual(dispatchKey({ key: "+", ctrlKey: true }), false);
+assert.strictEqual(calls.increaseReview, 0, "Ctrl++ should keep browser zoom behavior");
+assert.strictEqual(dispatchKey({ key: "0", ctrlKey: true }), false);
+assert.strictEqual(calls.resetReview, 0, "Ctrl+0 should keep browser zoom reset behavior");
+assert.strictEqual(dispatchKey({ key: "f", ctrlKey: true }), false);
+assert.strictEqual(calls.favorite, 0, "Ctrl+F should keep browser find behavior");
 
 console.log("All keyboard shortcut tests passed.");

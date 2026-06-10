@@ -40,6 +40,8 @@ export function bindKeyboardEvents({
       return;
     }
 
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+
     if (event.key === "ArrowLeft") {
       event.preventDefault();
       prevWord();
