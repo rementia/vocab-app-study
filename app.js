@@ -162,6 +162,8 @@ let frequencyMode = false;
 
 let meaningRevealTimer = null;
 let speechSyncTimer = null;
+let speechSyncWaitingForUserActivation = false;
+let speechSyncActivationEventsBound = false;
 let autoPlayTimer = null;
 let autoPlayDisplayPhaseTimer = null;
 let autoPlayWaitStartedAt = 0;
@@ -1169,6 +1171,37 @@ function clearSpeechSyncTimer() {
   }
 }
 
+function canStartSpeechSyncNow() {
+  if (typeof navigator === "undefined" || !navigator.userActivation) return true;
+  return navigator.userActivation.hasBeenActive || navigator.userActivation.isActive;
+}
+
+function bindSpeechSyncActivationEvents() {
+  if (speechSyncActivationEventsBound || typeof document === "undefined") return;
+  speechSyncActivationEventsBound = true;
+  document.addEventListener("pointerdown", handleSpeechSyncActivation, true);
+  document.addEventListener("keydown", handleSpeechSyncActivation, true);
+}
+
+function unbindSpeechSyncActivationEvents() {
+  if (!speechSyncActivationEventsBound || typeof document === "undefined") return;
+  speechSyncActivationEventsBound = false;
+  document.removeEventListener("pointerdown", handleSpeechSyncActivation, true);
+  document.removeEventListener("keydown", handleSpeechSyncActivation, true);
+}
+
+function waitForSpeechSyncActivation() {
+  speechSyncWaitingForUserActivation = true;
+  bindSpeechSyncActivationEvents();
+}
+
+function handleSpeechSyncActivation() {
+  if (!speechSync || !speechSyncWaitingForUserActivation) return;
+  speechSyncWaitingForUserActivation = false;
+  unbindSpeechSyncActivationEvents();
+  scheduleSpeechSyncAfterRender();
+}
+
 function clearAutoPlayTimer() {
   if (autoPlayTimer) {
     clearTimeout(autoPlayTimer);
@@ -1286,6 +1319,13 @@ function startAutoPlayFromCurrentWord() {
 }
 function scheduleSpeechSync() {
   if (!speechSync) return;
+  if (!canStartSpeechSyncNow()) {
+    waitForSpeechSyncActivation();
+    return;
+  }
+
+  speechSyncWaitingForUserActivation = false;
+  unbindSpeechSyncActivationEvents();
   clearSpeechSyncTimer();
   speechSyncTimer = setTimeout(() => {
     speakWord();
@@ -1378,6 +1418,8 @@ function toggleSpeechSync() {
   updateSpeechSyncButton();
 
   if (!speechSync) {
+    speechSyncWaitingForUserActivation = false;
+    unbindSpeechSyncActivationEvents();
     clearSpeechSyncTimer();
   } else {
     scheduleSpeechSync();
