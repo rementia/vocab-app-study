@@ -686,9 +686,7 @@ function loadSavedState() {
   }
 
   if (savedTranslationMode !== null) translationMode = savedTranslationMode === "true";
-  if (savedAutoPlay === "once") {
-    autoPlayMode = "once";
-  }
+  if (savedAutoPlay !== null) saveAutoPlayState("off");
   if (savedRandomMode !== null) randomMode = savedRandomMode === "true";
   if (savedFrequencyMode !== null) frequencyMode = savedFrequencyMode === "true";
 
