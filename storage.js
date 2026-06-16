@@ -1,22 +1,44 @@
-export const STORAGE_KEYS = {
-  vol: "tango_current_vol",
-  mode: "tango_current_mode",
-  indexByVol: "tango_index_by_vol",
-  sidebarOpen: "tango_sidebar_open",
-  speechSync: "tango_auto_speak",
-  favorites: "tango_favorites",
-  favoritesUpdatedAt: "tango_favorites_updated_at",
-  difficults: "tango_difficults",
-  difficultsUpdatedAt: "tango_difficults_updated_at",
-  reviewScores: "tango_review_scores",
-  challengeMode: "tango_challenge_mode",
-  challengeTime: "tango_challenge_time",
-  displayTime: "tango_display_time",
-  translationMode: "tango_translation_mode",
-  autoPlay: "tango_auto_play",
-  randomMode: "tango_random_mode",
-  frequencyMode: "tango_frequency_mode"
+const STORAGE_PREFIX = "vocab_app_study";
+const LEGACY_STORAGE_PREFIX = "tango";
+const STORAGE_KEY_NAMES = {
+  vol: "current_vol",
+  mode: "current_mode",
+  indexByVol: "index_by_vol",
+  sidebarOpen: "sidebar_open",
+  speechSync: "auto_speak",
+  favorites: "favorites",
+  favoritesUpdatedAt: "favorites_updated_at",
+  difficults: "difficults",
+  difficultsUpdatedAt: "difficults_updated_at",
+  reviewScores: "review_scores",
+  challengeMode: "challenge_mode",
+  challengeTime: "challenge_time",
+  displayTime: "display_time",
+  translationMode: "translation_mode",
+  autoPlay: "auto_play",
+  randomMode: "random_mode",
+  frequencyMode: "frequency_mode"
 };
+
+function makeStorageKey(name) {
+  return `${STORAGE_PREFIX}_${name}`;
+}
+
+function makeLegacyStorageKey(name) {
+  return `${LEGACY_STORAGE_PREFIX}_${name}`;
+}
+
+export const STORAGE_KEYS = Object.fromEntries(
+  Object.entries(STORAGE_KEY_NAMES).map(([name, keyName]) => [name, makeStorageKey(keyName)])
+);
+
+export const LEGACY_STORAGE_KEYS = Object.fromEntries(
+  Object.entries(STORAGE_KEY_NAMES).map(([name, keyName]) => [name, makeLegacyStorageKey(keyName)])
+);
+
+const LEGACY_KEY_BY_KEY = Object.fromEntries(
+  Object.keys(STORAGE_KEYS).map((name) => [STORAGE_KEYS[name], LEGACY_STORAGE_KEYS[name]])
+);
 
 export function safeSetItem(key, value) {
   try {
@@ -28,77 +50,89 @@ export function safeSetItem(key, value) {
 
 export function safeGetItem(key) {
   try {
-    return localStorage.getItem(key);
+    const value = localStorage.getItem(key);
+    if (value !== null) return value;
+
+    const legacyKey = LEGACY_KEY_BY_KEY[key];
+    return legacyKey ? localStorage.getItem(legacyKey) : null;
   } catch (error) {
     console.warn(`localStorage read failed for ${key}:`, error);
     return null;
   }
 }
 
+function saveTextValue(key, value) {
+  safeSetItem(key, String(value));
+}
+
+function saveJsonValue(key, value) {
+  safeSetItem(key, JSON.stringify(value));
+}
+
 export function saveCurrentVol(value) {
-  safeSetItem(STORAGE_KEYS.vol, value);
+  saveTextValue(STORAGE_KEYS.vol, value);
 }
 
 export function saveCurrentModeState(value) {
-  safeSetItem(STORAGE_KEYS.mode, value);
+  saveTextValue(STORAGE_KEYS.mode, value);
 }
 
 export function saveIndexByVol(value) {
-  safeSetItem(STORAGE_KEYS.indexByVol, JSON.stringify(value));
+  saveJsonValue(STORAGE_KEYS.indexByVol, value);
 }
 
 export function saveSidebarState(value) {
-  safeSetItem(STORAGE_KEYS.sidebarOpen, String(value));
+  saveTextValue(STORAGE_KEYS.sidebarOpen, value);
 }
 
 export function saveSpeechSyncState(value) {
-  safeSetItem(STORAGE_KEYS.speechSync, String(value));
+  saveTextValue(STORAGE_KEYS.speechSync, value);
 }
 
 export function saveFavoritesToLocalOnly(value) {
-  safeSetItem(STORAGE_KEYS.favorites, JSON.stringify(value));
+  saveJsonValue(STORAGE_KEYS.favorites, value);
 }
 
 export function saveFavoritesUpdatedAt(value) {
-  safeSetItem(STORAGE_KEYS.favoritesUpdatedAt, String(value));
+  saveTextValue(STORAGE_KEYS.favoritesUpdatedAt, value);
 }
 
 export function saveDifficultsToLocalOnly(value) {
-  safeSetItem(STORAGE_KEYS.difficults, JSON.stringify(value));
+  saveJsonValue(STORAGE_KEYS.difficults, value);
 }
 
 export function saveDifficultsUpdatedAt(value) {
-  safeSetItem(STORAGE_KEYS.difficultsUpdatedAt, String(value));
+  saveTextValue(STORAGE_KEYS.difficultsUpdatedAt, value);
 }
 
 export function saveReviewScoresToLocalOnly(value) {
-  safeSetItem(STORAGE_KEYS.reviewScores, JSON.stringify(value));
+  saveJsonValue(STORAGE_KEYS.reviewScores, value);
 }
 
 export function saveChallengeModeState(value) {
-  safeSetItem(STORAGE_KEYS.challengeMode, String(value));
+  saveTextValue(STORAGE_KEYS.challengeMode, value);
 }
 
 export function saveChallengeTimeState(value) {
-  safeSetItem(STORAGE_KEYS.challengeTime, String(value));
+  saveTextValue(STORAGE_KEYS.challengeTime, value);
 }
 
 export function saveDisplayTimeState(value) {
-  safeSetItem(STORAGE_KEYS.displayTime, String(value));
+  saveTextValue(STORAGE_KEYS.displayTime, value);
 }
 
 export function saveTranslationModeState(value) {
-  safeSetItem(STORAGE_KEYS.translationMode, String(value));
+  saveTextValue(STORAGE_KEYS.translationMode, value);
 }
 
 export function saveAutoPlayState(value) {
-  safeSetItem(STORAGE_KEYS.autoPlay, String(value));
+  saveTextValue(STORAGE_KEYS.autoPlay, value);
 }
 
 export function saveRandomModeState(value) {
-  safeSetItem(STORAGE_KEYS.randomMode, String(value));
+  saveTextValue(STORAGE_KEYS.randomMode, value);
 }
 
 export function saveFrequencyModeState(value) {
-  safeSetItem(STORAGE_KEYS.frequencyMode, String(value));
+  saveTextValue(STORAGE_KEYS.frequencyMode, value);
 }

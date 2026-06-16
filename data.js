@@ -1,6 +1,9 @@
 import { volOrder } from "./state.js";
+import { normalizeWordKey } from "./wordIdentity.js";
 
 export const availableVolumes = Object.fromEntries(volOrder.map((vol) => [vol, true]));
+const WORD_COLUMN_NAMES = ["word", "単語"];
+const MEANING_COLUMN_NAMES = ["meaning", "意味"];
 
 function stripBom(text) {
   return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
@@ -58,37 +61,57 @@ export function parseCsv(text) {
   return rows;
 }
 
-export function normalizeWord(word) {
-  return String(word).toLowerCase().trim();
-}
-
 function hasHeaderRow(row) {
   const headers = row.map((cell) => String(cell ?? "").toLowerCase().trim());
   return (
-    headers.some((value) => value === "word" || value === "単語") ||
-    headers.some((value) => value === "meaning" || value === "意味")
+    headers.some((value) => WORD_COLUMN_NAMES.includes(value)) ||
+    headers.some((value) => MEANING_COLUMN_NAMES.includes(value))
   );
 }
 
-export function parseCsvToWords(text, volName) {
-  const rows = parseCsv(text)
+function getHeaderIndex(row, names) {
+  return row.findIndex((cell) => names.includes(String(cell ?? "").toLowerCase().trim()));
+}
+
+function createColumnReader(rows) {
+  const hasHeader = rows.length > 0 && hasHeaderRow(rows[0]);
+  const headerRow = hasHeader ? rows[0] : [];
+  const wordIndex = hasHeader ? getHeaderIndex(headerRow, WORD_COLUMN_NAMES) : 0;
+  const meaningIndex = hasHeader ? getHeaderIndex(headerRow, MEANING_COLUMN_NAMES) : 1;
+
+  return {
+    startIndex: hasHeader ? 1 : 0,
+    readWord: (cols) => cols[wordIndex >= 0 ? wordIndex : 0] || "",
+    readMeaning: (cols) => {
+      if (meaningIndex >= 0) return cols[meaningIndex] || "";
+      return cols.slice(1).filter(Boolean).join(", ").trim();
+    }
+  };
+}
+
+function normalizeCsvRows(text) {
+  return parseCsv(text)
     .map((cols) => cols.map((col) => String(col ?? "").trim()))
     .filter((cols) => cols.some((col) => col !== ""));
+}
 
-  const startIndex = rows.length > 0 && hasHeaderRow(rows[0]) ? 1 : 0;
+function createWordItem(cols, columnReader, volName) {
+  const word = columnReader.readWord(cols);
+  const meaning = columnReader.readMeaning(cols);
+  return {
+    id: normalizeWordKey(word),
+    word,
+    meaning,
+    sourceVol: volName
+  };
+}
 
-  return rows.slice(startIndex)
-    .map((cols, rowIndex) => {
-      const word = cols[0] || "";
-      const meaning = cols.slice(1).filter(Boolean).join(", ").trim();
-      const id = `${volName}-${rowIndex + startIndex + 1}-${normalizeWord(word)}`;
-      return {
-        id,
-        word,
-        meaning,
-        sourceVol: volName
-      };
-    })
+export function parseCsvToWords(text, volName) {
+  const rows = normalizeCsvRows(text);
+  const columnReader = createColumnReader(rows);
+
+  return rows.slice(columnReader.startIndex)
+    .map((cols) => createWordItem(cols, columnReader, volName))
     .filter((item) => item.word);
 }
 

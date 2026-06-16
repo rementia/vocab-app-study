@@ -2,7 +2,8 @@ import assert from "assert";
 import {
   buildFavoriteEntries,
   isFavorite,
-  loadFavoritesMode
+  loadFavoritesMode,
+  toggleFavoriteCurrentWord
 } from "../favoritesManager.js";
 
 const wordsByVol = {
@@ -16,8 +17,8 @@ const wordsByVol = {
 };
 
 const favorites = {
-  "vol1-2-beta": { addedAt: 1 },
-  "vol2-1-gamma": { addedAt: 2 }
+  beta: { addedAt: 1 },
+  gamma: { addedAt: 2 }
 };
 
 assert.strictEqual(isFavorite(favorites, wordsByVol.vol1[1]), true);
@@ -107,4 +108,34 @@ assert.strictEqual(emptyResult.currentMode, "favorites");
 assert.strictEqual(emptyResult.index, 0);
 assert.strictEqual(emptyRendered, 1);
 assert.strictEqual(emptyListRebuilds, 1);
+
+const toggleState = {
+  favorites: { beta: { addedAt: 1 } },
+  favoritesUpdatedAt: 0,
+  favoritesVersion: 0,
+  currentMode: "favorites",
+  currentUser: { uid: "user-1" },
+  words: [wordsByVol.vol1[1]],
+  index: 0,
+  indexByVol: { favorites: 0 }
+};
+let toggleListRebuilds = 0;
+let toggleRendered = 0;
+const toggleResult = toggleFavoriteCurrentWord(toggleState, {
+  getCurrentWord: () => wordsByVol.vol1[1],
+  getWords: () => toggleState.words,
+  saveFavoritesToLocalOnly: () => {},
+  saveFavoritesUpdatedAt: () => {},
+  clearWordOrderCache: () => {},
+  requestListRebuild: () => { toggleListRebuilds += 1; },
+  updateFavoriteToggleButton: () => {},
+  saveFavoritesToCloud: () => {},
+  applyWordOrder: () => { toggleState.words = buildFavoriteEntries(wordsByVol, ["vol1"], toggleState.favorites); },
+  saveIndexByVol: () => {},
+  render: () => { toggleRendered += 1; }
+});
+assert.strictEqual(Boolean(toggleState.favorites.beta), false);
+assert.strictEqual(toggleResult.index, 0);
+assert.strictEqual(toggleListRebuilds, 1, "favorite toggle should request one list rebuild");
+assert.strictEqual(toggleRendered, 1);
 console.log("All favorite word tests passed.");

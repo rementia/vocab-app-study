@@ -1,7 +1,11 @@
 import assert from "assert";
 import {
+  LEGACY_STORAGE_KEYS,
+  STORAGE_KEYS,
   safeGetItem,
   safeSetItem,
+  saveCurrentModeState,
+  saveCurrentVol,
   saveSpeechSyncState,
   saveChallengeTimeState,
   saveDisplayTimeState,
@@ -35,26 +39,36 @@ const values = installMockStorage();
 safeSetItem("plain", "value");
 assert.strictEqual(safeGetItem("plain"), "value", "safe helpers should write and read string values");
 
+saveCurrentVol("vol3");
+assert.strictEqual(values.get(STORAGE_KEYS.vol), "vol3", "saveCurrentVol should store the current volume as a string");
+
+saveCurrentModeState("favorites");
+assert.strictEqual(values.get(STORAGE_KEYS.mode), "favorites", "saveCurrentModeState should store the current mode as a string");
+
 saveIndexByVol({ vol1: 2, favorites: 1 });
-assert.strictEqual(values.get("tango_index_by_vol"), "{\"vol1\":2,\"favorites\":1}", "saveIndexByVol should serialize index state");
+assert.strictEqual(values.get(STORAGE_KEYS.indexByVol), "{\"vol1\":2,\"favorites\":1}", "saveIndexByVol should serialize index state");
 
-saveFavoritesToLocalOnly({ "vol1-2-hello": { addedAt: 123 } });
-assert.strictEqual(values.get("tango_favorites"), "{\"vol1-2-hello\":{\"addedAt\":123}}", "saveFavoritesToLocalOnly should serialize favorites");
+saveFavoritesToLocalOnly({ hello: { addedAt: 123 } });
+assert.strictEqual(values.get(STORAGE_KEYS.favorites), "{\"hello\":{\"addedAt\":123}}", "saveFavoritesToLocalOnly should serialize favorites");
 
-saveDifficultsToLocalOnly({ "vol1-3-hard": { addedAt: 234 } });
-assert.strictEqual(values.get("tango_difficults"), "{\"vol1-3-hard\":{\"addedAt\":234}}", "saveDifficultsToLocalOnly should serialize difficult words");
+saveDifficultsToLocalOnly({ hard: { addedAt: 234 } });
+assert.strictEqual(values.get(STORAGE_KEYS.difficults), "{\"hard\":{\"addedAt\":234}}", "saveDifficultsToLocalOnly should serialize difficult words");
 
 saveDifficultsUpdatedAt(456);
-assert.strictEqual(values.get("tango_difficults_updated_at"), "456", "saveDifficultsUpdatedAt should store timestamps as strings");
+assert.strictEqual(values.get(STORAGE_KEYS.difficultsUpdatedAt), "456", "saveDifficultsUpdatedAt should store timestamps as strings");
 
 saveSpeechSyncState(true);
-assert.strictEqual(values.get("tango_auto_speak"), "true", "saveSpeechSyncState should store booleans as strings");
+assert.strictEqual(values.get(STORAGE_KEYS.speechSync), "true", "saveSpeechSyncState should store booleans as strings");
 
 saveChallengeTimeState(1500);
-assert.strictEqual(values.get("tango_challenge_time"), "1500", "saveChallengeTimeState should store numbers as strings");
+assert.strictEqual(values.get(STORAGE_KEYS.challengeTime), "1500", "saveChallengeTimeState should store numbers as strings");
 
 saveDisplayTimeState(1800);
-assert.strictEqual(values.get("tango_display_time"), "1800", "saveDisplayTimeState should store numbers as strings");
+assert.strictEqual(values.get(STORAGE_KEYS.displayTime), "1800", "saveDisplayTimeState should store numbers as strings");
+
+const legacyValues = installMockStorage();
+legacyValues.set(LEGACY_STORAGE_KEYS.vol, "vol2");
+assert.strictEqual(safeGetItem(STORAGE_KEYS.vol), "vol2", "safeGetItem should fall back to legacy keys");
 
 installMockStorage({ throwOnGet: true });
 assert.doesNotThrow(() => safeGetItem("blocked"), "safeGetItem should swallow storage read errors");

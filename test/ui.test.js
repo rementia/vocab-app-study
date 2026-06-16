@@ -35,9 +35,7 @@ const labelContext = {
   dom: { currentEl: { textContent: "" } },
   getState: () => ({
     currentMode: "normal",
-    currentVol: "vol4",
-    frequencyMode: true,
-    randomMode: true
+    currentVol: "vol4"
   })
 };
 updateCurrentLabel(labelContext);
@@ -54,7 +52,6 @@ function makeButton() {
     }
   };
 }
-
 
 function makeToggleButton() {
   return {
@@ -116,6 +113,7 @@ assert.strictEqual(autoPlayButton.attributes["aria-pressed"], "true");
 updateAutoPlayButton(autoPlayContext("loop"));
 assert.strictEqual(autoPlayButton.textContent, "自動再生");
 assert.strictEqual(autoPlayButton.attributes["aria-pressed"], "false");
+
 function makeClassList() {
   return {
     values: new Set(),

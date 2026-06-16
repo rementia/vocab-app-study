@@ -24,7 +24,7 @@ export function renderApp(context, options = {}) {
   applySidebarState(context);
 }
 
-export function renderList(context) {
+function renderList(context) {
   const state = getState(context);
   const dom = getDom(context);
   const callbacks = getCallbacks(context);
@@ -42,57 +42,80 @@ export function renderList(context) {
   const visibleEntries = getVisibleWordEntries(state);
 
   if (visibleEntries.length === 0 && state.searchQuery) {
-    const row = document.createElement("div");
-    row.className = "word-item empty-result";
-    row.textContent = "該当なし";
-    fragment.appendChild(row);
+    fragment.appendChild(createEmptyResultRow());
   }
 
   visibleEntries.forEach(({ item, itemIndex }) => {
-    const row = document.createElement("div");
-    row.className = "word-item";
-    row.dataset.index = String(itemIndex);
-
-    const label = document.createElement("span");
-    label.className = "word-label";
-    if (!item) {
-      label.textContent = "";
-      console.warn('renderList: missing item at index', itemIndex);
-    } else {
-      label.textContent = state.currentMode === "favorites" || state.currentMode === "difficults"
-        ? `${item.word} (${item.sourceVol.replace("vol", "vol.")})`
-        : item.word;
-    }
-    row.appendChild(label);
-
-    const marks = document.createElement("span");
-    marks.className = "item-marks";
-
-    if (item && callbacks.isFavorite(item)) {
-      const star = document.createElement("span");
-      star.className = "item-star";
-      star.textContent = "☆";
-      marks.appendChild(star);
-    }
-
-    if (item && callbacks.isDifficult(item)) {
-      const difficult = document.createElement("span");
-      difficult.className = "item-difficult";
-      difficult.textContent = "△";
-      marks.appendChild(difficult);
-    }
-
-    if (marks.childNodes.length) {
-      row.appendChild(marks);
-    }
-
-    fragment.appendChild(row);
+    fragment.appendChild(createWordListRow({ item, itemIndex, state, callbacks }));
   });
 
   dom.listEl.appendChild(fragment);
   callbacks.setListNeedsRebuild(false);
   callbacks.setRenderedListVersion(nextVersion);
   highlightActiveWord(context);
+}
+
+function createEmptyResultRow() {
+  const row = document.createElement("div");
+  row.className = "word-item empty-result";
+  row.textContent = "該当なし";
+  return row;
+}
+
+function createWordListRow({ item, itemIndex, state, callbacks }) {
+  const row = document.createElement("div");
+  row.className = "word-item";
+  row.dataset.index = String(itemIndex);
+  row.appendChild(createWordLabel(item, itemIndex, state));
+
+  const marks = createWordMarks(item, callbacks);
+  if (marks.childNodes.length) {
+    row.appendChild(marks);
+  }
+
+  return row;
+}
+
+function createWordLabel(item, itemIndex, state) {
+  const label = document.createElement("span");
+  label.className = "word-label";
+
+  if (!item) {
+    label.textContent = "";
+    console.warn("renderList: missing item at index", itemIndex);
+    return label;
+  }
+
+  label.textContent = formatWordListLabel(item, state.currentMode);
+  return label;
+}
+
+function formatWordListLabel(item, currentMode) {
+  return currentMode === "favorites" || currentMode === "difficults"
+    ? `${item.word} (${item.sourceVol.replace("vol", "vol.")})`
+    : item.word;
+}
+
+function createWordMarks(item, callbacks) {
+  const marks = document.createElement("span");
+  marks.className = "item-marks";
+
+  if (item && callbacks.isFavorite(item)) {
+    marks.appendChild(createWordMark("item-star", "☆"));
+  }
+
+  if (item && callbacks.isDifficult(item)) {
+    marks.appendChild(createWordMark("item-difficult", "△"));
+  }
+
+  return marks;
+}
+
+function createWordMark(className, text) {
+  const mark = document.createElement("span");
+  mark.className = className;
+  mark.textContent = text;
+  return mark;
 }
 
 function getVisibleWordEntries(state) {
@@ -127,27 +150,7 @@ export function renderCurrentWord(context) {
 
   const current = callbacks.getCurrentWord();
   if (!current) {
-    if (dom.wordEl) {
-      dom.wordEl.textContent = state.currentMode === "favorites"
-        ? "お気に入りがありません"
-        : state.currentMode === "difficults"
-          ? "苦手単語がありません"
-          : "単語がありません";
-    }
-    if (dom.meaningEl) {
-      dom.meaningEl.textContent = state.currentMode === "favorites"
-        ? "☆を付けるとここに表示されます"
-        : state.currentMode === "difficults"
-          ? "△を付けるとここに表示されます"
-          : "";
-    }
-    if (dom.progressEl) dom.progressEl.textContent = "";
-    if (dom.pronunciationEl) dom.pronunciationEl.textContent = "";
-    if (dom.prevHintEl) dom.prevHintEl.textContent = "";
-    if (dom.nextHintEl) dom.nextHintEl.textContent = "";
-    updateFavoriteToggleButton(context);
-    updateDifficultToggleButton(context);
-    updateReviewButtons(context);
+    renderEmptyCurrentWord(context);
     return;
   }
 
@@ -155,6 +158,34 @@ export function renderCurrentWord(context) {
   updateMeaningDisplay(context, state.translationMode ? current.word : current.meaning);
   updateCurrentStateMeta(context);
   callbacks.loadPronunciation(current.word);
+}
+
+function renderEmptyCurrentWord(context) {
+  const state = getState(context);
+  const dom = getDom(context);
+
+  if (dom.wordEl) dom.wordEl.textContent = getEmptyWordText(state.currentMode);
+  if (dom.meaningEl) dom.meaningEl.textContent = getEmptyMeaningText(state.currentMode);
+  if (dom.progressEl) dom.progressEl.textContent = "";
+  if (dom.pronunciationEl) dom.pronunciationEl.textContent = "";
+  if (dom.prevHintEl) dom.prevHintEl.textContent = "";
+  if (dom.nextHintEl) dom.nextHintEl.textContent = "";
+
+  updateFavoriteToggleButton(context);
+  updateDifficultToggleButton(context);
+  updateReviewButtons(context);
+}
+
+function getEmptyWordText(currentMode) {
+  if (currentMode === "favorites") return "お気に入りがありません";
+  if (currentMode === "difficults") return "苦手単語がありません";
+  return "単語がありません";
+}
+
+function getEmptyMeaningText(currentMode) {
+  if (currentMode === "favorites") return "☆を付けるとここに表示されます";
+  if (currentMode === "difficults") return "△を付けるとここに表示されます";
+  return "";
 }
 
 function renderWordText(context, current) {
@@ -181,19 +212,16 @@ export function updateCurrentLabel(context) {
   const dom = getDom(context);
 
   if (!dom.currentEl) return;
-
-  let label = state.currentMode === "favorites"
-    ? "☆"
-    : state.currentMode === "difficults"
-      ? "△"
-      : `vol.${state.currentVol.replace("vol", "")}`;
-
-
-
-  dom.currentEl.textContent = label;
+  dom.currentEl.textContent = getCurrentModeLabel(state);
 }
 
-export function updateTopButtons(context) {
+function getCurrentModeLabel(state) {
+  if (state.currentMode === "favorites") return "☆";
+  if (state.currentMode === "difficults") return "△";
+  return `vol.${state.currentVol.replace("vol", "")}`;
+}
+
+function updateTopButtons(context) {
   const state = getState(context);
   const dom = getDom(context);
 
@@ -211,7 +239,7 @@ export function updateTopButtons(context) {
   }
 }
 
-export function updateToggleButton(context, button, label, isActive) {
+function updateToggleButton(context, button, label, isActive) {
   if (!button) return;
   button.textContent = label;
   button.classList.toggle("active", isActive);
@@ -224,26 +252,17 @@ export function updateFavoriteToggleButton(context) {
   const callbacks = getCallbacks(context);
   const state = context.getState();
   const current = callbacks.getCurrentWord();
-  if (!dom.favoriteToggleBtnEl) return;
 
-  if (!current || !state.currentUser) {
-    dom.favoriteToggleBtnEl.textContent = "☆";
-    dom.favoriteToggleBtnEl.classList.remove("active");
-    dom.favoriteToggleBtnEl.title = state.currentUser ? "お気に入り登録" : "ログインするとお気に入り登録できます";
-    dom.favoriteToggleBtnEl.setAttribute("aria-label", state.currentUser ? "お気に入り登録" : "ログインするとお気に入り登録できます");
-    dom.favoriteToggleBtnEl.setAttribute("aria-pressed", "false");
-    dom.favoriteToggleBtnEl.disabled = true;
-    return;
-  }
-
-  dom.favoriteToggleBtnEl.disabled = false;
-
-  const active = callbacks.isFavorite(current);
-  dom.favoriteToggleBtnEl.textContent = "☆";
-  dom.favoriteToggleBtnEl.classList.toggle("active", active);
-  dom.favoriteToggleBtnEl.title = active ? "お気に入り解除" : "お気に入り登録";
-  dom.favoriteToggleBtnEl.setAttribute("aria-label", active ? "お気に入り解除" : "お気に入り登録");
-  dom.favoriteToggleBtnEl.setAttribute("aria-pressed", active ? "true" : "false");
+  updateWordMarkToggleButton({
+    button: dom.favoriteToggleBtnEl,
+    current,
+    currentUser: state.currentUser,
+    symbol: "☆",
+    inactiveLabel: "お気に入り登録",
+    activeLabel: "お気に入り解除",
+    loggedOutLabel: "ログインするとお気に入り登録できます",
+    isActive: callbacks.isFavorite
+  });
 }
 
 export function updateDifficultToggleButton(context) {
@@ -251,28 +270,52 @@ export function updateDifficultToggleButton(context) {
   const callbacks = getCallbacks(context);
   const state = context.getState();
   const current = callbacks.getCurrentWord();
-  if (!dom.difficultToggleBtnEl) return;
 
-  if (!current || !state.currentUser) {
-    dom.difficultToggleBtnEl.textContent = "△";
-    dom.difficultToggleBtnEl.classList.remove("active");
-    dom.difficultToggleBtnEl.title = state.currentUser ? "苦手に追加" : "ログインすると苦手に追加できます";
-    dom.difficultToggleBtnEl.setAttribute("aria-label", state.currentUser ? "苦手に追加" : "ログインすると苦手に追加できます");
-    dom.difficultToggleBtnEl.setAttribute("aria-pressed", "false");
-    dom.difficultToggleBtnEl.disabled = true;
+  updateWordMarkToggleButton({
+    button: dom.difficultToggleBtnEl,
+    current,
+    currentUser: state.currentUser,
+    symbol: "△",
+    inactiveLabel: "苦手に追加",
+    activeLabel: "苦手から外す",
+    loggedOutLabel: "ログインすると苦手に追加できます",
+    isActive: callbacks.isDifficult
+  });
+}
+
+function updateWordMarkToggleButton({
+  button,
+  current,
+  currentUser,
+  symbol,
+  inactiveLabel,
+  activeLabel,
+  loggedOutLabel,
+  isActive
+}) {
+  if (!button) return;
+
+  button.textContent = symbol;
+
+  if (!current || !currentUser) {
+    const label = currentUser ? inactiveLabel : loggedOutLabel;
+    button.disabled = true;
+    button.classList.remove("active");
+    button.title = label;
+    button.setAttribute("aria-label", label);
+    button.setAttribute("aria-pressed", "false");
     return;
   }
 
-  dom.difficultToggleBtnEl.disabled = false;
+  const active = isActive(current);
+  const label = active ? activeLabel : inactiveLabel;
 
-  const active = callbacks.isDifficult(current);
-  dom.difficultToggleBtnEl.textContent = "△";
-  dom.difficultToggleBtnEl.classList.toggle("active", active);
-  dom.difficultToggleBtnEl.title = active ? "苦手から外す" : "苦手に追加";
-  dom.difficultToggleBtnEl.setAttribute("aria-label", active ? "苦手から外す" : "苦手に追加");
-  dom.difficultToggleBtnEl.setAttribute("aria-pressed", active ? "true" : "false");
+  button.disabled = false;
+  button.classList.toggle("active", active);
+  button.title = label;
+  button.setAttribute("aria-label", label);
+  button.setAttribute("aria-pressed", active ? "true" : "false");
 }
-
 
 export function updateReviewButtons(context) {
   const dom = getDom(context);
@@ -303,7 +346,8 @@ function setReviewButtonState(button, disabled, label) {
   button.setAttribute("aria-pressed", "false");
   button.title = label;
 }
-export function updateNavHints(context) {
+
+function updateNavHints(context) {
   const state = getState(context);
   const dom = getDom(context);
 
@@ -314,19 +358,29 @@ export function updateNavHints(context) {
     return;
   }
 
-  const prevIndex = state.randomMode && state.historyBackStack.length
-    ? state.historyBackStack[state.historyBackStack.length - 1]
-    : (state.index - 1 + state.words.length) % state.words.length;
-
-  const nextIndex = state.randomMode && state.historyForwardStack.length
-    ? state.historyForwardStack[state.historyForwardStack.length - 1]
-    : (state.index + 1) % state.words.length;
-
+  const prevIndex = getPreviousHintIndex(state);
+  const nextIndex = getNextHintIndex(state);
   dom.prevHintEl.textContent = state.words[prevIndex]?.word || "";
   dom.nextHintEl.textContent = state.words[nextIndex]?.word || "";
 }
 
-export function updateProgress(context) {
+function getPreviousHintIndex(state) {
+  if (state.randomMode && state.historyBackStack.length) {
+    return state.historyBackStack[state.historyBackStack.length - 1];
+  }
+
+  return (state.index - 1 + state.words.length) % state.words.length;
+}
+
+function getNextHintIndex(state) {
+  if (state.randomMode && state.historyForwardStack.length) {
+    return state.historyForwardStack[state.historyForwardStack.length - 1];
+  }
+
+  return (state.index + 1) % state.words.length;
+}
+
+function updateProgress(context) {
   const state = getState(context);
   const dom = getDom(context);
 
@@ -343,6 +397,7 @@ export function updateRecallTimeControl(context) {
   dom.recallTimeControlEl?.classList.toggle("is-inactive", !state.challengeMode);
   dom.displayTimeControlEl?.classList.toggle("is-inactive", state.autoPlayMode === "off");
 }
+
 export function updateSpeechSyncButton(context) {
   updateToggleButton(context, getDom(context).speechSyncBtnEl, "発音同期", getState(context).speechSync);
 }
@@ -380,7 +435,7 @@ export function updateAuthUI(context) {
   dom.logoutBtnEl.hidden = !state.currentUser;
 }
 
-export function updateMeaningDisplay(context, meaning) {
+function updateMeaningDisplay(context, meaning) {
   const state = getState(context);
   const dom = getDom(context);
   const callbacks = getCallbacks(context);
@@ -438,5 +493,4 @@ export function clearMeaningRevealTimer(context) {
   const callbacks = getCallbacks(context);
   callbacks.clearMeaningRevealTimer();
 }
-
 

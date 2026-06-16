@@ -15,104 +15,133 @@ export function bindKeyboardEvents({
   toggleSidebar,
   toggleRandomMode
 }) {
+  const handlers = {
+    prevWord,
+    nextWord,
+    speakWord,
+    handleToggleFavoriteCurrentWord,
+    handleToggleDifficultCurrentWord,
+    decreaseReviewScore,
+    resetReviewScore,
+    increaseReviewScore,
+    focusSearch,
+    clearSearch,
+    selectNextSearchResult,
+    selectPreviousSearchResult,
+    closeSidebar,
+    toggleSidebar,
+    toggleRandomMode
+  };
+
   document.addEventListener("keydown", (event) => {
     if (event.isComposing) return;
 
-    const target = event.target;
-    const isTextInput =
-      target instanceof HTMLInputElement ||
-      target instanceof HTMLTextAreaElement ||
-      target instanceof HTMLSelectElement;
-
-    if (isTextInput) {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        if (!clearSearch()) target.blur();
-      }
-      if (event.key === "Enter") {
-        event.preventDefault();
-        if (event.shiftKey) {
-          selectPreviousSearchResult();
-        } else {
-          selectNextSearchResult();
-        }
-      }
+    if (isTextInputTarget(event.target)) {
+      handleTextInputKeydown(event, handlers);
       return;
     }
 
-    if (event.ctrlKey || event.metaKey || event.altKey) return;
-
-    if (event.key === "ArrowLeft") {
-      event.preventDefault();
-      prevWord();
-      return;
-    }
-
-    if (event.key === "ArrowRight") {
-      event.preventDefault();
-      nextWord();
-      return;
-    }
-
-    if (event.key === " " || event.code === "Space") {
-      event.preventDefault();
-      speakWord();
-      return;
-    }
-
-    if (event.key.toLowerCase() === "f") {
-      event.preventDefault();
-      handleToggleFavoriteCurrentWord();
-      return;
-    }
-
-    if (event.key.toLowerCase() === "d") {
-      event.preventDefault();
-      handleToggleDifficultCurrentWord();
-      return;
-    }
-
-    if (event.key === "+") {
-      event.preventDefault();
-      increaseReviewScore();
-      return;
-    }
-
-    if (event.key === "-" || event.key === "－") {
-      event.preventDefault();
-      decreaseReviewScore();
-      return;
-    }
-
-    if (event.key === "0") {
-      event.preventDefault();
-      resetReviewScore();
-      return;
-    }
-
-    if (event.key === "/") {
-      event.preventDefault();
-      focusSearch();
-      return;
-    }
-
-    if (event.key === "Escape") {
-      event.preventDefault();
-      closeSidebar();
-      return;
-    }
-
-    if (event.key.toLowerCase() === "l") {
-      event.preventDefault();
-      toggleSidebar();
-      return;
-    }
-
-    if (event.key.toLowerCase() === "r") {
-      event.preventDefault();
-      toggleRandomMode();
-    }
+    handleAppShortcutKeydown(event, handlers);
   });
+}
+
+function isTextInputTarget(target) {
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement
+  );
+}
+
+function isModifiedShortcut(event) {
+  return event.ctrlKey || event.metaKey || event.altKey;
+}
+
+function preventAndRun(event, callback) {
+  event.preventDefault();
+  callback();
+}
+
+function handleTextInputKeydown(event, handlers) {
+  if (event.key === "Escape") {
+    preventAndRun(event, () => {
+      if (!handlers.clearSearch()) event.target.blur();
+    });
+    return;
+  }
+
+  if (event.key === "Enter") {
+    preventAndRun(event, () => {
+      if (event.shiftKey) {
+        handlers.selectPreviousSearchResult();
+      } else {
+        handlers.selectNextSearchResult();
+      }
+    });
+  }
+}
+
+function handleAppShortcutKeydown(event, handlers) {
+  if (isModifiedShortcut(event)) return;
+
+  if (event.key === "ArrowLeft") {
+    preventAndRun(event, handlers.prevWord);
+    return;
+  }
+
+  if (event.key === "ArrowRight") {
+    preventAndRun(event, handlers.nextWord);
+    return;
+  }
+
+  if (event.key === " " || event.code === "Space") {
+    preventAndRun(event, handlers.speakWord);
+    return;
+  }
+
+  if (event.key.toLowerCase() === "f") {
+    preventAndRun(event, handlers.handleToggleFavoriteCurrentWord);
+    return;
+  }
+
+  if (event.key.toLowerCase() === "d") {
+    preventAndRun(event, handlers.handleToggleDifficultCurrentWord);
+    return;
+  }
+
+  if (event.key === "+") {
+    preventAndRun(event, handlers.increaseReviewScore);
+    return;
+  }
+
+  if (event.key === "-" || event.key === "－") {
+    preventAndRun(event, handlers.decreaseReviewScore);
+    return;
+  }
+
+  if (event.key === "0") {
+    preventAndRun(event, handlers.resetReviewScore);
+    return;
+  }
+
+  if (event.key === "/") {
+    preventAndRun(event, handlers.focusSearch);
+    return;
+  }
+
+  if (event.key === "Escape") {
+    preventAndRun(event, handlers.closeSidebar);
+    return;
+  }
+
+  if (event.key.toLowerCase() === "l") {
+    preventAndRun(event, handlers.toggleSidebar);
+    return;
+  }
+
+  if (event.key.toLowerCase() === "r") {
+    preventAndRun(event, handlers.toggleRandomMode);
+  }
 }
 
 export function bindTouchEvents({ prevWord, nextWord, isSwipeAllowedTarget }) {

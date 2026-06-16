@@ -1,5 +1,8 @@
-export function makeDifficultKey(item) {
-  return item.id;
+import { makeWordKey } from "./wordIdentity.js";
+import { buildMarkedWordEntries, clampIndex } from "./wordList.js";
+
+function makeDifficultKey(item) {
+  return makeWordKey(item);
 }
 
 export function isDifficult(difficults, item) {
@@ -7,17 +10,64 @@ export function isDifficult(difficults, item) {
 }
 
 export function buildDifficultEntries(allWordsByVol, volOrder, difficults) {
-  const entries = [];
+  return buildMarkedWordEntries(allWordsByVol, volOrder, difficults, isDifficult);
+}
 
-  volOrder.forEach((vol) => {
-    (allWordsByVol[vol] || []).forEach((item) => {
-      if (isDifficult(difficults, item)) {
-        entries.push(item);
-      }
-    });
-  });
+function createDifficultsResult(state, updated = {}) {
+  return {
+    ...updated,
+    currentMode: state.currentMode,
+    index: state.index,
+    indexByVol: state.indexByVol,
+    randomMode: state.randomMode,
+    frequencyMode: state.frequencyMode
+  };
+}
 
-  return entries;
+function touchDifficultsChanged(
+  state,
+  saveDifficultsToLocalOnly,
+  saveDifficultsUpdatedAt,
+  clearWordOrderCache,
+  requestListRebuild
+) {
+  state.difficultsUpdatedAt = Date.now();
+  state.difficultsVersion = (Number(state.difficultsVersion) || 0) + 1;
+  saveDifficultsToLocalOnly(state.difficults);
+  saveDifficultsUpdatedAt(state.difficultsUpdatedAt);
+  clearWordOrderCache();
+  requestListRebuild();
+  return {
+    difficultsUpdatedAt: state.difficultsUpdatedAt,
+    difficultsVersion: state.difficultsVersion
+  };
+}
+
+function toggleDifficultRecord(difficults, key) {
+  if (difficults[key]) {
+    delete difficults[key];
+  } else {
+    difficults[key] = { addedAt: Date.now() };
+  }
+}
+
+function saveCurrentDifficultIndex(state, callbacks, currentId) {
+  callbacks.applyWordOrder(false);
+
+  const currentWords = callbacks.getWords();
+  const nextIndex = currentWords.findIndex((item) => item.id === currentId);
+  state.index = nextIndex >= 0 ? nextIndex : clampIndex(state.index, currentWords);
+
+  if (currentWords.length > 0) {
+    state.indexByVol.difficults = state.index;
+    callbacks.saveIndexByVol(state.indexByVol);
+  }
+}
+
+function finishDifficultToggle(state, callbacks, updated) {
+  callbacks.render();
+  callbacks.updateDifficultToggleButton();
+  return createDifficultsResult(state, updated);
 }
 
 export function toggleDifficultCurrentWord(state, callbacks) {
@@ -25,19 +75,16 @@ export function toggleDifficultCurrentWord(state, callbacks) {
   if (!current) return null;
 
   const key = makeDifficultKey(current);
+  toggleDifficultRecord(state.difficults, key);
 
-  if (state.difficults[key]) {
-    delete state.difficults[key];
-  } else {
-    state.difficults[key] = { addedAt: Date.now() };
-  }
+  const updated = touchDifficultsChanged(
+    state,
+    callbacks.saveDifficultsToLocalOnly,
+    callbacks.saveDifficultsUpdatedAt,
+    callbacks.clearWordOrderCache,
+    callbacks.requestListRebuild
+  );
 
-  state.difficultsUpdatedAt = Date.now();
-  state.difficultsVersion = (Number(state.difficultsVersion) || 0) + 1;
-  callbacks.saveDifficultsToLocalOnly(state.difficults);
-  callbacks.saveDifficultsUpdatedAt(state.difficultsUpdatedAt);
-  callbacks.clearAllShuffleCache();
-  callbacks.requestListRebuild();
   callbacks.updateDifficultToggleButton();
 
   if (state.currentUser) {
@@ -45,62 +92,51 @@ export function toggleDifficultCurrentWord(state, callbacks) {
   }
 
   if (state.currentMode === "difficults") {
-    const currentId = current.id;
-    callbacks.applyWordOrder(false);
-    const currentWords = callbacks.getWords();
-    const nextIndex = currentWords.findIndex((item) => item.id === currentId);
-    state.index = nextIndex >= 0 ? nextIndex : Math.min(state.index, Math.max(currentWords.length - 1, 0));
-
-    if (currentWords.length === 0) {
-      state.index = 0;
-      callbacks.render();
-      callbacks.updateDifficultToggleButton();
-      return {
-        index: state.index,
-        indexByVol: state.indexByVol,
-        difficultsUpdatedAt: state.difficultsUpdatedAt,
-        difficultsVersion: state.difficultsVersion
-      };
-    }
-
-    state.indexByVol.difficults = state.index;
-    callbacks.saveIndexByVol(state.indexByVol);
+    saveCurrentDifficultIndex(state, callbacks, current.id);
   }
 
-  callbacks.render();
-  callbacks.updateDifficultToggleButton();
-  return {
-    index: state.index,
-    indexByVol: state.indexByVol,
-    difficultsUpdatedAt: state.difficultsUpdatedAt,
-    difficultsVersion: state.difficultsVersion
-  };
+  return finishDifficultToggle(state, callbacks, updated);
 }
 
-export async function loadDifficultsMode(state, callbacks, volOrder) {
-  await callbacks.ensureAllVolumesLoaded();
-
+function setDifficultsMode(state, callbacks) {
   callbacks.setCurrentMode("difficults");
   state.currentMode = "difficults";
   callbacks.saveCurrentModeState("difficults");
-
-
   callbacks.clearNavigationHistory();
-  callbacks.applyWordOrder(false);
-  const currentWords = callbacks.getWords();
-  state.index = Math.min(state.indexByVol.difficults || 0, Math.max(currentWords.length - 1, 0));
+}
 
-  if (currentWords.length === 0) {
-    state.index = 0;
+function hasDifficultRecords(difficults) {
+  return Object.keys(difficults || {}).length > 0;
+}
+
+function finishEmptyDifficultsMode(state, callbacks) {
+  callbacks.applyWordOrder(true);
+  state.index = 0;
+  callbacks.requestListRebuild();
+  callbacks.render();
+  callbacks.updateDifficultToggleButton();
+  return createDifficultsResult(state);
+}
+
+function chooseDifficultIndex(state, callbacks) {
+  const currentWords = callbacks.getWords();
+  state.index = clampIndex(state.indexByVol.difficults || 0, currentWords);
+}
+
+export async function loadDifficultsMode(state, callbacks, volOrder) {
+  setDifficultsMode(state, callbacks);
+
+  if (!hasDifficultRecords(state.difficults)) {
+    return finishEmptyDifficultsMode(state, callbacks);
   }
+
+  await callbacks.ensureAllVolumesLoaded();
+
+  callbacks.applyWordOrder(false);
+  chooseDifficultIndex(state, callbacks);
 
   callbacks.requestListRebuild();
   callbacks.render();
   callbacks.updateDifficultToggleButton();
-  return {
-    currentMode: state.currentMode,
-    index: state.index,
-    randomMode: state.randomMode,
-    frequencyMode: state.frequencyMode
-  };
+  return createDifficultsResult(state);
 }

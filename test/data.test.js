@@ -16,22 +16,39 @@ assert.deepStrictEqual(parsedRows, expectedRows, "parseCsv should correctly pars
 const parsedWords = parseCsvToWords(sampleCsv, "vol1");
 assert.strictEqual(parsedWords.length, 3, "parseCsvToWords should skip header rows and return only data rows");
 assert.deepStrictEqual(parsedWords[0], {
-  id: "vol1-2-hello",
+  id: "hello",
   word: "hello",
   meaning: "こんにちは",
   sourceVol: "vol1"
 });
 assert.deepStrictEqual(parsedWords[1], {
-  id: "vol1-3-good,bye",
+  id: "good,bye",
   word: "good,bye",
   meaning: "さようなら",
   sourceVol: "vol1"
 });
 assert.deepStrictEqual(parsedWords[2], {
-  id: "vol1-4-quote\"test",
+  id: "quote\"test",
   word: "quote\"test",
   meaning: "テスト",
   sourceVol: "vol1"
 });
+
+const sheetCsv = "word,meaning,level\ncreate,作る,1\nstudy,勉強する,2\n";
+const parsedSheetWords = parseCsvToWords(sheetCsv, "vol2");
+assert.deepStrictEqual(parsedSheetWords, [
+  {
+    id: "create",
+    word: "create",
+    meaning: "作る",
+    sourceVol: "vol2"
+  },
+  {
+    id: "study",
+    word: "study",
+    meaning: "勉強する",
+    sourceVol: "vol2"
+  }
+], "parseCsvToWords should read word and meaning columns without mixing level into meaning");
 
 console.log("All data parser tests passed.");

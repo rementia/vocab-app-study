@@ -6,7 +6,7 @@ import {
   updateReviewScore
 } from "../reviewManager.js";
 
-const item = { id: "vol1-1-alpha" };
+const item = { id: "vol1-1-alpha", word: "alpha" };
 const scores = {};
 
 assert.strictEqual(getReviewScore(scores, item), 0);
@@ -14,7 +14,7 @@ assert.strictEqual(updateReviewScore(scores, item, 1), 1);
 assert.strictEqual(getReviewScore(scores, item), 1);
 assert.strictEqual(updateReviewScore(scores, item, -1), 0);
 assert.strictEqual(getReviewScore(scores, item), 0);
-assert.strictEqual(Boolean(scores[item.id]), false, "zero scores should be removed from storage data");
+assert.strictEqual(Boolean(scores.alpha), false, "zero scores should be removed from storage data");
 assert.strictEqual(updateReviewScore(scores, item, -10), -5);
 assert.strictEqual(updateReviewScore(scores, item, 20), 5);
 assert.strictEqual(resetReviewScore(scores, item), 0);

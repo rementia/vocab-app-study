@@ -24,14 +24,31 @@ function pushStack(stack, value) {
   }
 }
 
+function isValidIndex(index, max) {
+  return typeof index === 'number' && index >= 0 && index < max;
+}
+
+function popValidHistoryIndex(stack, max) {
+  while (stack.length) {
+    const nextIndex = stack.pop();
+    if (!isValidIndex(nextIndex, max)) continue;
+    return nextIndex;
+  }
+
+  return null;
+}
+
 export function clearNavigationHistory() {
   historyBackStack = [];
   historyForwardStack = [];
 }
 
 export function moveToIndex(nextIndex, { pushHistory = false } = {}) {
-  if (!getWordsLengthFn || getWordsLengthFn() === 0) return;
-  if (nextIndex < 0 || nextIndex >= getWordsLengthFn()) return;
+  if (!getWordsLengthFn) return;
+
+  const wordsLength = getWordsLengthFn();
+  if (wordsLength === 0) return;
+  if (!isValidIndex(nextIndex, wordsLength)) return;
   if (nextIndex === getIndexFn()) return;
 
   if (pushHistory) {
@@ -46,28 +63,20 @@ export function moveToIndex(nextIndex, { pushHistory = false } = {}) {
 
 export function getRandomPrevIndexFromHistory() {
   if (!getIndexFn || !getWordsLengthFn) return null;
-  const max = getWordsLengthFn();
-  while (historyBackStack.length) {
-    const prev = historyBackStack.pop();
-    if (typeof prev !== 'number') continue;
-    if (prev < 0 || prev >= max) continue;
-    pushStack(historyForwardStack, getIndexFn());
-    return prev;
-  }
-  return null;
+  const prev = popValidHistoryIndex(historyBackStack, getWordsLengthFn());
+  if (prev === null) return null;
+
+  pushStack(historyForwardStack, getIndexFn());
+  return prev;
 }
 
 export function getRandomNextIndexFromHistory() {
   if (!getIndexFn || !getWordsLengthFn) return null;
-  const max = getWordsLengthFn();
-  while (historyForwardStack.length) {
-    const next = historyForwardStack.pop();
-    if (typeof next !== 'number') continue;
-    if (next < 0 || next >= max) continue;
-    pushStack(historyBackStack, getIndexFn());
-    return next;
-  }
-  return null;
+  const next = popValidHistoryIndex(historyForwardStack, getWordsLengthFn());
+  if (next === null) return null;
+
+  pushStack(historyBackStack, getIndexFn());
+  return next;
 }
 
 export function getHistoryBackStack() {

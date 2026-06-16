@@ -1,5 +1,8 @@
-export function makeFavoriteKey(item) {
-  return item.id;
+import { makeWordKey } from "./wordIdentity.js";
+import { buildMarkedWordEntries, clampIndex } from "./wordList.js";
+
+function makeFavoriteKey(item) {
+  return makeWordKey(item);
 }
 
 export function isFavorite(favorites, item) {
@@ -7,31 +10,32 @@ export function isFavorite(favorites, item) {
 }
 
 export function buildFavoriteEntries(allWordsByVol, volOrder, favorites) {
-  const entries = [];
-
-  volOrder.forEach((vol) => {
-    (allWordsByVol[vol] || []).forEach((item) => {
-      if (isFavorite(favorites, item)) {
-        entries.push(item);
-      }
-    });
-  });
-
-  return entries;
+  return buildMarkedWordEntries(allWordsByVol, volOrder, favorites, isFavorite);
 }
 
-export function touchFavoritesChanged(
+function createFavoritesResult(state, updated = {}) {
+  return {
+    ...updated,
+    currentMode: state.currentMode,
+    index: state.index,
+    indexByVol: state.indexByVol,
+    randomMode: state.randomMode,
+    frequencyMode: state.frequencyMode
+  };
+}
+
+function touchFavoritesChanged(
   state,
   saveFavoritesToLocalOnly,
   saveFavoritesUpdatedAt,
-  clearAllShuffleCache,
+  clearWordOrderCache,
   requestListRebuild
 ) {
   state.favoritesUpdatedAt = Date.now();
   state.favoritesVersion = (Number(state.favoritesVersion) || 0) + 1;
   saveFavoritesToLocalOnly(state.favorites);
   saveFavoritesUpdatedAt(state.favoritesUpdatedAt);
-  clearAllShuffleCache();
+  clearWordOrderCache();
   requestListRebuild();
   return {
     favoritesUpdatedAt: state.favoritesUpdatedAt,
@@ -39,23 +43,45 @@ export function touchFavoritesChanged(
   };
 }
 
+function toggleFavoriteRecord(favorites, key) {
+  if (favorites[key]) {
+    delete favorites[key];
+  } else {
+    favorites[key] = { addedAt: Date.now() };
+  }
+}
+
+function saveCurrentFavoriteIndex(state, callbacks, currentId) {
+  callbacks.applyWordOrder(false);
+
+  const currentWords = callbacks.getWords();
+  const nextIndex = currentWords.findIndex((item) => item.id === currentId);
+  state.index = nextIndex >= 0 ? nextIndex : clampIndex(state.index, currentWords);
+
+  if (currentWords.length > 0) {
+    state.indexByVol.favorites = state.index;
+    callbacks.saveIndexByVol(state.indexByVol);
+  }
+}
+
+function finishFavoriteToggle(state, callbacks, updated) {
+  callbacks.render();
+  callbacks.updateFavoriteToggleButton();
+  return createFavoritesResult(state, updated);
+}
+
 export function toggleFavoriteCurrentWord(state, callbacks) {
   const current = callbacks.getCurrentWord();
   if (!current) return null;
 
   const key = makeFavoriteKey(current);
-
-  if (state.favorites[key]) {
-    delete state.favorites[key];
-  } else {
-    state.favorites[key] = { addedAt: Date.now() };
-  }
+  toggleFavoriteRecord(state.favorites, key);
 
   const updated = touchFavoritesChanged(
     state,
     callbacks.saveFavoritesToLocalOnly,
     callbacks.saveFavoritesUpdatedAt,
-    callbacks.clearAllShuffleCache,
+    callbacks.clearWordOrderCache,
     callbacks.requestListRebuild
   );
 
@@ -66,98 +92,64 @@ export function toggleFavoriteCurrentWord(state, callbacks) {
   }
 
   if (state.currentMode === "favorites") {
-    const currentId = current.id;
-    callbacks.applyWordOrder(false);
-
-    const currentWords = callbacks.getWords();
-    const nextIndex = currentWords.findIndex((item) => item.id === currentId);
-    state.index = nextIndex >= 0 ? nextIndex : Math.min(state.index, Math.max(currentWords.length - 1, 0));
-
-    if (currentWords.length === 0) {
-      state.index = 0;
-      callbacks.requestListRebuild();
-      callbacks.render();
-      callbacks.updateFavoriteToggleButton();
-      return {
-        ...updated,
-        index: state.index,
-        indexByVol: state.indexByVol
-      };
-    }
-
-    state.indexByVol.favorites = state.index;
-    callbacks.saveIndexByVol(state.indexByVol);
-    callbacks.requestListRebuild();
+    saveCurrentFavoriteIndex(state, callbacks, current.id);
   }
 
-  callbacks.render();
-  callbacks.updateFavoriteToggleButton();
-  return {
-    ...updated,
-    index: state.index,
-    indexByVol: state.indexByVol
-  };
+  return finishFavoriteToggle(state, callbacks, updated);
 }
 
-export async function loadFavoritesMode(state, callbacks, volOrder) {
+function hasFavoriteRecords(favorites) {
+  return Object.keys(favorites || {}).length > 0;
+}
+
+function finishEmptyFavoritesMode(state, callbacks) {
+  callbacks.applyWordOrder(true);
+  state.index = 0;
+  callbacks.requestListRebuild();
+  callbacks.render();
+  callbacks.updateFavoriteToggleButton();
+  return createFavoritesResult(state);
+}
+
+function setFavoritesMode(state, callbacks) {
   callbacks.setCurrentMode("favorites");
   state.currentMode = "favorites";
   callbacks.saveCurrentModeState("favorites");
   callbacks.clearNavigationHistory();
+}
 
-  const hasFavorites = Object.keys(state.favorites || {}).length > 0;
-  if (!hasFavorites) {
-    callbacks.applyWordOrder(true);
-    state.index = 0;
-    callbacks.requestListRebuild();
-    callbacks.render();
-    callbacks.updateFavoriteToggleButton();
-    return {
-      currentMode: state.currentMode,
-      index: state.index,
-      randomMode: state.randomMode,
-      frequencyMode: state.frequencyMode
-    };
+function chooseFavoriteIndex(state, callbacks) {
+  const currentWords = callbacks.getWords();
+  const fallbackIndex = clampIndex(state.indexByVol.favorites || 0, currentWords);
+  const current = callbacks.getCurrentWord ? callbacks.getCurrentWord() : null;
+
+  if (!current || !state.favorites[makeFavoriteKey(current)]) {
+    state.index = fallbackIndex;
+    return;
+  }
+
+  const favoriteIndex = currentWords.findIndex((item) => item.id === current.id);
+  state.index = favoriteIndex >= 0 ? favoriteIndex : fallbackIndex;
+}
+
+export async function loadFavoritesMode(state, callbacks, volOrder) {
+  setFavoritesMode(state, callbacks);
+
+  if (!hasFavoriteRecords(state.favorites)) {
+    return finishEmptyFavoritesMode(state, callbacks);
   }
 
   await callbacks.ensureAllVolumesLoaded();
   const favoriteEntries = buildFavoriteEntries(state.allWordsByVol, volOrder, state.favorites);
 
   if (favoriteEntries.length === 0) {
-    callbacks.applyWordOrder(true);
-    state.index = 0;
-    callbacks.requestListRebuild();
-    callbacks.render();
-    callbacks.updateFavoriteToggleButton();
-    return {
-      currentMode: state.currentMode,
-      index: state.index,
-      randomMode: state.randomMode,
-      frequencyMode: state.frequencyMode
-    };
+    return finishEmptyFavoritesMode(state, callbacks);
   }
 
   callbacks.applyWordOrder(false);
-  const currentWords = callbacks.getWords();
-
-  const current = callbacks.getCurrentWord ? callbacks.getCurrentWord() : null;
-  if (current && state.favorites[makeFavoriteKey(current)]) {
-    const favoriteIndex = currentWords.findIndex((item) => item.id === current.id);
-    if (favoriteIndex >= 0) {
-      state.index = favoriteIndex;
-    } else {
-      state.index = Math.min(state.indexByVol.favorites || 0, Math.max(currentWords.length - 1, 0));
-    }
-  } else {
-    state.index = Math.min(state.indexByVol.favorites || 0, Math.max(currentWords.length - 1, 0));
-  }
+  chooseFavoriteIndex(state, callbacks);
 
   callbacks.requestListRebuild();
   callbacks.render();
-  return {
-    currentMode: state.currentMode,
-    index: state.index,
-    randomMode: state.randomMode,
-    frequencyMode: state.frequencyMode
-  };
+  return createFavoritesResult(state);
 }
