@@ -123,7 +123,7 @@ function chooseFavoriteIndex(state, callbacks) {
   const fallbackIndex = clampIndex(state.indexByVol.favorites || 0, currentWords);
   const current = callbacks.getCurrentWord ? callbacks.getCurrentWord() : null;
 
-  if (!current || !state.favorites[makeFavoriteKey(current)]) {
+  if (!current || !isFavorite(state.favorites, current)) {
     state.index = fallbackIndex;
     return;
   }
