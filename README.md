@@ -18,6 +18,115 @@ https://rementia.github.io/vocab-app-study/
 
 ユーザーごとの学習状態は、Firebase Authentication の UID を使って Firestore に分離保存します。一方で、現在の表示位置や一部の表示設定は `localStorage` に保存し、同じ端末・同じブラウザで復元できるようにしています。
 
+## Study Version Design
+
+このリポジトリは、個人学習用の英単語アプリ study 版です。
+
+公開用アプリとは保存先を分けるため、Firestore collection と localStorage key prefix を study 版専用にしています。
+
+## Data Storage Overview
+
+このアプリでは、保存するデータの性質に応じて Firestore と localStorage を使い分けています。
+
+| 保存先                            | 保存内容       | 共有範囲          | 主な目的                    |
+| ------------------------------ | ---------- | ------------- | ----------------------- |
+| Firestore `privateWords/{vol}` | 単語データ      | アプリ全体         | vol.1〜vol.4 の単語データを管理する |
+| Firestore `privateUsers/{uid}` | ユーザー別の学習状態 | 同じGoogleアカウント | お気に入り・苦手単語などを保存する       |
+| localStorage                   | 画面状態・表示設定  | 同じブラウザのみ      | 前回開いていた状態を復元する          |
+
+## Firestore Design
+
+Firestore では、単語データとユーザー別データを分けて保存しています。
+
+```txt
+privateWords/{vol}
+privateUsers/{uid}
+```
+
+### `privateWords/{vol}`
+
+`privateWords/{vol}` は、vol.1〜vol.4 の単語データを保存する collection です。
+
+```txt
+privateWords
+├─ vol1
+├─ vol2
+├─ vol3
+└─ vol4
+```
+
+主な役割は、アプリで表示する単語データを一元管理することです。
+
+### `privateUsers/{uid}`
+
+`privateUsers/{uid}` は、Googleログインしたユーザーごとの学習状態を保存する collection です。
+
+```txt
+privateUsers
+└─ {uid}
+   ├─ favorites
+   ├─ favoritesUpdatedAt
+   ├─ difficults
+   └─ difficultsUpdatedAt
+```
+
+主な役割は、同じGoogleアカウントでログインしたときに、別端末でも学習状態を共有できるようにすることです。
+
+## localStorage Design
+
+study 版では、公開版や旧版の保存データと衝突しないように、localStorage の key に study 版専用 prefix を付けています。
+
+```txt
+vocab_app_study_
+```
+
+主な localStorage key は次の通りです。
+
+```txt
+vocab_app_study_current_vol
+vocab_app_study_current_mode
+vocab_app_study_index_by_vol
+vocab_app_study_sidebar_open
+vocab_app_study_auto_speak
+vocab_app_study_challenge_mode
+vocab_app_study_challenge_time
+vocab_app_study_display_time
+vocab_app_study_translation_mode
+vocab_app_study_auto_play
+vocab_app_study_random_mode
+vocab_app_study_frequency_mode
+```
+
+localStorage に保存するものは、基本的に「そのブラウザで前回状態を復元するための情報」です。
+
+例:
+
+| key                            | 役割                    |
+| ------------------------------ | --------------------- |
+| `vocab_app_study_current_vol`  | 最後に開いていた volume を復元する |
+| `vocab_app_study_current_mode` | 最後に使っていた mode を復元する   |
+| `vocab_app_study_index_by_vol` | volume ごとの現在位置を復元する   |
+| `vocab_app_study_sidebar_open` | sidebar の開閉状態を復元する    |
+| `vocab_app_study_auto_speak`   | 発音自動再生のON/OFFを復元する    |
+
+## Why Firestore and localStorage are separated
+
+Firestore と localStorage は役割が違うため、保存するデータを分けています。
+
+Firestore は、Googleアカウントに紐づけて長期的に残したいデータに使います。
+localStorage は、そのブラウザだけで復元できればよい表示状態や設定に使います。
+
+```txt
+Firestore
+= アカウントに紐づく学習データ
+
+localStorage
+= ブラウザに紐づく画面状態・表示設定
+```
+
+このように分けることで、アプリのデータ設計を整理しやすくし、公開版・study版・旧版の保存データが混ざらないようにしています。
+
+
 ## Features
 
 - vol.1〜vol.4 の単語リスト切り替え
