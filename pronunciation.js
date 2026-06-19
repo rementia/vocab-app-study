@@ -5,6 +5,7 @@ let pronunciationEl = null;
 let currentPronunciationController = null;
 let lastPronunciationRequest = "";
 let getCurrentWordFn = null;
+const pronunciationMissCache = new Set();
 const PRONUNCIATION_CACHE_PREFIX = "vocab_app_study_pron";
 const LEGACY_PRONUNCIATION_CACHE_PREFIX = "portfolio_pron";
 
@@ -49,6 +50,11 @@ export async function loadPronunciation(word) {
     return;
   }
 
+  if (pronunciationMissCache.has(normalizedWord)) {
+    pronunciationEl.textContent = '発音記号なし';
+    return;
+  }
+
   if (currentPronunciationController) {
     currentPronunciationController.abort();
   }
@@ -61,6 +67,8 @@ export async function loadPronunciation(word) {
     const phonetic = extractPhonetic(data);
     if (phonetic) {
       safeSetItem(key, phonetic);
+    } else {
+      pronunciationMissCache.add(normalizedWord);
     }
 
     if (isCurrentPronunciationRequest(normalizedWord)) {
@@ -68,6 +76,7 @@ export async function loadPronunciation(word) {
     }
   } catch (error) {
     if (error.name !== 'AbortError') {
+      pronunciationMissCache.add(normalizedWord);
       if (isCurrentPronunciationRequest(normalizedWord)) {
         pronunciationEl.textContent = '発音記号なし';
       }
