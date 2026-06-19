@@ -22,7 +22,9 @@ https://rementia.github.io/vocab-app-study/
 
 このリポジトリは、個人学習用の英単語アプリ study 版です。
 
-公開用アプリとは保存先を分けるため、Firestore collection と localStorage key prefix を study 版専用にしています。
+公開用アプリとは保存先を分けるため、Firestore collection と localStorage key prefix を study 版専用にしています。ユーザー別学習データは `privateUsers/{uid}`、localStorage は `vocab_app_study_` prefix に分けています。
+
+ログインなしでもアプリの基本表示は利用でき、選択中の volume、mode、表示位置、表示設定などのブラウザ内状態は localStorage で復元できます。お気に入り・苦手単語などのユーザー別学習データは、Googleログイン後に利用・保存され、Firestore `privateUsers/{uid}` に保存されます。
 
 ## Data Storage Overview
 
@@ -88,6 +90,7 @@ vocab_app_study_current_mode
 vocab_app_study_index_by_vol
 vocab_app_study_sidebar_open
 vocab_app_study_auto_speak
+vocab_app_study_review_scores
 vocab_app_study_challenge_mode
 vocab_app_study_challenge_time
 vocab_app_study_display_time
@@ -226,6 +229,8 @@ privateUsers/{uid}
 - 想起学習設定
 - 自動再生設定
 - 乱数配列 / 頻度配列設定
+- 四択問題モード設定
+- 四択問題の正誤履歴
 - 発音記号キャッシュ
 
 `localStorage` は端末内のブラウザ保存領域なので、別端末には共有されません。お気に入り・苦手単語は Firestore に保存されるため、同じ Google アカウントでログインすれば別端末でも共有されます。

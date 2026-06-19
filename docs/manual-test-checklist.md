@@ -54,6 +54,23 @@
 * [ ] mode 切り替え後にボタン状態が不自然でない
 * [ ] 再読み込み後、最後に選んだ mode が復元される
 
+## Multiple Choice Mode
+
+* [ ] 四択問題モードに切り替えられる
+* [ ] UI上の表示が「四択問題」になっている
+* [ ] 英→日で、問題文が英単語、選択肢が日本語訳になる
+* [ ] 日→英で、問題文が日本語訳、選択肢が英単語になる
+* [ ] 正解時に正解色・正解スタイルが表示される
+* [ ] 正解時に「正解」テキストが表示されない
+* [ ] 不正解時に不正解色と正解色が表示される
+* [ ] 回答後、不正解選択肢を再タップすると訳語に切り替わる
+* [ ] もう一度タップすると元の表示に戻る
+* [ ] 回答後に不正解選択肢を何度タップしても correct / wrong が再加算されない
+* [ ] 次の問題に進むと表示切替状態がリセットされる
+* [ ] `vocab_app_study_review_scores` に正誤履歴が保存される
+* [ ] reload 後も正誤履歴が復元される
+* [ ] frequency mode で不正解の多い単語が出やすくなる
+
 ## 6. お気に入り
 
 * [ ] ★ を押すとお気に入りに追加される
@@ -81,10 +98,14 @@
 * [ ] `vocab_app_study_index_by_vol` が保存される
 * [ ] `vocab_app_study_sidebar_open` が保存される
 * [ ] `vocab_app_study_auto_speak` が保存される
+* [ ] `vocab_app_study_review_scores` is saved
+* [ ] `vocab_app_study_multiple_choice_mode` is saved
 * [ ] 再読み込み後、volume が復元される
 * [ ] 再読み込み後、mode が復元される
 * [ ] 再読み込み後、単語位置が復元される
 * [ ] 再読み込み後、UI設定が復元される
+* [ ] Review scores are restored after reload
+* [ ] Multiple choice mode setting is restored after reload
 
 ## 9. 発音
 
