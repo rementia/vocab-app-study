@@ -6,6 +6,7 @@ const tests = [
   "./wordOrder.test.js",
   "./data.test.js",
   "./pronunciation.test.js",
+  "./multipleChoice.test.js",
   "./navigation.test.js",
   "./storage.test.js",
   "./favoritesManager.test.js",

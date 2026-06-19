@@ -93,6 +93,10 @@ import {
   loadPronunciation
 } from './pronunciation.js';
 import {
+  buildMultipleChoiceQuestion,
+  getMultipleChoiceDirection
+} from './multipleChoice.js';
+import {
   subscribeUserMarksRealtimeRemote,
   saveFavoritesToCloudRemote,
   saveDifficultsToCloudRemote,
@@ -537,78 +541,6 @@ function finishReviewStatsChange(preserveCurrentId) {
   updateReviewButtons();
 }
 
-function getAllLoadedWords() {
-  return volOrder.flatMap((volName) => allWordsByVol[volName] || []);
-}
-
-function getMultipleChoicePrompt(item) {
-  return translationMode ? item.meaning : item.word;
-}
-
-function getMultipleChoiceAnswerText(item) {
-  return translationMode ? item.word : item.meaning;
-}
-
-function getMultipleChoiceSecondaryText(item) {
-  return translationMode ? item.meaning : item.word;
-}
-
-function getMultipleChoiceDirection() {
-  return translationMode ? "meaning-to-word" : "word-to-meaning";
-}
-
-function hasChoiceText(item) {
-  return Boolean(getMultipleChoiceAnswerText(item));
-}
-
-function sameWord(a, b) {
-  return Boolean(a && b && (a.id === b.id || a.word === b.word));
-}
-
-function collectDistractors(current) {
-  const correctText = getMultipleChoiceAnswerText(current);
-  const sameVolCandidates = (allWordsByVol[current.sourceVol] || [])
-    .filter((item) => !sameWord(item, current) && hasChoiceText(item));
-  const allCandidates = getAllLoadedWords()
-    .filter((item) => !sameWord(item, current) && hasChoiceText(item));
-
-  return [...sameVolCandidates, ...allCandidates].reduce((unique, item) => {
-    const choiceText = getMultipleChoiceAnswerText(item);
-    if (
-      !choiceText ||
-      choiceText === correctText ||
-      unique.some((candidate) => getMultipleChoiceAnswerText(candidate) === choiceText)
-    ) {
-      return unique;
-    }
-    unique.push(item);
-    return unique;
-  }, []);
-}
-
-function buildMultipleChoiceQuestion(current) {
-  const correctText = getMultipleChoiceAnswerText(current);
-  if (!current || !correctText) return null;
-
-  const distractors = shuffleArray(collectDistractors(current)).slice(0, 3);
-  const options = shuffleArray([
-    { text: correctText, secondaryText: getMultipleChoiceSecondaryText(current), isCorrect: true },
-    ...distractors.map((item) => ({
-      text: getMultipleChoiceAnswerText(item),
-      secondaryText: getMultipleChoiceSecondaryText(item),
-      isCorrect: false
-    }))
-  ]);
-
-  return {
-    wordId: current.id,
-    direction: getMultipleChoiceDirection(),
-    prompt: getMultipleChoicePrompt(current),
-    correctText,
-    options
-  };
-}
-
 function getMultipleChoiceQuestion() {
   if (!multipleChoiceMode) return null;
 
@@ -620,13 +552,18 @@ function getMultipleChoiceQuestion() {
     return null;
   }
 
-  const direction = getMultipleChoiceDirection();
+  const direction = getMultipleChoiceDirection({ translationMode });
   if (
     !multipleChoiceQuestion ||
     multipleChoiceQuestion.wordId !== current.id ||
     multipleChoiceQuestion.direction !== direction
   ) {
-    multipleChoiceQuestion = buildMultipleChoiceQuestion(current);
+    multipleChoiceQuestion = buildMultipleChoiceQuestion({
+      current,
+      allWordsByVol,
+      volOrder,
+      translationMode
+    });
     multipleChoiceAnswer = null;
     multipleChoiceRevealedOptionIndexes.clear();
   }
