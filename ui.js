@@ -1,4 +1,4 @@
-﻿function getState(context) {
+function getState(context) {
   return context.getState();
 }
 
@@ -17,6 +17,8 @@ export function renderApp(context, options = {}) {
   updateTopButtons(context);
   updateRecallTimeControl(context);
   updateTranslationButton(context);
+  updateMultipleChoiceButton(context);
+  renderMultipleChoice(context);
   updateAutoPlayButton(context);
   updateRandomButton(context);
   updateFrequencyButton(context);
@@ -156,8 +158,13 @@ export function renderCurrentWord(context) {
 
   renderWordText(context, current);
   updateMeaningDisplay(context, state.translationMode ? current.word : current.meaning);
+  renderMultipleChoice(context);
   updateCurrentStateMeta(context);
-  callbacks.loadPronunciation(current.word);
+  if (state.multipleChoiceMode) {
+    if (dom.pronunciationEl) dom.pronunciationEl.textContent = "";
+  } else {
+    callbacks.loadPronunciation(current.word);
+  }
 }
 
 function renderEmptyCurrentWord(context) {
@@ -170,6 +177,7 @@ function renderEmptyCurrentWord(context) {
   if (dom.pronunciationEl) dom.pronunciationEl.textContent = "";
   if (dom.prevHintEl) dom.prevHintEl.textContent = "";
   if (dom.nextHintEl) dom.nextHintEl.textContent = "";
+  renderMultipleChoice(context);
 
   updateFavoriteToggleButton(context);
   updateDifficultToggleButton(context);
@@ -410,6 +418,10 @@ export function updateTranslationButton(context) {
   updateToggleButton(context, getDom(context).translationBtnEl, "訳語切替", getState(context).translationMode);
 }
 
+export function updateMultipleChoiceButton(context) {
+  updateToggleButton(context, getDom(context).multipleChoiceBtnEl, "四択問題", getState(context).multipleChoiceMode);
+}
+
 export function updateAutoPlayButton(context) {
   const state = getState(context);
   const isActive = state.autoPlayMode === "once";
@@ -435,6 +447,69 @@ export function updateAuthUI(context) {
   dom.logoutBtnEl.hidden = !state.currentUser;
 }
 
+export function renderMultipleChoice(context) {
+  const state = getState(context);
+  const dom = getDom(context);
+  const callbacks = getCallbacks(context);
+
+  if (!dom.multipleChoicePanelEl || !dom.multipleChoiceOptionsEl) return;
+
+  if (typeof document !== "undefined") {
+    document.body.classList.toggle("mode-multiple-choice", state.multipleChoiceMode);
+  }
+
+  dom.multipleChoicePanelEl.hidden = !state.multipleChoiceMode;
+  if (!state.multipleChoiceMode) {
+    dom.multipleChoiceOptionsEl.innerHTML = "";
+    if (dom.multipleChoiceQuestionEl) dom.multipleChoiceQuestionEl.textContent = "";
+    if (dom.multipleChoiceFeedbackEl) dom.multipleChoiceFeedbackEl.textContent = "";
+    return;
+  }
+
+  const question = callbacks.getMultipleChoiceQuestion?.();
+  if (!question) {
+    dom.multipleChoiceOptionsEl.innerHTML = "";
+    if (dom.multipleChoiceQuestionEl) dom.multipleChoiceQuestionEl.textContent = "選択肢を作成できません";
+    if (dom.multipleChoiceFeedbackEl) dom.multipleChoiceFeedbackEl.textContent = "";
+    return;
+  }
+  const latestState = getState(context);
+
+  if (dom.multipleChoiceQuestionEl) {
+    dom.multipleChoiceQuestionEl.textContent = "";
+  }
+
+  dom.multipleChoiceOptionsEl.innerHTML = "";
+  question.options.forEach((option, optionIndex) => {
+    const isAnswered = Boolean(latestState.multipleChoiceAnswer);
+    const isRevealed = isAnswered &&
+      !option.isCorrect &&
+      latestState.multipleChoiceRevealedOptionIndexes?.includes(optionIndex);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "multiple-choice-option";
+    button.textContent = isRevealed && option.secondaryText ? option.secondaryText : option.text;
+    button.dataset.choiceIndex = String(optionIndex);
+
+    if (isAnswered) {
+      if (option.text === latestState.multipleChoiceAnswer.correctText) {
+        button.classList.add("is-correct");
+      }
+      if (
+        option.text === latestState.multipleChoiceAnswer.selectedText &&
+        !latestState.multipleChoiceAnswer.isCorrect
+      ) {
+        button.classList.add("is-wrong");
+      }
+    }
+
+    dom.multipleChoiceOptionsEl.appendChild(button);
+  });
+
+  if (dom.multipleChoiceFeedbackEl) {
+    dom.multipleChoiceFeedbackEl.textContent = "";
+  }
+}
 function updateMeaningDisplay(context, meaning) {
   const state = getState(context);
   const dom = getDom(context);
@@ -442,6 +517,11 @@ function updateMeaningDisplay(context, meaning) {
 
   if (!dom.meaningEl) return;
   callbacks.clearMeaningRevealTimer();
+
+  if (state.multipleChoiceMode) {
+    dom.meaningEl.textContent = "";
+    return;
+  }
 
   if (!state.challengeMode) {
     dom.meaningEl.textContent = meaning;

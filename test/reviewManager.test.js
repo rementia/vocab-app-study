@@ -1,6 +1,9 @@
-import assert from "assert";
+﻿import assert from "assert";
 import {
   getReviewScore,
+  getReviewStats,
+  getReviewWeight,
+  recordReviewAnswer,
   resetReviewScore,
   sortByReviewScore,
   updateReviewScore
@@ -19,6 +22,28 @@ assert.strictEqual(updateReviewScore(scores, item, -10), -5);
 assert.strictEqual(updateReviewScore(scores, item, 20), 5);
 assert.strictEqual(resetReviewScore(scores, item), 0);
 assert.strictEqual(getReviewScore(scores, item), 0);
+
+const statsScores = {};
+recordReviewAnswer(statsScores, item, true, 1000);
+recordReviewAnswer(statsScores, item, false, 2000);
+assert.deepStrictEqual(getReviewStats(statsScores, item), {
+  correct: 1,
+  wrong: 1,
+  streakCorrect: 0,
+  streakWrong: 1,
+  lastAnsweredAt: 2000
+});
+assert.strictEqual(getReviewWeight(statsScores, item), 4.5);
+updateReviewScore(statsScores, item, 2);
+assert.strictEqual(getReviewWeight(statsScores, item), 6.5);
+resetReviewScore(statsScores, item);
+assert.deepStrictEqual(getReviewStats(statsScores, item), {
+  correct: 1,
+  wrong: 1,
+  streakCorrect: 0,
+  streakWrong: 1,
+  lastAnsweredAt: 2000
+}, "resetting manual score should preserve answer stats");
 
 const scoredItems = [
   { id: "a" },

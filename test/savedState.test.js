@@ -1,4 +1,4 @@
-import assert from "node:assert/strict";
+﻿import assert from "node:assert/strict";
 import { readSavedAppState } from "../savedState.js";
 
 function makeReader(values) {
@@ -20,6 +20,7 @@ const keys = {
   challengeTime: "challengeTime",
   displayTime: "displayTime",
   translationMode: "translationMode",
+  multipleChoiceMode: "multipleChoiceMode",
   autoPlay: "autoPlay",
   randomMode: "randomMode",
   frequencyMode: "frequencyMode"
@@ -37,6 +38,7 @@ const defaults = {
   challengeTime: 1500,
   displayTime: 1500,
   translationMode: false,
+  multipleChoiceMode: false,
   randomMode: false,
   frequencyMode: false
 };
@@ -59,6 +61,7 @@ const defaults = {
       challengeTime: "99999",
       displayTime: "500",
       translationMode: "true",
+      multipleChoiceMode: "true",
       autoPlay: "once",
       randomMode: "true",
       frequencyMode: "true"
@@ -83,6 +86,7 @@ const defaults = {
   assert.equal(state.challengeTime, 5000);
   assert.equal(state.displayTime, 1000);
   assert.equal(state.translationMode, true);
+  assert.equal(state.multipleChoiceMode, true);
   assert.equal(state.shouldResetAutoPlay, true);
   assert.equal(state.randomMode, true);
   assert.equal(state.frequencyMode, true);
@@ -107,6 +111,7 @@ const defaults = {
   assert.equal(state.currentMode, "vol");
   assert.deepEqual(state.indexByVol, defaults.indexByVol);
   assert.equal(state.sidebarOpen, true);
+  assert.equal(state.multipleChoiceMode, false);
   assert.equal(state.shouldResetAutoPlay, false);
 }
 

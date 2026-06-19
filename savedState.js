@@ -85,6 +85,7 @@ export function readSavedAppState({
       recallTimeRange.max
     ),
     translationMode: parseSavedBoolean(saved.translationMode, defaults.translationMode),
+    multipleChoiceMode: parseSavedBoolean(saved.multipleChoiceMode, defaults.multipleChoiceMode),
     randomMode: parseSavedBoolean(saved.randomMode, defaults.randomMode),
     frequencyMode: parseSavedBoolean(saved.frequencyMode, defaults.frequencyMode),
     shouldResetAutoPlay: saved.autoPlay !== null

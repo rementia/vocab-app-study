@@ -2,7 +2,7 @@
 
 ブラウザ上で動作する英単語学習アプリです。
 
-英単語を眺めるだけではなく、想起学習、発音、自動再生、ランダム復習、頻度調整、お気に入り、苦手単語管理を組み合わせて、繰り返し復習しやすい形にしています。
+英単語を眺めるだけではなく、想起学習、四択問題、発音、自動再生、ランダム復習、頻度調整、お気に入り、苦手単語管理を組み合わせて、繰り返し復習しやすい形にしています。
 
 ## Demo
 
@@ -92,6 +92,7 @@ vocab_app_study_challenge_mode
 vocab_app_study_challenge_time
 vocab_app_study_display_time
 vocab_app_study_translation_mode
+vocab_app_study_multiple_choice_mode
 vocab_app_study_auto_play
 vocab_app_study_random_mode
 vocab_app_study_frequency_mode
@@ -133,6 +134,8 @@ localStorage
 - 英単語・意味の表示
 - 単語検索
 - 訳語切替
+- 四択問題モード（英→日 / 日→英）
+- 四択問題の正誤履歴保存と頻度順レビューへの反映
 - 発音機能
 - 発音同期
 - 自動再生

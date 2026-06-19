@@ -1,4 +1,4 @@
-import assert from "assert";
+﻿import assert from "assert";
 import {
   LEGACY_STORAGE_KEYS,
   STORAGE_KEYS,
@@ -13,6 +13,7 @@ import {
   saveDifficultsToLocalOnly,
   saveDifficultsUpdatedAt,
   saveFrequencyModeState,
+  saveMultipleChoiceModeState,
   saveIndexByVol
 } from "../storage.js";
 
@@ -65,6 +66,12 @@ assert.strictEqual(values.get(STORAGE_KEYS.challengeTime), "1500", "saveChalleng
 
 saveDisplayTimeState(1800);
 assert.strictEqual(values.get(STORAGE_KEYS.displayTime), "1800", "saveDisplayTimeState should store numbers as strings");
+
+saveMultipleChoiceModeState(true);
+assert.strictEqual(values.get(STORAGE_KEYS.multipleChoiceMode), "true", "saveMultipleChoiceModeState should store booleans as strings");
+
+saveFrequencyModeState(true);
+assert.strictEqual(values.get(STORAGE_KEYS.frequencyMode), "true", "saveFrequencyModeState should store booleans as strings");
 
 const legacyValues = installMockStorage();
 legacyValues.set(LEGACY_STORAGE_KEYS.vol, "vol2");

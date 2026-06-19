@@ -1,4 +1,4 @@
-﻿/* Theme and layout tokens */
+/* Theme and layout tokens */
 :root {
   --app-bg: #ffffff;
   --app-text: #111111;
@@ -302,8 +302,8 @@ body.loading {
 }
 
 .feature-control-list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, 108px);
   gap: var(--feature-control-list-gap);
   align-items: stretch;
 }
@@ -313,9 +313,92 @@ body.loading {
   text-align: center;
 }
 
-.order-mode-row .control-btn {
-  width: 108px;
-  text-align: center;
+.multiple-choice-btn {
+  min-width: 108px;
+  grid-column: 1;
+  grid-row: 4;
+}
+
+.translation-btn {
+  grid-column: 1;
+  grid-row: 3;
+}
+
+.multiple-choice-panel {
+  width: min(100%, 620px);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.multiple-choice-question {
+  display: none;
+  font-size: 14px;
+  color: var(--muted-text);
+  min-height: 1.4em;
+  word-break: break-word;
+}
+
+.multiple-choice-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.multiple-choice-option {
+  min-height: 54px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.multiple-choice-option:hover {
+  background: var(--hover-bg);
+}
+
+.multiple-choice-option.is-correct {
+  border-color: #2f8f4e;
+  background: #e8f6ed;
+  color: #135c2d;
+}
+
+.multiple-choice-option.is-wrong {
+  border-color: #bf4a4a;
+  background: #fbeaea;
+  color: #7a1f1f;
+}
+
+.multiple-choice-option:disabled {
+  cursor: default;
+}
+
+.multiple-choice-feedback {
+  min-height: 1.4em;
+  color: var(--muted-text);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+body.mode-multiple-choice #meaning {
+  display: none;
+}
+
+body.mode-multiple-choice #pronunciation {
+  display: none;
+}
+
+body.mode-multiple-choice .center-box {
+  gap: 16px;
+}
+
+body.mode-multiple-choice .multiple-choice-panel {
+  margin-top: 4px;
 }
 
 /* Login controls */
@@ -573,6 +656,7 @@ body.loading {
   flex-wrap: wrap;
   justify-content: center;
   align-items: flex-end;
+  transform: translateY(-15px);
 }
 
 .nav-box {
@@ -633,6 +717,23 @@ body.loading {
   }
 }
 
+@media (min-width: 769px) and (min-height: 600px) {
+  .app-header {
+    grid-template-columns: minmax(88px, 150px) 1fr 240px;
+  }
+
+  .feature-controls {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 46;
+  }
+
+  .feature-control-list {
+    grid-template-columns: repeat(2, 108px);
+  }
+}
+
 @media (max-width: 768px) {
   :root {
     --header-height: 72px;
@@ -684,8 +785,13 @@ body.loading {
     padding: 14px 22px;
   }
 
+  .multiple-choice-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .feature-control-list .control-btn {
-    width: 100px;
+    width: 92px;
+    min-width: 0;
   }
 }
 
@@ -701,10 +807,31 @@ body.loading {
   }
 
   .feature-control-list .control-btn {
-    width: 96px;
+    width: 86px;
+    min-width: 0;
     font-size: 12px;
   }
 
+  body.mode-multiple-choice .center-box {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .multiple-choice-panel {
+    width: 100%;
+  }
+
+  .multiple-choice-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .multiple-choice-option {
+    min-height: 44px;
+    padding: 8px 7px;
+    font-size: 13px;
+    line-height: 1.25;
+  }
 
   #word {
     font-size: clamp(30px, 8vw, 52px);
@@ -741,6 +868,45 @@ body.loading {
 }
 
 @media (max-width: 768px) and (orientation: portrait) {
+  .feature-control-list {
+    grid-template-columns: 1fr;
+  }
+
+  .random-btn {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .frequency-btn {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .translation-btn {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .multiple-choice-btn {
+    grid-column: 1;
+    grid-row: 4;
+  }
+
+  .speech-sync-btn {
+    grid-column: 1;
+    grid-row: 5;
+  }
+
+  .challenge-btn {
+    grid-column: 1;
+    grid-row: 6;
+  }
+
+  .auto-play-btn {
+    grid-column: 1;
+    grid-row: 7;
+  }
+
   .time-adjustments {
     right: 150px;
     top: 150px;
@@ -763,7 +929,7 @@ body.loading {
   }
 }
 
-@media (max-width: 768px) and (orientation: landscape) {
+@media (max-width: 768px) and (orientation: landscape), (max-height: 520px) and (orientation: landscape) {
   :root {
     --login-bottom: 8px;
     --login-right: 0px;
@@ -775,7 +941,7 @@ body.loading {
 
   .feature-controls {
     position: absolute;
-    left: calc(var(--landscape-feature-left) + var(--landscape-feature-button-width) + var(--landscape-feature-gap));
+    left: var(--landscape-feature-left);
     right: auto;
     top: var(--landscape-feature-top);
     transform: none;
@@ -790,35 +956,8 @@ body.loading {
   }
 
   .feature-control-list {
-    display: grid;
     grid-template-columns: repeat(2, var(--landscape-feature-button-width));
     gap: var(--landscape-feature-gap);
-  }
-
-  .order-mode-row {
-    position: fixed;
-    left: var(--landscape-feature-left);
-    top: var(--landscape-feature-top);
-    z-index: 46;
-    display: grid;
-    grid-template-columns: var(--landscape-feature-button-width);
-    gap: var(--landscape-feature-gap);
-  }
-
-  .speech-sync-btn {
-    order: 3;
-  }
-
-  .translation-btn {
-    order: 1;
-  }
-
-  .challenge-btn {
-    order: 2;
-  }
-
-  .auto-play-btn {
-    order: 4;
   }
 
   .time-adjustments {
@@ -834,7 +973,7 @@ body.loading {
     position: fixed;
     right: 0px;
     top: auto;
-    bottom: 8%;
+    bottom: 6%;
     transform: none;
     pointer-events: auto;
   }
@@ -863,8 +1002,7 @@ body.loading {
     padding: 6px 10px;
   }
 
-  .feature-control-list .control-btn,
-  .order-mode-row .control-btn {
+  .feature-control-list .control-btn {
     width: var(--landscape-feature-button-width);
     min-width: 0px;
   }
@@ -881,7 +1019,7 @@ body.loading {
   }
 
   .review-panel {
-    width: 164px;
+    width: 160px;
     max-width: calc(100vw - 16px);
   }
 
@@ -901,6 +1039,22 @@ body.loading {
   #meaning {
     font-size: clamp(18px, 3.5vw, 24px);
     min-height: 2.6em;
+  }
+
+  .multiple-choice-panel {
+    width: min(100%, 430px);
+    gap: 6px;
+  }
+
+  .multiple-choice-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .multiple-choice-option {
+    min-height: 38px;
+    padding: 7px 9px;
+    font-size: 13px;
   }
 
   .button-row {

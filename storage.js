@@ -15,6 +15,7 @@ const STORAGE_KEY_NAMES = {
   challengeTime: "challenge_time",
   displayTime: "display_time",
   translationMode: "translation_mode",
+  multipleChoiceMode: "multiple_choice_mode",
   autoPlay: "auto_play",
   randomMode: "random_mode",
   frequencyMode: "frequency_mode"
@@ -123,6 +124,10 @@ export function saveDisplayTimeState(value) {
 
 export function saveTranslationModeState(value) {
   saveTextValue(STORAGE_KEYS.translationMode, value);
+}
+
+export function saveMultipleChoiceModeState(value) {
+  saveTextValue(STORAGE_KEYS.multipleChoiceMode, value);
 }
 
 export function saveAutoPlayState(value) {
