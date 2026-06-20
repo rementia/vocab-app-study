@@ -1,5 +1,7 @@
 # English Vocabulary App
 
+[![Test](https://github.com/rementia/vocab-app-study/actions/workflows/test.yml/badge.svg)](https://github.com/rementia/vocab-app-study/actions/workflows/test.yml)
+
 ブラウザ上で動作する英単語学習アプリです。
 
 英単語を眺めるだけではなく、想起学習、四択問題、発音、自動再生、ランダム復習、頻度調整、お気に入り、苦手単語管理を組み合わせて、繰り返し復習しやすい形にしています。
@@ -257,6 +259,8 @@ privateUsers/{uid}
 npm test
 ```
 
+GitHub Actions の `Test` workflow は、`main` への push、`main` 向け pull request、手動実行（`workflow_dispatch`）で同じ `npm test` を実行します。CI では `package-lock.json` に基づいて `npm ci` を使い、依存関係を再現します。現在のテスト状態は README 上部の badge で確認できます。手動実行する場合は GitHub の Actions タブで `Test` workflow を選び、`Run workflow` を押します。
+
 構文確認の例:
 
 ```bash
@@ -267,6 +271,7 @@ node --check app.js
 
 ```txt
 app.js                Main application flow
+bootstrap.js          Startup entry point
 data.js               Vocabulary CSV loading and parsing
 wordIdentity.js       Word key normalization
 storage.js            localStorage helpers
@@ -281,6 +286,13 @@ ui.js                 DOM rendering
 events.js             Keyboard, touch, and viewport events
 navigation.js         Word navigation history
 pronunciation.js      Speech and pronunciation symbol loading
+multipleChoice.js     四択問題 option generation
+firebaseClient.js     Firebase client setup
+.github/workflows/test.yml  GitHub Actions workflow for npm test
+package.json          npm scripts, including npm test
+package-lock.json     Locked npm dependency resolution for reproducible CI
+test/                 Node-based tests
+docs/                 Storage flow and manual test notes
 ```
 
 ## Notes

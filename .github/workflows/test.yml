@@ -2,7 +2,10 @@ name: Test
 
 on:
   push:
+    branches: [ main ]
   pull_request:
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   test:
@@ -16,6 +19,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Run tests
         run: npm test
