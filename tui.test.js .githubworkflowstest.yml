@@ -1,0 +1,193 @@
+warning: in the working copy of 'test/ui.test.js', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/test/ui.test.js b/test/ui.test.js[m
+[1mindex 259169b..f47d037 100644[m
+[1m--- a/test/ui.test.js[m
+[1m+++ b/test/ui.test.js[m
+[36m@@ -1,6 +1,7 @@[m
+ import assert from "assert";[m
+ import {[m
+   renderCurrentWord,[m
+[32m+[m[32m  renderMultipleChoice,[m
+   updateAuthUI,[m
+   updateAutoPlayButton,[m
+   updateCurrentLabel,[m
+[36m@@ -226,6 +227,179 @@[m [massert.strictEqual(reviewContext.dom.reviewScoreLabelEl.textContent, "頻度調[m
+ assert.strictEqual(reviewContext.dom.decreaseReviewBtnEl.title, "頻度調整：-1");[m
+ assert.strictEqual(reviewContext.dom.increaseReviewBtnEl.title, "頻度調整：-1");[m
+ [m
+[32m+[m
+[32m+[m[32mfunction makeMockClassList() {[m
+[32m+[m[32m  return {[m
+[32m+[m[32m    values: new Set(),[m
+[32m+[m[32m    add(name) {[m
+[32m+[m[32m      this.values.add(name);[m
+[32m+[m[32m    },[m
+[32m+[m[32m    remove(name) {[m
+[32m+[m[32m      this.values.delete(name);[m
+[32m+[m[32m    },[m
+[32m+[m[32m    toggle(name, force) {[m
+[32m+[m[32m      if (force) this.values.add(name);[m
+[32m+[m[32m      else this.values.delete(name);[m
+[32m+[m[32m    },[m
+[32m+[m[32m    contains(name) {[m
+[32m+[m[32m      return this.values.has(name);[m
+[32m+[m[32m    }[m
+[32m+[m[32m  };[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mfunction makeMockElement() {[m
+[32m+[m[32m  const element = {[m
+[32m+[m[32m    _innerHTML: "",[m
+[32m+[m[32m    textContent: "",[m
+[32m+[m[32m    hidden: false,[m
+[32m+[m[32m    type: "",[m
+[32m+[m[32m    dataset: {},[m
+[32m+[m[32m    children: [],[m
+[32m+[m[32m    classList: makeMockClassList(),[m
+[32m+[m[32m    set className(value) {[m
+[32m+[m[32m      this._className = value;[m
+[32m+[m[32m      this.classList.values = new Set(String(value).split(/\s+/).filter(Boolean));[m
+[32m+[m[32m    },[m
+[32m+[m[32m    get className() {[m
+[32m+[m[32m      return this._className || "";[m
+[32m+[m[32m    },[m
+[32m+[m[32m    set innerHTML(value) {[m
+[32m+[m[32m      this._innerHTML = value;[m
+[32m+[m[32m      this.children = [];[m
+[32m+[m[32m    },[m
+[32m+[m[32m    get innerHTML() {[m
+[32m+[m[32m      return this._innerHTML;[m
+[32m+[m[32m    },[m
+[32m+[m[32m    appendChild(child) {[m
+[32m+[m[32m      this.children.push(child);[m
+[32m+[m[32m      return child;[m
+[32m+[m[32m    }[m
+[32m+[m[32m  };[m
+[32m+[m[32m  return element;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mglobalThis.document = {[m
+[32m+[m[32m  body: { classList: makeMockClassList() },[m
+[32m+[m[32m  createElement: () => makeMockElement()[m
+[32m+[m[32m};[m
+[32m+[m
+[32m+[m[32mfunction makeMultipleChoiceDom() {[m
+[32m+[m[32m  return {[m
+[32m+[m[32m    wordEl: makeMockElement(),[m
+[32m+[m[32m    meaningEl: makeMockElement(),[m
+[32m+[m[32m    progressEl: makeMockElement(),[m
+[32m+[m[32m    pronunciationEl: makeMockElement(),[m
+[32m+[m[32m    multipleChoicePanelEl: makeMockElement(),[m
+[32m+[m[32m    multipleChoiceQuestionEl: makeMockElement(),[m
+[32m+[m[32m    multipleChoiceOptionsEl: makeMockElement(),[m
+[32m+[m[32m    multipleChoiceFeedbackEl: makeMockElement(),[m
+[32m+[m[32m    listEl: { querySelector: () => null },[m
+[32m+[m[32m    favoriteToggleBtnEl: null,[m
+[32m+[m[32m    difficultToggleBtnEl: null,[m
+[32m+[m[32m    decreaseReviewBtnEl: null,[m
+[32m+[m[32m    resetReviewBtnEl: null,[m
+[32m+[m[32m    increaseReviewBtnEl: null,[m
+[32m+[m[32m    prevHintEl: null,[m
+[32m+[m[32m    nextHintEl: null[m
+[32m+[m[32m  };[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mconst multipleChoiceOptions = [[m
+[32m+[m[32m  { text: "abandon", secondaryText: "捨てる", isCorrect: true },[m
+[32m+[m[32m  { text: "expand", secondaryText: "拡大する", isCorrect: false },[m
+[32m+[m[32m  { text: "permit", secondaryText: "許可する", isCorrect: false },[m
+[32m+[m[32m  { text: "protect", secondaryText: "保護する", isCorrect: false }[m
+[32m+[m[32m];[m
+[32m+[m
+[32m+[m[32mfunction makeMultipleChoiceContext(overrides = {}) {[m
+[32m+[m[32m  const dom = makeMultipleChoiceDom();[m
+[32m+[m[32m  const state = {[m
+[32m+[m[32m    words: [{ word: "abandon", meaning: "捨てる" }],[m
+[32m+[m[32m    index: 0,[m
+[32m+[m[32m    currentMode: "vol",[m
+[32m+[m[32m    currentVol: "vol1",[m
+[32m+[m[32m    translationMode: false,[m
+[32m+[m[32m    challengeMode: false,[m
+[32m+[m[32m    challengeTime: 1500,[m
+[32m+[m[32m    randomMode: false,[m
+[32m+[m[32m    historyBackStack: [],[m
+[32m+[m[32m    historyForwardStack: [],[m
+[32m+[m[32m    multipleChoiceMode: false,[m
+[32m+[m[32m    multipleChoiceAnswer: null,[m
+[32m+[m[32m    multipleChoiceRevealedOptionIndexes: [],[m
+[32m+[m[32m    ...overrides[m
+[32m+[m[32m  };[m
+[32m+[m[32m  return {[m
+[32m+[m[32m    dom,[m
+[32m+[m[32m    getState: () => state,[m
+[32m+[m[32m    callbacks: {[m
+[32m+[m[32m      clearMeaningRevealTimer() {},[m
+[32m+[m[32m      clearSpeechSyncTimer() {},[m
+[32m+[m[32m      clearAutoPlayTimer() {},[m
+[32m+[m[32m      getCurrentWord: () => ({ word: "abandon", meaning: "捨てる" }),[m
+[32m+[m[32m      getMultipleChoiceQuestion: () => ({ options: multipleChoiceOptions }),[m
+[32m+[m[32m      persistCurrentIndex() {},[m
+[32m+[m[32m      loadPronunciation() {},[m
+[32m+[m[32m      isFavorite: () => false,[m
+[32m+[m[32m      isDifficult: () => false,[m
+[32m+[m[32m      getReviewScore: () => 0[m
+[32m+[m[32m    }[m
+[32m+[m[32m  };[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mconst inactiveChoiceContext = makeMultipleChoiceContext({ multipleChoiceMode: false });[m
+[32m+[m[32mrenderMultipleChoice(inactiveChoiceContext);[m
+[32m+[m[32massert.strictEqual(inactiveChoiceContext.dom.multipleChoicePanelEl.hidden, true, "multiple choice panel should be hidden when mode is off");[m
+[32m+[m[32massert.strictEqual(inactiveChoiceContext.dom.multipleChoiceOptionsEl.children.length, 0, "multiple choice options should be cleared when mode is off");[m
+[32m+[m
+[32m+[m[32mconst activeChoiceContext = makeMultipleChoiceContext({ multipleChoiceMode: true });[m
+[32m+[m[32mrenderCurrentWord(activeChoiceContext);[m
+[32m+[m[32massert.strictEqual(activeChoiceContext.dom.wordEl.textContent, "abandon", "multiple choice question should be shown as the current word");[m
+[32m+[m[32massert.strictEqual(activeChoiceContext.dom.meaningEl.textContent, "", "normal meaning should be hidden in multiple choice mode");[m
+[32m+[m[32massert.strictEqual(activeChoiceContext.dom.multipleChoicePanelEl.hidden, false, "multiple choice panel should be visible when mode is on");[m
+[32m+[m[32massert.strictEqual(activeChoiceContext.dom.multipleChoiceOptionsEl.children.length, 4, "multiple choice mode should render four option buttons");[m
+[32m+[m[32massert.deepStrictEqual([m
+[32m+[m[32m  activeChoiceContext.dom.multipleChoiceOptionsEl.children.map((button) => button.textContent),[m
+[32m+[m[32m  ["abandon", "expand", "permit", "protect"][m
+[32m+[m[32m);[m
+[32m+[m[32massert.strictEqual(activeChoiceContext.dom.multipleChoiceFeedbackEl.textContent, "", "multiple choice should not show text feedback before answering");[m
+[32m+[m
+[32m+[m[32mconst correctChoiceContext = makeMultipleChoiceContext({[m
+[32m+[m[32m  multipleChoiceMode: true,[m
+[32m+[m[32m  multipleChoiceAnswer: { selectedText: "abandon", correctText: "abandon", isCorrect: true }[m
+[32m+[m[32m});[m
+[32m+[m[32mrenderMultipleChoice(correctChoiceContext);[m
+[32m+[m[32mconst correctButtons = correctChoiceContext.dom.multipleChoiceOptionsEl.children;[m
+[32m+[m[32massert.strictEqual(correctChoiceContext.dom.multipleChoiceFeedbackEl.textContent, "", "correct answer should not show text feedback");[m
+[32m+[m[32massert.strictEqual(correctButtons[0].classList.contains("is-correct"), true, "correct option should get correct class");[m
+[32m+[m[32massert.strictEqual(correctButtons[0].classList.contains("is-wrong"), false, "correct option should not get wrong class");[m
+[32m+[m
+[32m+[m[32mconst wrongChoiceContext = makeMultipleChoiceContext({[m
+[32m+[m[32m  multipleChoiceMode: true,[m
+[32m+[m[32m  multipleChoiceAnswer: { selectedText: "expand", correctText: "abandon", isCorrect: false }[m
+[32m+[m[32m});[m
+[32m+[m[32mrenderMultipleChoice(wrongChoiceContext);[m
+[32m+[m[32mconst wrongButtons = wrongChoiceContext.dom.multipleChoiceOptionsEl.children;[m
+[32m+[m[32massert.strictEqual(wrongChoiceContext.dom.multipleChoiceFeedbackEl.textContent, "", "wrong answer should not show text feedback");[m
+[32m+[m[32massert.strictEqual(wrongButtons[0].classList.contains("is-correct"), true, "correct option should get correct class after wrong answer");[m
+[32m+[m[32massert.strictEqual(wrongButtons[1].classList.contains("is-wrong"), true, "selected wrong option should get wrong class");[m
+[32m+[m
+[32m+[m[32mconst revealedChoiceContext = makeMultipleChoiceContext({[m
+[32m+[m[32m  multipleChoiceMode: true,[m
+[32m+[m[32m  multipleChoiceAnswer: { selectedText: "expand", correctText: "abandon", isCorrect: false },[m
+[32m+[m[32m  multipleChoiceRevealedOptionIndexes: [1][m
+[32m+[m[32m});[m
+[32m+[m[32mrenderMultipleChoice(revealedChoiceContext);[m
+[32m+[m[32massert.strictEqual(revealedChoiceContext.dom.multipleChoiceOptionsEl.children[1].textContent, "拡大する", "revealed wrong option should show secondary text");[m
+[32m+[m
+[32m+[m[32mconst unrevealedChoiceContext = makeMultipleChoiceContext({[m
+[32m+[m[32m  multipleChoiceMode: true,[m
+[32m+[m[32m  multipleChoiceAnswer: { selectedText: "expand", correctText: "abandon", isCorrect: false },[m
+[32m+[m[32m  multipleChoiceRevealedOptionIndexes: [][m
+[32m+[m[32m});[m
+[32m+[m[32mrenderMultipleChoice(unrevealedChoiceContext);[m
+[32m+[m[32massert.strictEqual(unrevealedChoiceContext.dom.multipleChoiceOptionsEl.children[1].textContent, "expand", "unrevealed wrong option should show original text");[m
+[32m+[m
+ console.log("All UI tests passed.");[m
+ [m
+ [m

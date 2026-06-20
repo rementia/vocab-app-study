@@ -1,6 +1,7 @@
 import assert from "assert";
 import {
   renderCurrentWord,
+  renderMultipleChoice,
   updateAuthUI,
   updateAutoPlayButton,
   updateCurrentLabel,
@@ -225,6 +226,179 @@ updateReviewButtons(reviewContext);
 assert.strictEqual(reviewContext.dom.reviewScoreLabelEl.textContent, "頻度調整：-1");
 assert.strictEqual(reviewContext.dom.decreaseReviewBtnEl.title, "頻度調整：-1");
 assert.strictEqual(reviewContext.dom.increaseReviewBtnEl.title, "頻度調整：-1");
+
+
+function makeMockClassList() {
+  return {
+    values: new Set(),
+    add(name) {
+      this.values.add(name);
+    },
+    remove(name) {
+      this.values.delete(name);
+    },
+    toggle(name, force) {
+      if (force) this.values.add(name);
+      else this.values.delete(name);
+    },
+    contains(name) {
+      return this.values.has(name);
+    }
+  };
+}
+
+function makeMockElement() {
+  const element = {
+    _innerHTML: "",
+    textContent: "",
+    hidden: false,
+    type: "",
+    dataset: {},
+    children: [],
+    classList: makeMockClassList(),
+    set className(value) {
+      this._className = value;
+      this.classList.values = new Set(String(value).split(/\s+/).filter(Boolean));
+    },
+    get className() {
+      return this._className || "";
+    },
+    set innerHTML(value) {
+      this._innerHTML = value;
+      this.children = [];
+    },
+    get innerHTML() {
+      return this._innerHTML;
+    },
+    appendChild(child) {
+      this.children.push(child);
+      return child;
+    }
+  };
+  return element;
+}
+
+globalThis.document = {
+  body: { classList: makeMockClassList() },
+  createElement: () => makeMockElement()
+};
+
+function makeMultipleChoiceDom() {
+  return {
+    wordEl: makeMockElement(),
+    meaningEl: makeMockElement(),
+    progressEl: makeMockElement(),
+    pronunciationEl: makeMockElement(),
+    multipleChoicePanelEl: makeMockElement(),
+    multipleChoiceQuestionEl: makeMockElement(),
+    multipleChoiceOptionsEl: makeMockElement(),
+    multipleChoiceFeedbackEl: makeMockElement(),
+    listEl: { querySelector: () => null },
+    favoriteToggleBtnEl: null,
+    difficultToggleBtnEl: null,
+    decreaseReviewBtnEl: null,
+    resetReviewBtnEl: null,
+    increaseReviewBtnEl: null,
+    prevHintEl: null,
+    nextHintEl: null
+  };
+}
+
+const multipleChoiceOptions = [
+  { text: "abandon", secondaryText: "捨てる", isCorrect: true },
+  { text: "expand", secondaryText: "拡大する", isCorrect: false },
+  { text: "permit", secondaryText: "許可する", isCorrect: false },
+  { text: "protect", secondaryText: "保護する", isCorrect: false }
+];
+
+function makeMultipleChoiceContext(overrides = {}) {
+  const dom = makeMultipleChoiceDom();
+  const state = {
+    words: [{ word: "abandon", meaning: "捨てる" }],
+    index: 0,
+    currentMode: "vol",
+    currentVol: "vol1",
+    translationMode: false,
+    challengeMode: false,
+    challengeTime: 1500,
+    randomMode: false,
+    historyBackStack: [],
+    historyForwardStack: [],
+    multipleChoiceMode: false,
+    multipleChoiceAnswer: null,
+    multipleChoiceRevealedOptionIndexes: [],
+    ...overrides
+  };
+  return {
+    dom,
+    getState: () => state,
+    callbacks: {
+      clearMeaningRevealTimer() {},
+      clearSpeechSyncTimer() {},
+      clearAutoPlayTimer() {},
+      getCurrentWord: () => ({ word: "abandon", meaning: "捨てる" }),
+      getMultipleChoiceQuestion: () => ({ options: multipleChoiceOptions }),
+      persistCurrentIndex() {},
+      loadPronunciation() {},
+      isFavorite: () => false,
+      isDifficult: () => false,
+      getReviewScore: () => 0
+    }
+  };
+}
+
+const inactiveChoiceContext = makeMultipleChoiceContext({ multipleChoiceMode: false });
+renderMultipleChoice(inactiveChoiceContext);
+assert.strictEqual(inactiveChoiceContext.dom.multipleChoicePanelEl.hidden, true, "multiple choice panel should be hidden when mode is off");
+assert.strictEqual(inactiveChoiceContext.dom.multipleChoiceOptionsEl.children.length, 0, "multiple choice options should be cleared when mode is off");
+
+const activeChoiceContext = makeMultipleChoiceContext({ multipleChoiceMode: true });
+renderCurrentWord(activeChoiceContext);
+assert.strictEqual(activeChoiceContext.dom.wordEl.textContent, "abandon", "multiple choice question should be shown as the current word");
+assert.strictEqual(activeChoiceContext.dom.meaningEl.textContent, "", "normal meaning should be hidden in multiple choice mode");
+assert.strictEqual(activeChoiceContext.dom.multipleChoicePanelEl.hidden, false, "multiple choice panel should be visible when mode is on");
+assert.strictEqual(activeChoiceContext.dom.multipleChoiceOptionsEl.children.length, 4, "multiple choice mode should render four option buttons");
+assert.deepStrictEqual(
+  activeChoiceContext.dom.multipleChoiceOptionsEl.children.map((button) => button.textContent),
+  ["abandon", "expand", "permit", "protect"]
+);
+assert.strictEqual(activeChoiceContext.dom.multipleChoiceFeedbackEl.textContent, "", "multiple choice should not show text feedback before answering");
+
+const correctChoiceContext = makeMultipleChoiceContext({
+  multipleChoiceMode: true,
+  multipleChoiceAnswer: { selectedText: "abandon", correctText: "abandon", isCorrect: true }
+});
+renderMultipleChoice(correctChoiceContext);
+const correctButtons = correctChoiceContext.dom.multipleChoiceOptionsEl.children;
+assert.strictEqual(correctChoiceContext.dom.multipleChoiceFeedbackEl.textContent, "", "correct answer should not show text feedback");
+assert.strictEqual(correctButtons[0].classList.contains("is-correct"), true, "correct option should get correct class");
+assert.strictEqual(correctButtons[0].classList.contains("is-wrong"), false, "correct option should not get wrong class");
+
+const wrongChoiceContext = makeMultipleChoiceContext({
+  multipleChoiceMode: true,
+  multipleChoiceAnswer: { selectedText: "expand", correctText: "abandon", isCorrect: false }
+});
+renderMultipleChoice(wrongChoiceContext);
+const wrongButtons = wrongChoiceContext.dom.multipleChoiceOptionsEl.children;
+assert.strictEqual(wrongChoiceContext.dom.multipleChoiceFeedbackEl.textContent, "", "wrong answer should not show text feedback");
+assert.strictEqual(wrongButtons[0].classList.contains("is-correct"), true, "correct option should get correct class after wrong answer");
+assert.strictEqual(wrongButtons[1].classList.contains("is-wrong"), true, "selected wrong option should get wrong class");
+
+const revealedChoiceContext = makeMultipleChoiceContext({
+  multipleChoiceMode: true,
+  multipleChoiceAnswer: { selectedText: "expand", correctText: "abandon", isCorrect: false },
+  multipleChoiceRevealedOptionIndexes: [1]
+});
+renderMultipleChoice(revealedChoiceContext);
+assert.strictEqual(revealedChoiceContext.dom.multipleChoiceOptionsEl.children[1].textContent, "拡大する", "revealed wrong option should show secondary text");
+
+const unrevealedChoiceContext = makeMultipleChoiceContext({
+  multipleChoiceMode: true,
+  multipleChoiceAnswer: { selectedText: "expand", correctText: "abandon", isCorrect: false },
+  multipleChoiceRevealedOptionIndexes: []
+});
+renderMultipleChoice(unrevealedChoiceContext);
+assert.strictEqual(unrevealedChoiceContext.dom.multipleChoiceOptionsEl.children[1].textContent, "expand", "unrevealed wrong option should show original text");
 
 console.log("All UI tests passed.");
 
