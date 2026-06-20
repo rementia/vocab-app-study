@@ -44,6 +44,7 @@ The `csv` field is required by the web app. The `syncedAt` field is optional, bu
 6. Run `dryRun()` to confirm row counts without writing to Firestore.
 7. Run `syncAllVolumesToFirestore()` or `syncVol1()` / `syncVol2()` / `syncVol3()` / `syncVol4()`.
 8. Approve the required Apps Script permissions.
+9. Check the Apps Script execution log for target volume, CSV row count, Firestore destination, `syncedAt`, and success or failure.
 
 Do not paste service account private keys, access tokens, or other secrets into this repository. If your environment needs a different authentication setup, store secrets outside the repository, such as Apps Script Properties or another secure mechanism.
 
@@ -107,5 +108,6 @@ If `privateWords/{vol}.csv` is not updated, the app's reload button will still s
 - Saving the CSV into `words`, `data`, or `text` instead of `csv`
 - Editing Google Sheets but not running Apps Script
 - Not approving Apps Script permissions
-- Using an Apps Script project that cannot access the Firebase project
+- Missing `CLIENT_EMAIL` or `PRIVATE_KEY` in Apps Script Properties
+- Using a service account that cannot write to the Firebase project's Firestore database
 - Mismatching sheet names or column names with `CONFIG`

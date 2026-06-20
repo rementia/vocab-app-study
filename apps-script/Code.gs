@@ -48,7 +48,7 @@ function syncAllVolumesToFirestore() {
   const syncedAt = new Date().toISOString();
 
   CONFIG.volumes.forEach(({ docId }) => {
-    uploadCsvToFirestore(docId, rowsToCsv(groupedRows[docId] || []), syncedAt);
+    uploadCsvToFirestore(docId, rowsToCsv(groupedRows[docId] || []), syncedAt, groupedRows[docId] || []);
   });
 
   Logger.log("全volのFirestore同期が完了しました。");
@@ -77,7 +77,7 @@ function syncOneVolume(docId) {
     throw new Error(`未定義のdocIdです: ${docId}`);
   }
 
-  uploadCsvToFirestore(docId, rowsToCsv(groupedRows[docId]), new Date().toISOString());
+  uploadCsvToFirestore(docId, rowsToCsv(groupedRows[docId]), new Date().toISOString(), groupedRows[docId]);
   Logger.log(`${docId} の同期が完了しました。`);
 }
 
@@ -217,7 +217,7 @@ function escapeCsvCell(value) {
   return text;
 }
 
-function uploadCsvToFirestore(docId, csv, syncedAt) {
+function uploadCsvToFirestore(docId, csv, syncedAt, rows) {
   const accessToken = getAccessToken();
 
   const documentPath =
@@ -239,6 +239,12 @@ function uploadCsvToFirestore(docId, csv, syncedAt) {
     }
   };
 
+  const csvRowCount = Math.max((rows || []).length - 1, 0);
+  Logger.log(`同期開始: ${docId}`);
+  Logger.log(`CSV行数: ${csvRowCount}`);
+  Logger.log(`Firestore保存先: ${CONFIG.collectionName}/${docId}.csv`);
+  Logger.log(`syncedAt: ${syncedAt}`);
+
   const response = UrlFetchApp.fetch(url, {
     method: "patch",
     contentType: "application/json",
@@ -252,6 +258,7 @@ function uploadCsvToFirestore(docId, csv, syncedAt) {
   const status = response.getResponseCode();
 
   if (status < 200 || status >= 300) {
+    Logger.log(`Firestore保存失敗: ${docId}, status=${status}`);
     throw new Error(
       `Firestore保存失敗: ${docId}\n` +
       `status: ${status}\n` +
@@ -259,7 +266,7 @@ function uploadCsvToFirestore(docId, csv, syncedAt) {
     );
   }
 
-  Logger.log(`${docId} をFirestoreへ保存しました。`);
+  Logger.log(`Firestore保存成功: ${CONFIG.collectionName}/${docId}`);
 }
 
 function getAccessToken() {
