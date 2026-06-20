@@ -200,6 +200,10 @@ privateWords/vol4
 
 アプリはログイン後、必要な volume の CSV を取得し、`word`, `meaning`, `sourceVol` を持つ単語データとして扱います。
 
+アプリ上の `単語データ再読み込み` ボタンを使うと、現在の mode に必要な Firestore `privateWords/{vol}` の CSV を再取得できます。この再読み込みは Google Sheets を直接読むものではなく、Apps Script による Firestore 同期が完了した後の `privateWords/{vol}` を読み直します。
+
+訳語だけの修正は比較的安全です。英単語そのものを変更すると word key が変わるため、お気に入り・苦手単語・復習スコアとの対応が別単語扱いになる可能性があります。
+
 ## User Data
 
 ユーザーごとの学習状態は Firestore に保存します。
@@ -281,6 +285,8 @@ favoritesManager.js   Favorite word behavior
 difficultsManager.js  Difficult word behavior
 reviewManager.js      Review score behavior
 wordOrder.js          Random and frequency-based ordering
+wordReloadService.js  Word index preservation after data reload
+reloadStatusService.js  Reload status messages and auto-clear timers
 wordList.js           Shared word-list helpers
 ui.js                 DOM rendering
 events.js             Keyboard, touch, and viewport events

@@ -452,6 +452,26 @@ body.mode-multiple-choice .multiple-choice-panel {
   font-size: 13px;
 }
 
+.sidebar-tools {
+  display: grid;
+  gap: 4px;
+  margin: 0 calc(var(--sidebar-padding-x) * -1) 8px;
+  padding: 0 var(--sidebar-padding-x);
+}
+
+.reload-words-btn {
+  width: 100%;
+  min-height: 32px;
+  font-size: 12px;
+}
+
+.reload-words-status {
+  min-height: 1.2em;
+  color: var(--muted-text);
+  font-size: 12px;
+  line-height: 1.2;
+}
+
 
 .word-item {
   padding: 10px 8px;

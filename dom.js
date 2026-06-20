@@ -1,6 +1,8 @@
 export function getDomElements() {
   return {
     searchInputEl: document.getElementById("searchInput"),
+    reloadWordsBtnEl: document.getElementById("reloadWordsBtn"),
+    reloadWordsStatusEl: document.getElementById("reloadWordsStatus"),
     listEl: document.getElementById("list"),
     sidebarEl: document.getElementById("sidebar"),
     wordEl: document.getElementById("word"),

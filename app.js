@@ -96,6 +96,8 @@ import {
   buildMultipleChoiceQuestion,
   getMultipleChoiceDirection
 } from './multipleChoice.js';
+import { getPreserveWordId, getReloadedIndex } from './wordReloadService.js';
+import { createReloadStatusController } from './reloadStatusService.js';
 import {
   subscribeUserMarksRealtimeRemote,
   saveFavoritesToCloudRemote,
@@ -105,6 +107,8 @@ import {
 } from './userMarksCloud.js';
 const {
   searchInputEl,
+  reloadWordsBtnEl,
+  reloadWordsStatusEl,
   listEl,
   sidebarEl,
   wordEl,
@@ -195,8 +199,17 @@ let favoritesVersion = 0;
 let difficultsVersion = 0;
 let reviewScoresVersion = 0;
 let searchQuery = "";
+let isReloadingWords = false;
 
 let indexByVol = createInitialIndexByVol();
+
+const reloadWordsStatus = createReloadStatusController({
+  setStatus: (message) => {
+    if (reloadWordsStatusEl) reloadWordsStatusEl.textContent = message;
+  },
+  setTimeoutFn: window.setTimeout.bind(window),
+  clearTimeoutFn: window.clearTimeout.bind(window)
+});
 
 const uiContext = {
   getState: () => ({
@@ -229,6 +242,8 @@ const uiContext = {
   }),
   dom: {
     searchInputEl,
+    reloadWordsBtnEl,
+    reloadWordsStatusEl,
     listEl,
     sidebarEl,
     wordEl,
@@ -684,6 +699,7 @@ function bindSearchEvents() {
     requestListRebuild();
     renderLayout();
   });
+  reloadWordsBtnEl?.addEventListener("click", handleReloadWords);
 }
 
 function bindRecallTimeControls() {
@@ -917,6 +933,7 @@ function getLockableControls() {
     timeSlider,
     displayTimeSlider,
     searchInputEl,
+    reloadWordsBtnEl,
     ...volButtons
   ];
 }
@@ -1095,6 +1112,88 @@ async function ensureVolLoaded(volName) {
 
   allWordsByVol[volName] = await fetchWordsForVol(volName);
   loadedVolumes.add(volName);
+}
+
+function getReloadTargetVolumes() {
+  if (currentMode === "favorites" || currentMode === "difficults") {
+    return volOrder;
+  }
+
+  return [currentVol];
+}
+
+async function reloadWordsForVolumes(volumes) {
+  const entries = await Promise.all(
+    volumes.map(async (volName) => [volName, await fetchWordsForVol(volName)])
+  );
+
+  return Object.fromEntries(entries);
+}
+
+function setReloadWordsStatus(message, options) {
+  reloadWordsStatus.set(message, options);
+}
+
+function setReloadWordsInProgress(isLoading) {
+  isReloadingWords = isLoading;
+  if (!reloadWordsBtnEl) return;
+  reloadWordsBtnEl.disabled = isLoading || !currentUser || wordEl?.classList.contains("status-message");
+  reloadWordsBtnEl.classList.toggle("disabled", reloadWordsBtnEl.disabled);
+  reloadWordsBtnEl.textContent = isLoading ? "再読み込み中..." : "単語データ再読み込み";
+}
+
+function resetMultipleChoiceState() {
+  multipleChoiceQuestion = null;
+  multipleChoiceAnswer = null;
+  multipleChoiceRevealedOptionIndexes.clear();
+}
+
+async function handleReloadWords() {
+  if (isReloadingWords) return;
+
+  if (!currentUser) {
+    setReloadWordsStatus("Googleログイン後に再読み込みできます");
+    setReloadWordsInProgress(false);
+    return;
+  }
+
+  const preserveWordId = getPreserveWordId(words, index);
+  const previousIndex = index;
+  const targetVolumes = getReloadTargetVolumes();
+
+  if (isAutoPlayActive()) {
+    stopAutoPlay();
+  }
+
+  setReloadWordsInProgress(true);
+  setReloadWordsStatus("単語データを再読み込みしています...");
+
+  try {
+    const reloadedWordsByVol = await reloadWordsForVolumes(targetVolumes);
+    allWordsByVol = {
+      ...allWordsByVol,
+      ...reloadedWordsByVol
+    };
+    loadedVolumes = new Set([...loadedVolumes, ...targetVolumes]);
+    clearWordOrderCache();
+    resetMultipleChoiceState();
+    applyWordOrder(false);
+    index = getReloadedIndex({ words, previousIndex, preserveWordId });
+    persistCurrentIndex();
+    requestListRebuild();
+    render();
+    scheduleSpeechSyncAfterRender();
+    setReloadWordsStatus("単語データを更新しました", { clearAfterMs: 4000 });
+  } catch (error) {
+    console.error("単語データの再読み込みに失敗しました:", error);
+    setReloadWordsStatus("単語データの再読み込みに失敗しました");
+
+    if (error?.code === "permission-denied") {
+      setAppLocked(true, "このアプリは管理者のみ利用できます");
+    }
+  } finally {
+    setReloadWordsInProgress(false);
+  }
 }
 
 async function ensureAllVolumesLoaded() {
