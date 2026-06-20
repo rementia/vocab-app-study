@@ -204,6 +204,8 @@ privateWords/vol4
 
 訳語だけの修正は比較的安全です。英単語そのものを変更すると word key が変わるため、お気に入り・苦手単語・復習スコアとの対応が別単語扱いになる可能性があります。
 
+Apps Script sync example: see `apps-script/README.md`.
+
 ### スプレッドシート修正が反映されない場合
 
 `単語データ再読み込み` は Google Sheets を直接読む機能ではなく、Firestore `privateWords/{vol}` を再取得する機能です。そのため、スプレッドシートを編集しただけではアプリには反映されません。
@@ -211,6 +213,7 @@ privateWords/vol4
 反映されない場合は、次を確認します。
 
 - Apps Script などで Google Sheets から Firestore への同期が完了している
+- `apps-script/Code.gs` のような同期処理を実行した
 - Firebase Console で `privateWords/vol1`, `privateWords/vol2`, `privateWords/vol3`, `privateWords/vol4` の document ID がコード側の volume 名と一致している
 - 各 document の `csv` field が更新されている
 - Apps Script 側も単語CSVを `csv` field に保存している
@@ -372,6 +375,7 @@ firebaseClient.js     Firebase client setup
 .github/workflows/test.yml  GitHub Actions workflow for npm test
 package.json          npm scripts, including npm test
 package-lock.json     Locked npm dependency resolution for reproducible CI
+apps-script/          Google Sheets to Firestore sync sample
 test/                 Node-based tests
 docs/                 Storage flow and manual test notes
 ```
