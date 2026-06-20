@@ -4,6 +4,7 @@ import { normalizeWordKey } from "./wordIdentity.js";
 export const availableVolumes = Object.fromEntries(volOrder.map((vol) => [vol, true]));
 const WORD_COLUMN_NAMES = ["word", "単語"];
 const MEANING_COLUMN_NAMES = ["meaning", "意味"];
+const SYNC_TIME_FIELD_NAMES = ["syncedAt", "updatedAt", "lastSyncedAt"];
 
 function stripBom(text) {
   return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
@@ -115,23 +116,77 @@ export function parseCsvToWords(text, volName) {
     .filter((item) => item.word);
 }
 
-export async function fetchWordsForVol(volName) {
+export function formatFirestoreSyncValue(value) {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+
+  let date = null;
+  if (value instanceof Date) {
+    date = value;
+  } else if (typeof value === "number") {
+    date = new Date(value);
+  } else if (typeof value.toDate === "function") {
+    date = value.toDate();
+  } else if (typeof value.seconds === "number") {
+    date = new Date((value.seconds * 1000) + Math.floor((value.nanoseconds || 0) / 1000000));
+  }
+
+  return date && !Number.isNaN(date.getTime()) ? date.toISOString() : "";
+}
+
+export function getWordDocSyncLabel(data) {
+  if (!data || typeof data !== "object") return "";
+
+  for (const fieldName of SYNC_TIME_FIELD_NAMES) {
+    const label = formatFirestoreSyncValue(data[fieldName]);
+    if (label) return label;
+  }
+
+  return "";
+}
+
+export async function fetchWordsForVolWithMeta(volName) {
   const { doc, getDoc } = await import("https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js");
   const { auth, db } = await import("./firebaseClient.js");
   const user = auth.currentUser;
 
   if (!user || !availableVolumes[volName]) {
-    return [];
+    return {
+      words: [],
+      meta: {
+        volName,
+        syncLabel: ""
+      }
+    };
   }
 
   const ref = doc(db, "privateWords", volName);
   const snap = await getDoc(ref);
 
   if (!snap.exists()) {
-    return [];
+    return {
+      words: [],
+      meta: {
+        volName,
+        syncLabel: ""
+      }
+    };
   }
 
   const data = snap.data();
   const csv = typeof data.csv === "string" ? data.csv : "";
-  return parseCsvToWords(csv, volName);
+  const words = parseCsvToWords(csv, volName);
+
+  return {
+    words,
+    meta: {
+      volName,
+      syncLabel: getWordDocSyncLabel(data)
+    }
+  };
+}
+
+export async function fetchWordsForVol(volName) {
+  const { words } = await fetchWordsForVolWithMeta(volName);
+  return words;
 }

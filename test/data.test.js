@@ -1,5 +1,11 @@
 import assert from "assert";
-import { parseCsv, parseCsvToWords } from "../data.js";
+import {
+  fetchWordsForVol,
+  formatFirestoreSyncValue,
+  getWordDocSyncLabel,
+  parseCsv,
+  parseCsvToWords
+} from "../data.js";
 
 const sampleCsv = `\ufeffword,meaning\r\nhello,こんにちは\r\n"good,bye","さようなら"\r\n"quote""test",テスト\r\n`;
 
@@ -50,5 +56,35 @@ assert.deepStrictEqual(parsedSheetWords, [
     sourceVol: "vol2"
   }
 ], "parseCsvToWords should read word and meaning columns without mixing level into meaning");
+
+assert.strictEqual(
+  formatFirestoreSyncValue(new Date("2026-06-20T00:00:00.000Z")),
+  "2026-06-20T00:00:00.000Z",
+  "Date sync metadata should be formatted as ISO text"
+);
+
+assert.strictEqual(
+  formatFirestoreSyncValue({ seconds: 1781913600, nanoseconds: 0 }),
+  "2026-06-20T00:00:00.000Z",
+  "Firestore timestamp-like sync metadata should be formatted as ISO text"
+);
+
+assert.strictEqual(
+  getWordDocSyncLabel({ csv: "word,meaning\n", syncedAt: "manual-sync" }),
+  "manual-sync",
+  "syncedAt should be used when present"
+);
+
+assert.strictEqual(
+  getWordDocSyncLabel({ csv: "word,meaning\n" }),
+  "",
+  "missing sync metadata should not fail"
+);
+
+assert.strictEqual(
+  typeof fetchWordsForVol,
+  "function",
+  "fetchWordsForVol should remain available as the compatible word-array API"
+);
 
 console.log("All data parser tests passed.");

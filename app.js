@@ -1,5 +1,5 @@
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-auth.js";
-import { availableVolumes, fetchWordsForVol } from './data.js';
+import { availableVolumes, fetchWordsForVol, fetchWordsForVolWithMeta } from './data.js';
 import { getDomElements } from './dom.js';
 import { auth, db, provider } from './firebaseClient.js';
 import {
@@ -96,7 +96,7 @@ import {
   buildMultipleChoiceQuestion,
   getMultipleChoiceDirection
 } from './multipleChoice.js';
-import { getPreserveWordId, getReloadedIndex } from './wordReloadService.js';
+import { formatReloadSuccessMessage, getPreserveWordId, getReloadedIndex } from './wordReloadService.js';
 import { createReloadStatusController } from './reloadStatusService.js';
 import {
   subscribeUserMarksRealtimeRemote,
@@ -1123,11 +1123,19 @@ function getReloadTargetVolumes() {
 }
 
 async function reloadWordsForVolumes(volumes) {
-  const entries = await Promise.all(
-    volumes.map(async (volName) => [volName, await fetchWordsForVol(volName)])
+  const results = await Promise.all(
+    volumes.map(async (volName) => [volName, await fetchWordsForVolWithMeta(volName)])
   );
 
-  return Object.fromEntries(entries);
+  const wordsByVol = {};
+  const metaByVol = {};
+
+  results.forEach(([volName, result]) => {
+    wordsByVol[volName] = result.words;
+    metaByVol[volName] = result.meta;
+  });
+
+  return { wordsByVol, metaByVol };
 }
 
 function setReloadWordsStatus(message, options) {
@@ -1169,7 +1177,7 @@ async function handleReloadWords() {
   setReloadWordsStatus("単語データを再読み込みしています...");
 
   try {
-    const reloadedWordsByVol = await reloadWordsForVolumes(targetVolumes);
+    const { wordsByVol: reloadedWordsByVol, metaByVol } = await reloadWordsForVolumes(targetVolumes);
     allWordsByVol = {
       ...allWordsByVol,
       ...reloadedWordsByVol
@@ -1183,7 +1191,14 @@ async function handleReloadWords() {
     requestListRebuild();
     render();
     scheduleSpeechSyncAfterRender();
-    setReloadWordsStatus("単語データを更新しました", { clearAfterMs: 4000 });
+    setReloadWordsStatus(
+      formatReloadSuccessMessage({
+        volumes: targetVolumes,
+        wordsByVol: reloadedWordsByVol,
+        metaByVol
+      }),
+      { clearAfterMs: 4000 }
+    );
   } catch (error) {
     console.error("単語データの再読み込みに失敗しました:", error);
     setReloadWordsStatus("単語データの再読み込みに失敗しました");

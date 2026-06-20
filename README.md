@@ -204,6 +204,18 @@ privateWords/vol4
 
 訳語だけの修正は比較的安全です。英単語そのものを変更すると word key が変わるため、お気に入り・苦手単語・復習スコアとの対応が別単語扱いになる可能性があります。
 
+### スプレッドシート修正が反映されない場合
+
+`単語データ再読み込み` は Google Sheets を直接読む機能ではなく、Firestore `privateWords/{vol}` を再取得する機能です。そのため、スプレッドシートを編集しただけではアプリには反映されません。
+
+反映されない場合は、次を確認します。
+
+- Apps Script などで Google Sheets から Firestore への同期が完了している
+- Firebase Console で `privateWords/vol1`, `privateWords/vol2`, `privateWords/vol3`, `privateWords/vol4` の document ID がコード側の volume 名と一致している
+- 各 document の `csv` field が更新されている
+- Apps Script 側も単語CSVを `csv` field に保存している
+- `csv` field が古いままなら、アプリ側で再読み込みしても古い内容のままになる
+
 ## User Data
 
 ユーザーごとの学習状態は Firestore に保存します。
@@ -280,6 +292,8 @@ GitHub Actions の `Test` workflow は、`main` への push、`main` 向け pull
 - [ ] volume切り替え時に単語・意味・発音表示が崩れない
 - [ ] Firestore `privateWords/{vol}` の `csv` field 更新後、`単語データ再読み込み` で反映される
 - [ ] Google Sheets編集後は、Apps ScriptによるFirestore同期完了後に再読み込みする
+- [ ] Firebase Consoleで `privateWords/{vol}.csv` が更新されていることを確認してから再読み込みする
+- [ ] 再読み込み後、件数や更新メッセージが期待どおり変わる
 
 ### Reload behavior
 
@@ -290,6 +304,7 @@ GitHub Actions の `Test` workflow は、`main` への push、`main` 向け pull
 - [ ] 対象単語が消えた場合もアプリが落ちず、indexが範囲内に丸められる
 - [ ] 成功メッセージが数秒後に消える
 - [ ] 失敗メッセージが分かりやすく表示される
+- [ ] `privateUsers/{uid}` のお気に入り・苦手単語・復習スコアが再読み込みで消えない
 
 ### Learning state
 
