@@ -265,6 +265,66 @@ npm test
 
 GitHub Actions の `Test` workflow は、`main` への push、`main` 向け pull request、手動実行（`workflow_dispatch`）で同じ `npm test` を実行します。CI では `package-lock.json` に基づいて `npm ci` を使い、依存関係を再現します。現在のテスト状態は README 上部の badge で確認できます。手動実行する場合は GitHub の Actions タブで `Test` workflow を選び、`Run workflow` を押します。
 
+## 動作確認チェックリスト
+
+### Authentication / access
+
+- [ ] Googleログインできる
+- [ ] 未ログイン時は単語データにアクセスできず、既存のロックUIになる
+- [ ] 許可されていないユーザーでは `privateWords/{vol}` を読めない
+- [ ] ログアウト後に学習UIと単語データ再読み込みボタンがロックされる
+
+### Word data loading
+
+- [ ] ログイン後、vol1〜vol4 の単語データを読み込める
+- [ ] volume切り替え時に単語・意味・発音表示が崩れない
+- [ ] Firestore `privateWords/{vol}` の `csv` field 更新後、`単語データ再読み込み` で反映される
+- [ ] Google Sheets編集後は、Apps ScriptによるFirestore同期完了後に再読み込みする
+
+### Reload behavior
+
+- [ ] 通常volume表示中の再読み込みでは、現在のvolumeだけ再取得される
+- [ ] favorites modeで再読み込みしてもお気に入り一覧が壊れない
+- [ ] difficults modeで再読み込みしても苦手単語一覧が壊れない
+- [ ] 再読み込み後、同じ単語IDが残っていれば同じ単語位置を維持する
+- [ ] 対象単語が消えた場合もアプリが落ちず、indexが範囲内に丸められる
+- [ ] 成功メッセージが数秒後に消える
+- [ ] 失敗メッセージが分かりやすく表示される
+
+### Learning state
+
+- [ ] お気に入り追加・解除が保存される
+- [ ] 苦手単語追加・解除が保存される
+- [ ] 復習スコアが保存される
+- [ ] ページ再読み込み後も学習状態が復元される
+- [ ] 別のGoogleログインユーザーと学習状態が混ざらない
+- [ ] `privateUsers/{uid}` の学習データが、単語データ再読み込みで消えない
+
+### Study modes
+
+- [ ] ランダムモードが動く
+- [ ] 頻度順モードが動く
+- [ ] 四択モードが動く
+- [ ] お気に入りモードが動く
+- [ ] 苦手単語モードが動く
+- [ ] 想起モードが動く
+- [ ] 自動再生中に再読み込みした場合、安全に停止する
+- [ ] 発音同期中に再読み込みしても壊れない
+
+### Browser / UI
+
+- [ ] PCブラウザで主要操作ができる
+- [ ] スマホ幅でレイアウトが崩れない
+- [ ] サイドバー、検索、volumeボタンが使える
+- [ ] reload status message が自然に表示・消去される
+- [ ] console に重大なエラーが出ていない
+
+### CI
+
+- [ ] `npm test` がローカルで通る
+- [ ] GitHub Actions の `Test` workflow が緑チェックになる
+- [ ] Actions タブから `workflow_dispatch` で手動実行できる
+
 構文確認の例:
 
 ```bash
