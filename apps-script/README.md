@@ -36,26 +36,28 @@ The `csv` field is required by the web app. The `syncedAt` field is optional, bu
 
 1. Open Google Apps Script from the vocabulary spreadsheet.
 2. Paste `Code.gs` into the Apps Script editor.
-3. Set the Firebase Project ID:
-   - replace `YOUR_FIREBASE_PROJECT_ID` in `CONFIG`, or
-   - set Script Property `FIREBASE_PROJECT_ID`.
+3. Set `CONFIG.firebaseProjectId`.
 4. Choose the sheet layout in `CONFIG.mode`.
-5. Confirm the Apps Script Google Cloud project can access Firestore.
-6. Run `syncVocabularyToFirestore()`.
-7. Approve the required Apps Script permissions.
+5. Set Script Properties:
+   - `CLIENT_EMAIL`
+   - `PRIVATE_KEY`
+6. Run `dryRun()` to confirm row counts without writing to Firestore.
+7. Run `syncAllVolumesToFirestore()` or `syncVol1()` / `syncVol2()` / `syncVol3()` / `syncVol4()`.
+8. Approve the required Apps Script permissions.
 
 Do not paste service account private keys, access tokens, or other secrets into this repository. If your environment needs a different authentication setup, store secrets outside the repository, such as Apps Script Properties or another secure mechanism.
 
 ## Authentication Note
 
-`Code.gs` uses `ScriptApp.getOAuthToken()` with the Firestore REST API. The Apps Script project must be connected to a Google Cloud project that is allowed to write to the Firebase project's Firestore database.
+`Code.gs` creates an OAuth access token from a service account email and private key stored in Apps Script Properties. The service account must have permission to write Firestore documents in the Firebase project.
 
 If Firestore returns `403` or an authorization error, check:
 
-- the Apps Script Google Cloud project
-- Firestore IAM permissions
-- Apps Script OAuth scopes, such as a Firestore/Cloud Platform scope required by your setup
-- whether the Firebase Project ID in `CONFIG` or Script Properties is correct
+- `CONFIG.firebaseProjectId`
+- Script Properties `CLIENT_EMAIL`
+- Script Properties `PRIVATE_KEY`
+- whether `PRIVATE_KEY` keeps `\n` line breaks correctly
+- Firestore IAM permissions for the service account
 
 ## Sheet Layouts
 
@@ -83,6 +85,8 @@ expand,拡大する,vol2
 ```
 
 Rows are split into `vol1`, `vol2`, `vol3`, and `vol4` by the configured `level` column.
+
+`level` values such as `1`, `2`, `3`, `4`, `vol1`, `vol2`, `vol3`, and `vol4` are normalized before grouping.
 
 ## Firebase Console Check
 

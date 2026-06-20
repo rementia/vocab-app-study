@@ -1,149 +1,327 @@
 /**
  * Google Sheets -> Firestore privateWords/{vol}.csv sync sample.
  *
- * This script is intentionally a sample for the study version. It writes CSV
- * strings to Firestore and does not change the web app data loading flow.
+ * This script writes CSV strings to Firestore for the study version:
  *
- * Before running:
- * - Replace YOUR_FIREBASE_PROJECT_ID or set Script Property FIREBASE_PROJECT_ID.
- * - Confirm the Apps Script Google Cloud project can access Firestore.
- * - Do not paste service account private keys or other secrets into this file.
+ * privateWords/{vol}
+ *   csv: "word,meaning,..."
+ *   syncedAt: "2026-06-20T12:34:56.000Z"
+ *
+ * Do not paste service account private keys directly into this file.
+ * Store CLIENT_EMAIL and PRIVATE_KEY in Apps Script Properties.
  */
 const CONFIG = {
   firebaseProjectId: "YOUR_FIREBASE_PROJECT_ID",
-  firebaseProjectIdPropertyName: "FIREBASE_PROJECT_ID",
-  firestoreDatabaseId: "(default)",
   collectionName: "privateWords",
 
   // "sheetsByVolume" or "singleSheetWithLevel"
-  mode: "sheetsByVolume",
+  mode: "singleSheetWithLevel",
+
+  // sheetsByVolume mode uses one sheet per docId.
   volumeSheetNames: ["vol1", "vol2", "vol3", "vol4"],
-  singleSheetName: "words",
-  levelColumnName: "level"
+
+  // singleSheetWithLevel mode reads one sheet and splits rows by level.
+  sourceSheetName: "",
+  levelColumnName: "level",
+
+  volumes: [
+    { level: "1", docId: "vol1" },
+    { level: "2", docId: "vol2" },
+    { level: "3", docId: "vol3" },
+    { level: "4", docId: "vol4" }
+  ]
 };
 
-function syncVocabularyToFirestore() {
-  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  const csvByVolume = CONFIG.mode === "singleSheetWithLevel"
-    ? buildCsvByVolumeFromSingleSheet(spreadsheet)
-    : buildCsvByVolumeFromVolumeSheets(spreadsheet);
+function dryRun() {
+  const groupedRows = buildGroupedRows();
 
+  CONFIG.volumes.forEach(({ docId }) => {
+    const wordCount = Math.max((groupedRows[docId] || []).length - 1, 0);
+    Logger.log(`${docId}: ${wordCount} words`);
+  });
+
+  Logger.log("dryRun完了: Firestoreには保存していません。");
+}
+
+function syncAllVolumesToFirestore() {
+  const groupedRows = buildGroupedRows();
   const syncedAt = new Date().toISOString();
 
-  CONFIG.volumeSheetNames.forEach((volName) => {
-    const csv = csvByVolume[volName] || "";
-    writePrivateWordsDocument(volName, csv, syncedAt);
+  CONFIG.volumes.forEach(({ docId }) => {
+    uploadCsvToFirestore(docId, rowsToCsv(groupedRows[docId] || []), syncedAt);
   });
+
+  Logger.log("全volのFirestore同期が完了しました。");
 }
 
-function buildCsvByVolumeFromVolumeSheets(spreadsheet) {
-  return Object.fromEntries(CONFIG.volumeSheetNames.map((volName) => {
-    const sheet = spreadsheet.getSheetByName(volName);
+function syncVol1() {
+  syncOneVolume("vol1");
+}
+
+function syncVol2() {
+  syncOneVolume("vol2");
+}
+
+function syncVol3() {
+  syncOneVolume("vol3");
+}
+
+function syncVol4() {
+  syncOneVolume("vol4");
+}
+
+function syncOneVolume(docId) {
+  const groupedRows = buildGroupedRows();
+
+  if (!groupedRows[docId]) {
+    throw new Error(`未定義のdocIdです: ${docId}`);
+  }
+
+  uploadCsvToFirestore(docId, rowsToCsv(groupedRows[docId]), new Date().toISOString());
+  Logger.log(`${docId} の同期が完了しました。`);
+}
+
+function buildGroupedRows() {
+  if (CONFIG.mode === "sheetsByVolume") {
+    return buildGroupedRowsFromVolumeSheets();
+  }
+
+  if (CONFIG.mode === "singleSheetWithLevel") {
+    return buildGroupedRowsFromSingleSheet();
+  }
+
+  throw new Error(`未対応のmodeです: ${CONFIG.mode}`);
+}
+
+function buildGroupedRowsFromVolumeSheets() {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const groupedRows = {};
+
+  CONFIG.volumeSheetNames.forEach((sheetName) => {
+    const sheet = spreadsheet.getSheetByName(sheetName);
     if (!sheet) {
-      throw new Error(`Sheet not found: ${volName}`);
+      throw new Error(`シートが見つかりません: ${sheetName}`);
     }
 
-    return [volName, rowsToCsv(readSheetRows(sheet))];
-  }));
-}
-
-function buildCsvByVolumeFromSingleSheet(spreadsheet) {
-  const sheet = spreadsheet.getSheetByName(CONFIG.singleSheetName);
-  if (!sheet) {
-    throw new Error(`Sheet not found: ${CONFIG.singleSheetName}`);
-  }
-
-  const rows = readSheetRows(sheet);
-  if (!rows.length) {
-    return Object.fromEntries(CONFIG.volumeSheetNames.map((volName) => [volName, ""]));
-  }
-
-  const header = rows[0];
-  const levelIndex = findColumnIndex(header, CONFIG.levelColumnName);
-  if (levelIndex < 0) {
-    throw new Error(`Column not found: ${CONFIG.levelColumnName}`);
-  }
-
-  const groupedRows = Object.fromEntries(CONFIG.volumeSheetNames.map((volName) => [volName, [header]]));
-
-  rows.slice(1).forEach((row) => {
-    const volName = normalizeVolumeName(row[levelIndex]);
-    if (!groupedRows[volName]) return;
-    groupedRows[volName].push(row);
+    groupedRows[sheetName] = readSheetRows(sheet);
   });
 
-  return Object.fromEntries(CONFIG.volumeSheetNames.map((volName) => [
-    volName,
-    rowsToCsv(groupedRows[volName])
-  ]));
+  return groupedRows;
+}
+
+function buildGroupedRowsFromSingleSheet() {
+  const sheet = getSourceSheet();
+  const values = readSheetRows(sheet);
+
+  if (values.length < 2) {
+    throw new Error("データ行がありません。");
+  }
+
+  const headers = values[0].map(normalizeHeader);
+  const wordIndex = getRequiredColumnIndex(headers, "word");
+  const meaningIndex = getRequiredColumnIndex(headers, "meaning");
+  const levelIndex = getRequiredColumnIndex(headers, CONFIG.levelColumnName);
+
+  const groupedRows = {};
+
+  CONFIG.volumes.forEach(({ docId }) => {
+    groupedRows[docId] = [["word", "meaning"]];
+  });
+
+  values.slice(1).forEach((row, index) => {
+    const rowNumber = index + 2;
+    const word = String(row[wordIndex] ?? "").trim();
+    const meaning = String(row[meaningIndex] ?? "").trim();
+    const level = normalizeLevel(row[levelIndex]);
+
+    if (!word) {
+      return;
+    }
+
+    const volume = CONFIG.volumes.find((item) => item.level === level || item.docId === level);
+
+    if (!volume) {
+      Logger.log(`未対応のlevelをスキップしました: row ${rowNumber}, level=${level}`);
+      return;
+    }
+
+    groupedRows[volume.docId].push([word, meaning]);
+  });
+
+  return groupedRows;
+}
+
+function getSourceSheet() {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+
+  if (CONFIG.sourceSheetName) {
+    const sheet = spreadsheet.getSheetByName(CONFIG.sourceSheetName);
+
+    if (!sheet) {
+      throw new Error(`シートが見つかりません: ${CONFIG.sourceSheetName}`);
+    }
+
+    return sheet;
+  }
+
+  const sheet = spreadsheet.getSheets()[0];
+
+  if (!sheet) {
+    throw new Error("スプレッドシートにシートがありません。");
+  }
+
+  return sheet;
 }
 
 function readSheetRows(sheet) {
-  const range = sheet.getDataRange();
-  const values = range.getDisplayValues();
-  return values.filter((row) => row.some((cell) => String(cell).trim() !== ""));
+  return sheet.getDataRange()
+    .getDisplayValues()
+    .filter((row) => row.some((cell) => String(cell).trim() !== ""));
 }
 
-function findColumnIndex(header, columnName) {
-  const targetName = String(columnName).toLowerCase().trim();
-  return header.findIndex((cell) => String(cell).toLowerCase().trim() === targetName);
+function getRequiredColumnIndex(headers, columnName) {
+  const index = headers.indexOf(normalizeHeader(columnName));
+
+  if (index === -1) {
+    throw new Error(`必須列が見つかりません: ${columnName}`);
+  }
+
+  return index;
 }
 
-function normalizeVolumeName(value) {
-  const normalized = String(value).toLowerCase().trim();
-  if (/^vol[1-4]$/.test(normalized)) return normalized;
-  if (/^[1-4]$/.test(normalized)) return `vol${normalized}`;
-  return normalized;
+function normalizeHeader(value) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function normalizeLevel(value) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/^vol\.?\s*/i, "")
+    .replace(/^level\s*/i, "");
 }
 
 function rowsToCsv(rows) {
-  return rows.map((row) => row.map(escapeCsvCell).join(",")).join("\n");
+  return rows
+    .map((row) => row.map(escapeCsvCell).join(","))
+    .join("\n");
 }
 
 function escapeCsvCell(value) {
   const text = String(value ?? "");
+
   if (/[",\r\n]/.test(text)) {
     return `"${text.replace(/"/g, '""')}"`;
   }
+
   return text;
 }
 
-function writePrivateWordsDocument(volName, csv, syncedAt) {
-  const projectId = getFirebaseProjectId();
-  const databaseId = encodeURIComponent(CONFIG.firestoreDatabaseId);
-  const documentPath = `${CONFIG.collectionName}/${volName}`;
-  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${databaseId}/documents/${documentPath}`
-    + "?updateMask.fieldPaths=csv&updateMask.fieldPaths=syncedAt";
+function uploadCsvToFirestore(docId, csv, syncedAt) {
+  const accessToken = getAccessToken();
+
+  const documentPath =
+    `projects/${CONFIG.firebaseProjectId}` +
+    `/databases/(default)/documents/${CONFIG.collectionName}/${docId}`;
+
+  const url =
+    `https://firestore.googleapis.com/v1/${documentPath}` +
+    "?updateMask.fieldPaths=csv&updateMask.fieldPaths=syncedAt";
+
+  const payload = {
+    fields: {
+      csv: {
+        stringValue: csv
+      },
+      syncedAt: {
+        timestampValue: syncedAt
+      }
+    }
+  };
 
   const response = UrlFetchApp.fetch(url, {
     method: "patch",
     contentType: "application/json",
     headers: {
-      Authorization: `Bearer ${ScriptApp.getOAuthToken()}`
+      Authorization: `Bearer ${accessToken}`
     },
-    payload: JSON.stringify({
-      fields: {
-        csv: { stringValue: csv },
-        syncedAt: { timestampValue: syncedAt }
-      }
-    }),
+    payload: JSON.stringify(payload),
     muteHttpExceptions: true
   });
 
   const status = response.getResponseCode();
+
   if (status < 200 || status >= 300) {
-    throw new Error(`Firestore write failed for ${volName}: ${status} ${response.getContentText()}`);
+    throw new Error(
+      `Firestore保存失敗: ${docId}\n` +
+      `status: ${status}\n` +
+      response.getContentText()
+    );
   }
+
+  Logger.log(`${docId} をFirestoreへ保存しました。`);
 }
 
-function getFirebaseProjectId() {
-  const propertyValue = PropertiesService.getScriptProperties()
-    .getProperty(CONFIG.firebaseProjectIdPropertyName);
-  const projectId = propertyValue || CONFIG.firebaseProjectId;
+function getAccessToken() {
+  const props = PropertiesService.getScriptProperties();
+  const clientEmail = props.getProperty("CLIENT_EMAIL");
+  const privateKey = props.getProperty("PRIVATE_KEY");
 
-  if (!projectId || projectId === "YOUR_FIREBASE_PROJECT_ID") {
-    throw new Error("Set Firebase Project ID in CONFIG or Script Properties.");
+  if (!clientEmail || !privateKey) {
+    throw new Error("CLIENT_EMAIL または PRIVATE_KEY が設定されていません。");
   }
 
-  return projectId;
+  const formattedPrivateKey = privateKey.replace(/\\n/g, "\n");
+
+  const header = {
+    alg: "RS256",
+    typ: "JWT"
+  };
+
+  const now = Math.floor(Date.now() / 1000);
+
+  const claimSet = {
+    iss: clientEmail,
+    scope: "https://www.googleapis.com/auth/datastore",
+    aud: "https://oauth2.googleapis.com/token",
+    exp: now + 3600,
+    iat: now
+  };
+
+  const encodedHeader = base64UrlEncode(JSON.stringify(header));
+  const encodedClaimSet = base64UrlEncode(JSON.stringify(claimSet));
+  const signatureInput = `${encodedHeader}.${encodedClaimSet}`;
+
+  const signatureBytes = Utilities.computeRsaSha256Signature(
+    signatureInput,
+    formattedPrivateKey
+  );
+
+  const jwt = `${signatureInput}.${base64UrlEncode(signatureBytes)}`;
+
+  const response = UrlFetchApp.fetch("https://oauth2.googleapis.com/token", {
+    method: "post",
+    payload: {
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion: jwt
+    },
+    muteHttpExceptions: true
+  });
+
+  const data = JSON.parse(response.getContentText());
+
+  if (!data.access_token) {
+    throw new Error("アクセストークン取得失敗:\n" + response.getContentText());
+  }
+
+  return data.access_token;
+}
+
+function base64UrlEncode(value) {
+  const bytes =
+    typeof value === "string"
+      ? Utilities.newBlob(value).getBytes()
+      : value;
+
+  return Utilities.base64EncodeWebSafe(bytes).replace(/=+$/, "");
 }
