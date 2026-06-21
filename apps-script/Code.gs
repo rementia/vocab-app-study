@@ -11,7 +11,7 @@
  * Store CLIENT_EMAIL and PRIVATE_KEY in Apps Script Properties.
  */
 const CONFIG = {
-  firebaseProjectId: "YOUR_FIREBASE_PROJECT_ID",
+  firebaseProjectId: "svl-app-65204",
   collectionName: "privateWords",
 
   // "sheetsByVolume" or "singleSheetWithLevel"
@@ -21,7 +21,7 @@ const CONFIG = {
   volumeSheetNames: ["vol1", "vol2", "vol3", "vol4"],
 
   // singleSheetWithLevel mode reads one sheet and splits rows by level.
-  sourceSheetName: "",
+  sourceSheetName: "シート1",
   levelColumnName: "level",
 
   volumes: [

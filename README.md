@@ -28,6 +28,17 @@ https://rementia.github.io/vocab-app-study/
 
 ログインなしでもアプリの基本表示は利用でき、選択中の volume、mode、表示位置、表示設定などのブラウザ内状態は localStorage で復元できます。お気に入り・苦手単語などのユーザー別学習データは、Googleログイン後に利用・保存され、Firestore `privateUsers/{uid}` に保存されます。
 
+## Difference From Public Version
+
+| Area | vocab-app | vocab-app-study |
+| --- | --- | --- |
+| Purpose | Public portfolio demo | Private study version |
+| Vocabulary source | Google Sheets CSV direct fetch | Firestore `privateWords/{vol}` synced by Apps Script |
+| Reload button | Refetches Google Sheets CSV | Optionally runs Apps Script sync, then refetches Firestore |
+| User collection | `portfolioUsers/{uid}` | `privateUsers/{uid}` |
+| Word collection | none | `privateWords/{vol}` |
+| localStorage prefix | `portfolio_tango_` | `vocab_app_study_` |
+
 ## Data Storage Overview
 
 このアプリでは、保存するデータの性質に応じて Firestore と localStorage を使い分けています。
@@ -374,34 +385,36 @@ node --check app.js
 ## Project Structure
 
 ```txt
-app.js                Main application flow
-bootstrap.js          Startup entry point
-data.js               Vocabulary CSV loading and parsing
-wordIdentity.js       Word key normalization
-storage.js            localStorage helpers
-savedState.js         Startup state restoration
-userMarksCloud.js     Firestore sync for favorites and difficult words
-favoritesManager.js   Favorite word behavior
-difficultsManager.js  Difficult word behavior
-reviewManager.js      Review score behavior
-wordOrder.js          Random and frequency-based ordering
-wordReloadService.js  Word index preservation after data reload
-reloadStatusService.js  Reload status messages and auto-clear timers
-wordList.js           Shared word-list helpers
-ui.js                 DOM rendering
-events.js             Keyboard, touch, and viewport events
-navigation.js         Word navigation history
-pronunciation.js      Speech and pronunciation symbol loading
-multipleChoice.js     四択問題 option generation
-firebaseClient.js     Firebase client setup
-syncConfig.js         Optional Apps Script Web App URL and lightweight token
-sheetSyncService.js   Optional Apps Script sync request helpers
-.github/workflows/test.yml  GitHub Actions workflow for npm test
-package.json          npm scripts, including npm test
-package-lock.json     Locked npm dependency resolution for reproducible CI
-apps-script/          Google Sheets to Firestore sync sample
-test/                 Node-based tests
-docs/                 Storage flow and manual test notes
+app.js                         App initialization and module wiring
+bootstrap.js                   Startup entry point
+data.js                        Firestore privateWords CSV fetching and parsing
+syncConfig.js                  Apps Script Web App URL/token configuration
+sheetSyncService.js            Apps Script Web App sync request helper
+apps-script/Code.gs            Google Sheets -> Firestore sync Apps Script sample
+apps-script/README.md          Apps Script setup and deployment notes
+dom.js                         DOM element lookup
+ui.js                          DOM rendering and button state updates
+events.js                      Keyboard, touch, and viewport events
+storage.js                     localStorage keys and safe storage helpers
+savedState.js                  Saved localStorage state restore and validation
+wordReloadService.js           Current word position handling after Firestore reload
+reloadStatusService.js         Reload status messages and auto-clear timers
+wordIdentity.js                Stable word key normalization
+wordList.js                    Shared word-list helpers
+wordOrder.js                   Random and frequency-based ordering
+navigation.js                  Word navigation history
+pronunciation.js               Pronunciation lookup and speech playback
+multipleChoice.js              四択問題 option generation
+favoritesManager.js            Favorite word behavior
+difficultsManager.js           Difficult word behavior
+reviewManager.js               Review score behavior
+userMarksCloud.js              privateUsers Firestore sync helpers
+firebaseClient.js              Firebase client setup
+test/                          Node-based tests
+docs/                          Storage flow and manual test notes
+.github/workflows/test.yml     GitHub Actions workflow for npm test
+package.json                   npm scripts, including npm test
+package-lock.json              Locked npm dependency resolution for reproducible CI
 ```
 
 ## Notes

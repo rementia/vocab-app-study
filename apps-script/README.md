@@ -49,6 +49,10 @@ The `csv` field is required by the web app. The `syncedAt` field is optional, bu
 
 Do not paste service account private keys, access tokens, or other secrets into this repository. If your environment needs a different authentication setup, store secrets outside the repository, such as Apps Script Properties or another secure mechanism.
 
+`CLIENT_EMAIL` and `PRIVATE_KEY` must be stored in Apps Script Script Properties. Do not write the real service account email, private key, access token, or service account JSON directly into `Code.gs` or any GitHub-tracked file.
+
+If a real private key was committed even once, removing it from the repository is not enough. Delete or disable that service account key in Google Cloud Console and issue a new key before using it again.
+
 ## Web App Deployment
 
 To let the browser app trigger sync:
@@ -64,6 +68,8 @@ To let the browser app trigger sync:
 9. Set the same lightweight token in Apps Script Properties `SYNC_TOKEN` and `syncConfig.js`.
 
 The frontend token is not a strong secret because it is shipped to the browser. Treat it only as a lightweight guard for a personal study app. Firestore access control and service account permissions still matter.
+
+`SYNC_TOKEN` is only a lightweight guard for this personal study version. The matching `SHEET_SYNC_TOKEN` in the web app can be visible in the browser, so it must not be treated like a server-side secret.
 
 If browser fetch fails because of deployment or CORS-like access behavior, confirm the Web App URL, deployment access setting, and Apps Script execution logs first.
 
