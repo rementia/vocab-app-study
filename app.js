@@ -98,6 +98,8 @@ import {
   buildMultipleChoiceQuestion,
   getMultipleChoiceDirection
 } from './multipleChoice.js';
+import { createSpeechSyncController } from './speechSyncController.js';
+import { getNextSearchResultIndex } from './searchController.js';
 import { formatReloadSuccessMessage, getPreserveWordId, getReloadedIndex } from './wordReloadService.js';
 import { createReloadStatusController } from './reloadStatusService.js';
 import {
@@ -167,7 +169,6 @@ let index = 0;
 let currentVol = "vol1";
 let currentMode = "vol";
 let sidebarOpen = true;
-let speechSync = false;
 let favorites = {};
 let difficults = {};
 let reviewScores = {};
@@ -184,9 +185,6 @@ let randomMode = false;
 let frequencyMode = false;
 
 let meaningRevealTimer = null;
-let speechSyncTimer = null;
-let speechSyncWaitingForUserActivation = false;
-let speechSyncActivationEventsBound = false;
 let autoPlayTimer = null;
 let autoPlayDisplayPhaseTimer = null;
 let autoPlayWaitStartedAt = 0;
@@ -241,7 +239,7 @@ const uiContext = {
     historyBackStack: getHistoryBackStack(),
     historyForwardStack: getHistoryForwardStack(),
     sidebarOpen,
-    speechSync,
+    speechSync: speechSyncController.isEnabled(),
     currentUser
   }),
   dom: {
@@ -310,6 +308,14 @@ const MIN_RECALL_TIME_MS = 1000;
 const MAX_RECALL_TIME_MS = 5000;
 
 let wordOrderCache = {};
+
+const speechSyncController = createSpeechSyncController({
+  delayMs: SPEECH_SYNC_DELAY_MS,
+  saveSpeechSyncState,
+  updateSpeechSyncButton,
+  speakWord,
+  shouldBlockSpeech: () => multipleChoiceMode && !multipleChoiceAnswer
+});
 
 async function init() {
   loadSavedState();
@@ -789,7 +795,7 @@ function loadSavedState() {
       currentVol,
       currentMode,
       sidebarOpen,
-      speechSync,
+      speechSync: speechSyncController.isEnabled(),
       indexByVol,
       favoritesUpdatedAt,
       difficultsUpdatedAt,
@@ -811,7 +817,7 @@ function loadSavedState() {
   currentVol = savedState.currentVol;
   currentMode = savedState.currentMode;
   sidebarOpen = savedState.sidebarOpen;
-  speechSync = savedState.speechSync;
+  speechSyncController.setEnabled(savedState.speechSync);
   indexByVol = savedState.indexByVol;
   favorites = savedState.favorites;
   difficults = savedState.difficults;
@@ -1485,57 +1491,11 @@ function clearMeaningRevealTimer() {
 }
 
 function clearSpeechSyncTimer() {
-  if (speechSyncTimer) {
-    clearTimeout(speechSyncTimer);
-    speechSyncTimer = null;
-  }
-}
-
-function stopSpeechSync() {
-  speechSyncWaitingForUserActivation = false;
-  unbindSpeechSyncActivationEvents();
-  clearSpeechSyncTimer();
-}
-
-function canStartSpeechSyncNow() {
-  if (typeof navigator === "undefined" || !navigator.userActivation) return true;
-  return navigator.userActivation.hasBeenActive || navigator.userActivation.isActive;
-}
-
-function bindSpeechSyncActivationEvents() {
-  if (speechSyncActivationEventsBound || typeof document === "undefined") return;
-  speechSyncActivationEventsBound = true;
-  document.addEventListener("pointerdown", handleSpeechSyncActivation, true);
-  document.addEventListener("touchstart", handleSpeechSyncActivation, true);
-  document.addEventListener("click", handleSpeechSyncActivation, true);
-  document.addEventListener("keydown", handleSpeechSyncActivation, true);
-}
-
-function unbindSpeechSyncActivationEvents() {
-  if (!speechSyncActivationEventsBound || typeof document === "undefined") return;
-  speechSyncActivationEventsBound = false;
-  document.removeEventListener("pointerdown", handleSpeechSyncActivation, true);
-  document.removeEventListener("touchstart", handleSpeechSyncActivation, true);
-  document.removeEventListener("click", handleSpeechSyncActivation, true);
-  document.removeEventListener("keydown", handleSpeechSyncActivation, true);
-}
-
-function waitForSpeechSyncActivation() {
-  speechSyncWaitingForUserActivation = true;
-  bindSpeechSyncActivationEvents();
+  speechSyncController.clearTimer();
 }
 
 function speakCurrentWordForSpeechSync() {
-  if (!speechSync) return;
-  if (multipleChoiceMode && !multipleChoiceAnswer) return;
-  stopSpeechSync();
-  speakWord();
-}
-
-function handleSpeechSyncActivation() {
-  if (!speechSync || !speechSyncWaitingForUserActivation) return;
-  if (multipleChoiceMode && !multipleChoiceAnswer) return;
-  speakCurrentWordForSpeechSync();
+  speechSyncController.speakNow();
 }
 
 function clearAutoPlayTimer() {
@@ -1666,25 +1626,11 @@ function startAutoPlayFromCurrentWord() {
 }
 
 function scheduleSpeechSync() {
-  if (!speechSync) return;
-  if (multipleChoiceMode && !multipleChoiceAnswer) {
-    clearSpeechSyncTimer();
-    return;
-  }
-  if (!canStartSpeechSyncNow()) {
-    waitForSpeechSyncActivation();
-    return;
-  }
-
-  stopSpeechSync();
-  speechSyncTimer = setTimeout(() => {
-    speakWord();
-  }, SPEECH_SYNC_DELAY_MS);
+  speechSyncController.schedule();
 }
 
 function scheduleSpeechSyncAfterRender() {
-  if (!speechSync) return;
-  runAfterNextPaint(scheduleSpeechSync);
+  speechSyncController.scheduleAfterRender();
 }
 
 function getCurrentWord() {
@@ -1720,15 +1666,6 @@ function getSearchResultItems() {
     .filter((item) => item instanceof HTMLElement);
 }
 
-function getNextSearchResultItem(resultItems, direction) {
-  const activeResultIndex = resultItems.findIndex((item) => Number(item.dataset.index) === index);
-  const fallbackIndex = direction > 0 ? 0 : resultItems.length - 1;
-  const nextResultIndex = activeResultIndex >= 0
-    ? (activeResultIndex + direction + resultItems.length) % resultItems.length
-    : fallbackIndex;
-  return resultItems[nextResultIndex];
-}
-
 function readWordItemIndex(item) {
   if (!(item instanceof HTMLElement)) return null;
 
@@ -1740,7 +1677,10 @@ function moveToSearchResult(direction) {
   const resultItems = getSearchResultItems();
   if (!resultItems.length) return;
 
-  const nextIndex = readWordItemIndex(getNextSearchResultItem(resultItems, direction));
+  const resultIndexes = resultItems
+    .map(readWordItemIndex)
+    .filter((itemIndex) => itemIndex !== null);
+  const nextIndex = getNextSearchResultIndex({ resultIndexes, currentIndex: index, direction });
   if (nextIndex === null) return;
 
   navMoveToIndex(nextIndex, { pushHistory: true });
@@ -1769,15 +1709,7 @@ function toggleSidebar() {
 }
 
 function toggleSpeechSync() {
-  speechSync = !speechSync;
-  saveSpeechSyncState(speechSync);
-  updateSpeechSyncButton();
-
-  if (!speechSync) {
-    stopSpeechSync();
-  } else {
-    scheduleSpeechSync();
-  }
+  speechSyncController.toggle();
 }
 
 function refreshCurrentWordAfterDisplaySettingChange() {

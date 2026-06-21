@@ -38,6 +38,8 @@ https://rementia.github.io/vocab-app-study/
 | User collection | `portfolioUsers/{uid}` | `privateUsers/{uid}` |
 | Word collection | none | `privateWords/{vol}` |
 | localStorage prefix | `portfolio_tango_` | `vocab_app_study_` |
+| Data privacy | Demo-oriented public data flow | Private vocabulary data is kept in Firestore and gated by Auth/Rules |
+| Apps Script requirement | Not required | Required when syncing Google Sheets changes into Firestore |
 
 ## Data Storage Overview
 
@@ -313,6 +315,8 @@ npm test
 
 GitHub Actions の `Test` workflow は、`main` への push、`main` 向け pull request、手動実行（`workflow_dispatch`）で同じ `npm test` を実行します。CI では `package-lock.json` に基づいて `npm ci` を使い、依存関係を再現します。現在のテスト状態は README 上部の badge で確認できます。手動実行する場合は GitHub の Actions タブで `Test` workflow を選び、`Run workflow` を押します。
 
+Current Node-based tests cover parsing, saved state restore, word ordering, reload index preservation, Apps Script sync request/error handling, pronunciation helpers, speech sync controller state, multiple choice options, navigation, search result movement, storage, favorites/difficults managers, review stats, UI helpers, and keyboard events. Tests do not connect to real Firebase, Firestore, Google Sheets, or Apps Script deployments.
+
 ## 動作確認チェックリスト
 
 ### Authentication / access
@@ -402,6 +406,8 @@ reloadStatusService.js         Reload status messages and auto-clear timers
 wordIdentity.js                Stable word key normalization
 wordList.js                    Shared word-list helpers
 wordOrder.js                   Random and frequency-based ordering
+speechSyncController.js        Speech sync timing and user activation handling
+searchController.js            Search result index calculation
 navigation.js                  Word navigation history
 pronunciation.js               Pronunciation lookup and speech playback
 multipleChoice.js              四択問題 option generation
