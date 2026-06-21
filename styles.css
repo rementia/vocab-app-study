@@ -707,6 +707,24 @@ body.mode-multiple-choice .multiple-choice-panel {
   max-width: 220px;
 }
 
+.audio-unlock-prompt {
+  min-height: 28px;
+}
+
+.audio-unlock-btn {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 8px;
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.audio-unlock-btn:hover {
+  background: var(--btn-hover-bg);
+}
+
 .main-btn {
   margin-top: 0;
   font-size: clamp(18px, 2.6vw, 28px);

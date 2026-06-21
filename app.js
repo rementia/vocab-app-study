@@ -117,6 +117,8 @@ const {
   meaningEl,
   progressEl,
   pronunciationEl,
+  audioUnlockPromptEl,
+  audioUnlockBtnEl,
   prevHintEl,
   nextHintEl,
   currentEl,
@@ -252,6 +254,8 @@ const uiContext = {
     meaningEl,
     progressEl,
     pronunciationEl,
+    audioUnlockPromptEl,
+    audioUnlockBtnEl,
     prevHintEl,
     nextHintEl,
     currentEl,
@@ -336,7 +340,12 @@ async function init() {
     toggleRandomMode
   });
   setupAuthListener();
-  initPronunciation({ el: pronunciationEl, getCurrentWord });
+  initPronunciation({
+    el: pronunciationEl,
+    audioUnlockPrompt: audioUnlockPromptEl,
+    audioUnlockButton: audioUnlockBtnEl,
+    getCurrentWord
+  });
   updateSpeechButtonAvailability(speakWordBtnEl);
 
   window.addEventListener("resize", handleViewportResize);
@@ -1497,6 +1506,8 @@ function bindSpeechSyncActivationEvents() {
   if (speechSyncActivationEventsBound || typeof document === "undefined") return;
   speechSyncActivationEventsBound = true;
   document.addEventListener("pointerdown", handleSpeechSyncActivation, true);
+  document.addEventListener("touchstart", handleSpeechSyncActivation, true);
+  document.addEventListener("click", handleSpeechSyncActivation, true);
   document.addEventListener("keydown", handleSpeechSyncActivation, true);
 }
 
@@ -1504,6 +1515,8 @@ function unbindSpeechSyncActivationEvents() {
   if (!speechSyncActivationEventsBound || typeof document === "undefined") return;
   speechSyncActivationEventsBound = false;
   document.removeEventListener("pointerdown", handleSpeechSyncActivation, true);
+  document.removeEventListener("touchstart", handleSpeechSyncActivation, true);
+  document.removeEventListener("click", handleSpeechSyncActivation, true);
   document.removeEventListener("keydown", handleSpeechSyncActivation, true);
 }
 
