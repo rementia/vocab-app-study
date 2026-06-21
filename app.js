@@ -1,6 +1,8 @@
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-auth.js";
 import { availableVolumes, fetchWordsForVol, fetchWordsForVolWithMeta } from './data.js';
 import { getDomElements } from './dom.js';
+import { SHEET_SYNC_TOKEN, SHEET_SYNC_WEB_APP_URL } from './syncConfig.js';
+import { syncSheetToFirestore } from './sheetSyncService.js';
 import { auth, db, provider } from './firebaseClient.js';
 import {
   USER_MARKS_COLLECTION,
@@ -1147,7 +1149,7 @@ function setReloadWordsInProgress(isLoading) {
   if (!reloadWordsBtnEl) return;
   reloadWordsBtnEl.disabled = isLoading || !currentUser || wordEl?.classList.contains("status-message");
   reloadWordsBtnEl.classList.toggle("disabled", reloadWordsBtnEl.disabled);
-  reloadWordsBtnEl.textContent = isLoading ? "再読み込み中..." : "単語データ再読み込み";
+  reloadWordsBtnEl.textContent = isLoading ? "同期中..." : "単語データ同期";
 }
 
 function resetMultipleChoiceState() {
@@ -1174,9 +1176,20 @@ async function handleReloadWords() {
   }
 
   setReloadWordsInProgress(true);
-  setReloadWordsStatus("単語データを再読み込みしています...");
+  setReloadWordsStatus("スプレッドシート同期中...");
 
   try {
+    const sheetSyncResult = await syncSheetToFirestore({
+      url: SHEET_SYNC_WEB_APP_URL,
+      token: SHEET_SYNC_TOKEN
+    });
+
+    if (!sheetSyncResult.ok) {
+      setReloadWordsStatus(`Apps Script同期に失敗しました: ${sheetSyncResult.error}`);
+      return;
+    }
+
+    setReloadWordsStatus("Firestore再読み込み中...");
     const { wordsByVol: reloadedWordsByVol, metaByVol } = await reloadWordsForVolumes(targetVolumes);
     allWordsByVol = {
       ...allWordsByVol,
@@ -1191,12 +1204,16 @@ async function handleReloadWords() {
     requestListRebuild();
     render();
     scheduleSpeechSyncAfterRender();
+    const reloadMessage = formatReloadSuccessMessage({
+      volumes: targetVolumes,
+      wordsByVol: reloadedWordsByVol,
+      metaByVol
+    });
+    const statusMessage = sheetSyncResult.skipped
+      ? `${reloadMessage}。${sheetSyncResult.message}`
+      : reloadMessage;
     setReloadWordsStatus(
-      formatReloadSuccessMessage({
-        volumes: targetVolumes,
-        wordsByVol: reloadedWordsByVol,
-        metaByVol
-      }),
+      statusMessage,
       { clearAfterMs: 4000 }
     );
   } catch (error) {

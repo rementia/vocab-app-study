@@ -41,12 +41,31 @@ The `csv` field is required by the web app. The `syncedAt` field is optional, bu
 5. Set Script Properties:
    - `CLIENT_EMAIL`
    - `PRIVATE_KEY`
+   - `SYNC_TOKEN`
 6. Run `dryRun()` to confirm row counts without writing to Firestore.
 7. Run `syncAllVolumesToFirestore()` or `syncVol1()` / `syncVol2()` / `syncVol3()` / `syncVol4()`.
 8. Approve the required Apps Script permissions.
 9. Check the Apps Script execution log for target volume, CSV row count, Firestore destination, `syncedAt`, and success or failure.
 
 Do not paste service account private keys, access tokens, or other secrets into this repository. If your environment needs a different authentication setup, store secrets outside the repository, such as Apps Script Properties or another secure mechanism.
+
+## Web App Deployment
+
+To let the browser app trigger sync:
+
+1. Open the Apps Script editor.
+2. Select Deploy.
+3. Select New deployment.
+4. Choose type: Web app.
+5. Execute as: Me.
+6. Choose access according to your private study operation.
+7. Copy the Web App URL.
+8. Set that URL in the web app's `syncConfig.js`.
+9. Set the same lightweight token in Apps Script Properties `SYNC_TOKEN` and `syncConfig.js`.
+
+The frontend token is not a strong secret because it is shipped to the browser. Treat it only as a lightweight guard for a personal study app. Firestore access control and service account permissions still matter.
+
+If browser fetch fails because of deployment or CORS-like access behavior, confirm the Web App URL, deployment access setting, and Apps Script execution logs first.
 
 ## Authentication Note
 
@@ -57,6 +76,7 @@ If Firestore returns `403` or an authorization error, check:
 - `CONFIG.firebaseProjectId`
 - Script Properties `CLIENT_EMAIL`
 - Script Properties `PRIVATE_KEY`
+- Script Properties `SYNC_TOKEN`
 - whether `PRIVATE_KEY` keeps `\n` line breaks correctly
 - Firestore IAM permissions for the service account
 

@@ -43,15 +43,42 @@ function dryRun() {
   Logger.log("dryRun完了: Firestoreには保存していません。");
 }
 
+function doPost(e) {
+  try {
+    validateSyncToken(e);
+    const result = syncAllVolumesToFirestore();
+    return createJsonResponse({
+      ok: true,
+      syncedAt: result.syncedAt,
+      volumes: result.volumes
+    });
+  } catch (error) {
+    return createJsonResponse({
+      ok: false,
+      error: error && error.message ? error.message : String(error)
+    });
+  }
+}
+
 function syncAllVolumesToFirestore() {
   const groupedRows = buildGroupedRows();
   const syncedAt = new Date().toISOString();
+  const volumes = [];
 
   CONFIG.volumes.forEach(({ docId }) => {
-    uploadCsvToFirestore(docId, rowsToCsv(groupedRows[docId] || []), syncedAt, groupedRows[docId] || []);
+    const rows = groupedRows[docId] || [];
+    uploadCsvToFirestore(docId, rowsToCsv(rows), syncedAt, rows);
+    volumes.push({
+      docId,
+      rowCount: getWordCount(rows)
+    });
   });
 
   Logger.log("全volのFirestore同期が完了しました。");
+  return {
+    syncedAt,
+    volumes
+  };
 }
 
 function syncVol1() {
@@ -77,8 +104,16 @@ function syncOneVolume(docId) {
     throw new Error(`未定義のdocIdです: ${docId}`);
   }
 
-  uploadCsvToFirestore(docId, rowsToCsv(groupedRows[docId]), new Date().toISOString(), groupedRows[docId]);
+  const syncedAt = new Date().toISOString();
+  uploadCsvToFirestore(docId, rowsToCsv(groupedRows[docId]), syncedAt, groupedRows[docId]);
   Logger.log(`${docId} の同期が完了しました。`);
+  return {
+    syncedAt,
+    volumes: [{
+      docId,
+      rowCount: getWordCount(groupedRows[docId])
+    }]
+  };
 }
 
 function buildGroupedRows() {
@@ -177,6 +212,10 @@ function readSheetRows(sheet) {
   return sheet.getDataRange()
     .getDisplayValues()
     .filter((row) => row.some((cell) => String(cell).trim() !== ""));
+}
+
+function getWordCount(rows) {
+  return Math.max((rows || []).length - 1, 0);
 }
 
 function getRequiredColumnIndex(headers, columnName) {
@@ -331,4 +370,36 @@ function base64UrlEncode(value) {
       : value;
 
   return Utilities.base64EncodeWebSafe(bytes).replace(/=+$/, "");
+}
+
+function validateSyncToken(e) {
+  const expectedToken = PropertiesService.getScriptProperties().getProperty("SYNC_TOKEN");
+
+  if (!expectedToken) {
+    throw new Error("SYNC_TOKEN が設定されていません。");
+  }
+
+  const requestData = parseRequestData(e);
+
+  if (requestData.token !== expectedToken) {
+    throw new Error("Invalid token");
+  }
+}
+
+function parseRequestData(e) {
+  if (!e || !e.postData || !e.postData.contents) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(e.postData.contents);
+  } catch (error) {
+    throw new Error("Invalid JSON request body");
+  }
+}
+
+function createJsonResponse(data) {
+  return ContentService
+    .createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
 }

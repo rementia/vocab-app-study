@@ -200,19 +200,41 @@ privateWords/vol4
 
 アプリはログイン後、必要な volume の CSV を取得し、`word`, `meaning`, `sourceVol` を持つ単語データとして扱います。
 
-アプリ上の `単語データ再読み込み` ボタンを使うと、現在の mode に必要な Firestore `privateWords/{vol}` の CSV を再取得できます。この再読み込みは Google Sheets を直接読むものではなく、Apps Script による Firestore 同期が完了した後の `privateWords/{vol}` を読み直します。
+アプリ上の `単語データ同期` ボタンを使うと、設定済みの Apps Script Web App を呼び出して Google Sheets から Firestore `privateWords/{vol}` へ同期し、その後に現在の mode に必要な Firestore の CSV を再取得できます。Apps Script Web App URL が未設定の場合は、従来通り Firestore `privateWords/{vol}` の再取得だけを行います。
 
 訳語だけの修正は比較的安全です。英単語そのものを変更すると word key が変わるため、お気に入り・苦手単語・復習スコアとの対応が別単語扱いになる可能性があります。
 
 Apps Script sync example: see `apps-script/README.md`.
 
+Webアプリ側のApps Script連携は `syncConfig.js` で設定します。
+
+```js
+export const SHEET_SYNC_WEB_APP_URL = "";
+export const SHEET_SYNC_TOKEN = "";
+```
+
+`SHEET_SYNC_WEB_APP_URL` を空のままにすると、ボタンは Firestore のみ再読み込みます。`SHEET_SYNC_TOKEN` は個人用の簡易防止用で、フロントエンドに置く値なので完全な秘密としては扱えません。
+
+Apps Script Web Appを使う場合は、Apps Scriptエディタで `apps-script/Code.gs` を貼り付け、Web Appとしてデプロイします。
+
+- デプロイ > 新しいデプロイ
+- 種類: ウェブアプリ
+- 実行ユーザー: 自分
+- アクセスできるユーザー: 運用方針に合わせる
+- 発行されたWeb App URLを `SHEET_SYNC_WEB_APP_URL` に設定する
+- Apps Script Propertiesに `CLIENT_EMAIL`, `PRIVATE_KEY`, `SYNC_TOKEN` を設定する
+- `SYNC_TOKEN` と同じ値を `SHEET_SYNC_TOKEN` に設定する
+
+この同期は Google Sheets をWebアプリが直接fetchするものではありません。Webアプリは Apps Script Web App を呼び出し、Apps Script が Firestore `privateWords/{vol}.csv` を更新し、その後Webアプリが Firestore を再取得します。
+
 ### スプレッドシート修正が反映されない場合
 
-`単語データ再読み込み` は Google Sheets を直接読む機能ではなく、Firestore `privateWords/{vol}` を再取得する機能です。そのため、スプレッドシートを編集しただけではアプリには反映されません。
+Webアプリは Google Sheets を直接読みません。`単語データ同期` は、Apps Script Web App URL が設定されている場合だけ Google Sheets → Firestore 同期を呼び出し、その後 Firestore `privateWords/{vol}` を再取得します。
 
 反映されない場合は、次を確認します。
 
-- Apps Script などで Google Sheets から Firestore への同期が完了している
+- `syncConfig.js` の Apps Script Web App URL が設定されている
+- Apps Script Web App としてデプロイ済みである
 - `apps-script/Code.gs` のような同期処理を実行した
 - Firebase Console で `privateWords/vol1`, `privateWords/vol2`, `privateWords/vol3`, `privateWords/vol4` の document ID がコード側の volume 名と一致している
 - 各 document の `csv` field が更新されている
@@ -372,6 +394,8 @@ navigation.js         Word navigation history
 pronunciation.js      Speech and pronunciation symbol loading
 multipleChoice.js     四択問題 option generation
 firebaseClient.js     Firebase client setup
+syncConfig.js         Optional Apps Script Web App URL and lightweight token
+sheetSyncService.js   Optional Apps Script sync request helpers
 .github/workflows/test.yml  GitHub Actions workflow for npm test
 package.json          npm scripts, including npm test
 package-lock.json     Locked npm dependency resolution for reproducible CI
