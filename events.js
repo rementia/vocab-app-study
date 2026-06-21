@@ -152,6 +152,7 @@ export function bindTouchEvents({ prevWord, nextWord, isSwipeAllowedTarget }) {
   let lastTouchEnd = 0;
   let touchStartTime = 0;
   let swipeEnabled = false;
+  let firstSwipeSpeechSyncAttempted = false;
 
   document.addEventListener(
     "touchstart",
@@ -190,10 +191,18 @@ export function bindTouchEvents({ prevWord, nextWord, isSwipeAllowedTarget }) {
         const thresholdY = 50;
 
         if (Math.abs(diffX) >= thresholdX && diffY <= thresholdY) {
+          const wordOptions = {
+            immediateSpeechSync: !firstSwipeSpeechSyncAttempted,
+            reason: "swipe"
+          };
+          let moved = false;
           if (diffX > 0) {
-            prevWord();
+            moved = Boolean(prevWord(wordOptions));
           } else {
-            nextWord();
+            moved = Boolean(nextWord(wordOptions));
+          }
+          if (moved) {
+            firstSwipeSpeechSyncAttempted = true;
           }
         }
       }

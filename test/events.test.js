@@ -1,5 +1,5 @@
 import assert from "assert";
-import { bindKeyboardEvents } from "../events.js";
+import { bindKeyboardEvents, bindTouchEvents } from "../events.js";
 
 class MockInput {
   constructor() {
@@ -169,5 +169,103 @@ assert.strictEqual(dispatchKey({ key: "0", ctrlKey: true }), false);
 assert.strictEqual(calls.resetReview, 0, "Ctrl+0 should keep browser zoom reset behavior");
 assert.strictEqual(dispatchKey({ key: "f", ctrlKey: true }), false);
 assert.strictEqual(calls.favorite, 0, "Ctrl+F should keep browser find behavior");
+
+class MockElement {
+  closest() {
+    return null;
+  }
+}
+
+globalThis.Element = MockElement;
+
+let touchStartHandler = null;
+let touchEndHandler = null;
+globalThis.document = {
+  addEventListener(type, handler) {
+    if (type === "touchstart") touchStartHandler = handler;
+    if (type === "touchend") touchEndHandler = handler;
+  }
+};
+
+const swipeCalls = [];
+let swipeMoveResult = true;
+bindTouchEvents({
+  prevWord: (options) => {
+    swipeCalls.push({ direction: "prev", options });
+    return swipeMoveResult;
+  },
+  nextWord: (options) => {
+    swipeCalls.push({ direction: "next", options });
+    return swipeMoveResult;
+  },
+  isSwipeAllowedTarget: () => true
+});
+
+let now = 1000;
+const originalDateNow = Date.now;
+Date.now = () => now;
+
+function dispatchTouch(handler, x, y) {
+  let prevented = false;
+  handler({
+    changedTouches: [{ screenX: x, screenY: y }],
+    target: new MockElement(),
+    preventDefault() {
+      prevented = true;
+    }
+  });
+  return prevented;
+}
+
+dispatchTouch(touchStartHandler, 100, 100);
+now += 100;
+dispatchTouch(touchEndHandler, 120, 105);
+assert.strictEqual(swipeCalls.length, 0, "short swipes should not move words");
+
+dispatchTouch(touchStartHandler, 100, 100);
+now += 100;
+dispatchTouch(touchEndHandler, 30, 100);
+assert.deepStrictEqual(
+  swipeCalls.at(-1),
+  { direction: "next", options: { immediateSpeechSync: true, reason: "swipe" } },
+  "first completed swipe should request immediate speech sync"
+);
+
+dispatchTouch(touchStartHandler, 100, 100);
+now += 100;
+dispatchTouch(touchEndHandler, 30, 100);
+assert.deepStrictEqual(
+  swipeCalls.at(-1),
+  { direction: "next", options: { immediateSpeechSync: false, reason: "swipe" } },
+  "second completed swipe should keep the normal delayed speech sync"
+);
+
+swipeMoveResult = false;
+const blockedSwipeCalls = [];
+bindTouchEvents({
+  prevWord: (options) => {
+    blockedSwipeCalls.push({ direction: "prev", options });
+    return false;
+  },
+  nextWord: (options) => {
+    blockedSwipeCalls.push({ direction: "next", options });
+    return false;
+  },
+  isSwipeAllowedTarget: () => true
+});
+
+dispatchTouch(touchStartHandler, 100, 100);
+now += 100;
+dispatchTouch(touchEndHandler, 30, 100);
+dispatchTouch(touchStartHandler, 100, 100);
+now += 100;
+dispatchTouch(touchEndHandler, 30, 100);
+assert.deepStrictEqual(
+  blockedSwipeCalls.map((call) => call.options.immediateSpeechSync),
+  [true, true],
+  "failed swipe movement should not consume the first immediate speech sync attempt"
+);
+
+Date.now = originalDateNow;
 
 console.log("All keyboard shortcut tests passed.");
