@@ -1,8 +1,10 @@
 import assert from "assert";
 import {
+  getPronunciationAudioUnlockState,
   initPronunciation,
   loadPronunciation,
-  safePlayPronunciation
+  safePlayPronunciation,
+  unlockPronunciationAudioOnce
 } from "../pronunciation.js";
 
 function installMockStorage() {
@@ -94,7 +96,9 @@ const originalSpeechSynthesisUtterance = globalThis.SpeechSynthesisUtterance;
 const originalConsoleWarn = console.warn;
 
 let speakCalls = 0;
+let resumeCalls = 0;
 let boundEvents = [];
+let eventHandlers = {};
 const audioUnlockPrompt = { hidden: true };
 const audioUnlockButton = {
   addEventListener() {}
@@ -103,6 +107,9 @@ const audioUnlockButton = {
 globalThis.window = {
   speechSynthesis: {
     cancel() {},
+    resume() {
+      resumeCalls += 1;
+    },
     speak() {
       speakCalls += 1;
     }
@@ -115,11 +122,13 @@ globalThis.window = {
 };
 globalThis.SpeechSynthesisUtterance = globalThis.window.SpeechSynthesisUtterance;
 globalThis.document = {
-  addEventListener(type) {
+  addEventListener(type, handler) {
     boundEvents.push(type);
+    eventHandlers[type] = handler;
   },
-  removeEventListener(type) {
+  removeEventListener(type, handler) {
     boundEvents = boundEvents.filter((item) => item !== type);
+    if (eventHandlers[type] === handler) delete eventHandlers[type];
   }
 };
 console.warn = () => {};
@@ -140,6 +149,25 @@ assert.strictEqual(audioUnlockPrompt.hidden, false, "audio unlock prompt should 
 assert.strictEqual(speakCalls, 0, "blocked speech should not call speechSynthesis.speak");
 assert.ok(boundEvents.includes("touchstart"), "touchstart should be listened to for mobile audio unlock");
 assert.ok(boundEvents.includes("click"), "click should be listened to for audio unlock");
+
+Object.defineProperty(globalThis, "navigator", {
+  configurable: true,
+  value: { userActivation: { hasBeenActive: false, isActive: true } }
+});
+eventHandlers.touchstart();
+assert.strictEqual(resumeCalls, 1, "touchstart should try to unlock speech synthesis once");
+assert.strictEqual(speakCalls, 0, "audio unlock should not pronounce the old word during swipe start");
+assert.deepStrictEqual(
+  getPronunciationAudioUnlockState(),
+  { isAudioUnlocked: true, unlockAttempted: true, unlockInProgress: false },
+  "audio unlock state should be stored after touchstart"
+);
+assert.deepStrictEqual(
+  unlockPronunciationAudioOnce(),
+  { ok: true, unlocked: true, attempted: false },
+  "unlock should not retry once audio is already unlocked"
+);
+assert.strictEqual(resumeCalls, 1, "audio unlock should not run repeatedly after success");
 
 Object.defineProperty(globalThis, "navigator", {
   configurable: true,

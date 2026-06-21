@@ -4,6 +4,7 @@ import { createSpeechSyncController } from "../speechSyncController.js";
 let savedValue = null;
 let updated = 0;
 let speakCalls = 0;
+let unlockCalls = 0;
 let pointerHandler = null;
 const timers = [];
 
@@ -39,6 +40,7 @@ const controller = createSpeechSyncController({
   updateSpeechSyncButton: () => { updated += 1; },
   speakWord: () => { speakCalls += 1; },
   shouldBlockSpeech: () => false,
+  unlockPronunciationAudio: () => { unlockCalls += 1; },
   requestFrame: (callback) => callback()
 });
 
@@ -49,14 +51,15 @@ assert.strictEqual(updated, 1);
 assert.strictEqual(typeof pointerHandler, "function", "speech sync should wait for user activation when the browser requires it");
 
 pointerHandler();
-assert.strictEqual(speakCalls, 1, "activation should speak the current word");
-assert.strictEqual(pointerHandler, null, "activation listener should be removed after speech starts");
+assert.strictEqual(unlockCalls, 1, "activation should unlock audio before the first swipe completes");
+assert.strictEqual(speakCalls, 0, "activation should not pronounce the old word during swipe start");
+assert.strictEqual(pointerHandler, null, "activation listener should be removed after unlock");
 
 globalThis.navigator.userActivation.hasBeenActive = true;
 controller.schedule();
 assert.strictEqual(timers.at(-1).delay, 260);
 timers.at(-1).handler();
-assert.strictEqual(speakCalls, 2, "scheduled speech sync should speak after delay");
+assert.strictEqual(speakCalls, 1, "scheduled speech sync should speak after delay");
 
 controller.toggle();
 assert.strictEqual(controller.isEnabled(), false);

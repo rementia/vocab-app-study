@@ -12,6 +12,8 @@ const PRONUNCIATION_CACHE_PREFIX = "vocab_app_study_pron";
 const LEGACY_PRONUNCIATION_CACHE_PREFIX = "portfolio_pron";
 let audioUnlocked = false;
 let audioUnlockEventsBound = false;
+let audioUnlockAttempted = false;
+let audioUnlockInProgress = false;
 
 export function initPronunciation({ el, audioUnlockPrompt, audioUnlockButton, getCurrentWord }) {
   pronunciationEl = el;
@@ -19,8 +21,11 @@ export function initPronunciation({ el, audioUnlockPrompt, audioUnlockButton, ge
   audioUnlockBtnEl = audioUnlockButton || null;
   getCurrentWordFn = getCurrentWord;
   audioUnlocked = hasUserActivation();
+  audioUnlockAttempted = false;
+  audioUnlockInProgress = false;
   hideAudioUnlockPrompt();
   audioUnlockBtnEl?.addEventListener("click", handleAudioUnlockRequest);
+  bindAudioUnlockEvents();
 }
 
 export function updateSpeechButtonAvailability(speakBtnEl) {
@@ -50,6 +55,7 @@ export function safePlayPronunciation() {
   }
 
   audioUnlocked = true;
+  audioUnlockAttempted = true;
   hideAudioUnlockPrompt();
   unbindAudioUnlockEvents();
 
@@ -71,6 +77,57 @@ export function safePlayPronunciation() {
     }
     return { ok: false, blocked: false };
   }
+}
+
+export function unlockPronunciationAudioOnce() {
+  if (audioUnlocked && audioUnlockAttempted) {
+    hideAudioUnlockPrompt();
+    unbindAudioUnlockEvents();
+    return { ok: true, unlocked: true, attempted: false };
+  }
+
+  if (audioUnlockInProgress) {
+    return { ok: false, unlocked: audioUnlocked, attempted: false, inProgress: true };
+  }
+
+  if (!isSpeechSynthesisSupported()) {
+    return { ok: false, unlocked: false, attempted: false, unsupported: true };
+  }
+
+  if (!hasUserActivation()) {
+    showAudioUnlockPrompt();
+    bindAudioUnlockEvents();
+    return { ok: false, unlocked: false, attempted: false, blocked: true };
+  }
+
+  audioUnlockInProgress = true;
+  audioUnlockAttempted = true;
+
+  try {
+    if (typeof window.speechSynthesis.resume === "function") {
+      window.speechSynthesis.resume();
+    }
+    audioUnlocked = true;
+    hideAudioUnlockPrompt();
+    unbindAudioUnlockEvents();
+    return { ok: true, unlocked: true, attempted: true };
+  } catch (error) {
+    console.warn("発音再生の有効化に失敗しました:", error);
+    audioUnlocked = false;
+    showAudioUnlockPrompt();
+    bindAudioUnlockEvents();
+    return { ok: false, unlocked: false, attempted: true, blocked: error?.name === "NotAllowedError" };
+  } finally {
+    audioUnlockInProgress = false;
+  }
+}
+
+export function getPronunciationAudioUnlockState() {
+  return {
+    isAudioUnlocked: audioUnlocked,
+    unlockAttempted: audioUnlockAttempted,
+    unlockInProgress: audioUnlockInProgress
+  };
 }
 
 export async function loadPronunciation(word) {
@@ -173,9 +230,7 @@ function unbindAudioUnlockEvents() {
 }
 
 function handleAudioUnlockRequest() {
-  audioUnlocked = true;
-  hideAudioUnlockPrompt();
-  unbindAudioUnlockEvents();
+  unlockPronunciationAudioOnce();
 }
 
 function extractPhonetic(data) {

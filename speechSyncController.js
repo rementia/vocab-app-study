@@ -4,6 +4,7 @@ export function createSpeechSyncController({
   updateSpeechSyncButton,
   speakWord,
   shouldBlockSpeech,
+  unlockPronunciationAudio = () => {},
   requestFrame = requestAnimationFrame
 }) {
   let speechSync = false;
@@ -57,8 +58,9 @@ export function createSpeechSyncController({
 
   function handleActivation() {
     if (!speechSync || !waitingForUserActivation) return;
-    if (shouldBlockSpeech()) return;
-    speakNow();
+    unlockPronunciationAudio();
+    waitingForUserActivation = false;
+    unbindActivationEvents();
   }
 
   function schedule() {
