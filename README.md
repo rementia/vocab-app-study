@@ -24,6 +24,8 @@ https://rementia.github.io/vocab-app-study/
 
 このリポジトリは、個人学習用の英単語アプリ study 版です。
 
+This repository is the private study version of the vocabulary learning app. It keeps the same core learning experience as the public version, but uses Google Apps Script and Firestore to manage private vocabulary data.
+
 公開用アプリとは保存先を分けるため、Firestore collection と localStorage key prefix を study 版専用にしています。ユーザー別学習データは `privateUsers/{uid}`、localStorage は `vocab_app_study_` prefix に分けています。
 
 ログインなしでもアプリの基本表示は利用でき、選択中の volume、mode、表示位置、表示設定などのブラウザ内状態は localStorage で復元できます。お気に入り・苦手単語などのユーザー別学習データは、Googleログイン後に利用・保存され、Firestore `privateUsers/{uid}` に保存されます。
@@ -41,6 +43,9 @@ https://rementia.github.io/vocab-app-study/
 | Data privacy | Demo-oriented public data flow | Private vocabulary data is kept in Firestore and gated by Auth/Rules |
 | Apps Script requirement | Not required | Required when syncing Google Sheets changes into Firestore |
 
+## Browser Audio Note
+
+iOS SafariではWeb音声再生制限により、初回のみ発音ボタンまたは画面タップが必要な場合があります。音声が有効化された後は、スワイプやキー操作による発音同期が利用できます。
 ## Data Storage Overview
 
 このアプリでは、保存するデータの性質に応じて Firestore と localStorage を使い分けています。
