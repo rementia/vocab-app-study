@@ -562,6 +562,16 @@ body.mode-multiple-choice .multiple-choice-panel {
   justify-content: center;
   gap: var(--space-box);
   padding: var(--space-center-padding);
+  transition: transform 160ms ease;
+  will-change: transform;
+}
+
+.center-box.is-dragging {
+  transition: none;
+}
+
+.center-box.is-returning {
+  transition: transform 160ms ease;
 }
 
 .order-mode-row,

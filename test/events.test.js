@@ -1,5 +1,5 @@
 import assert from "assert";
-import { bindKeyboardEvents } from "../events.js";
+import { bindKeyboardEvents, bindTouchEvents, getSwipeIntent } from "../events.js";
 
 class MockInput {
   constructor() {
@@ -169,5 +169,115 @@ assert.strictEqual(dispatchKey({ key: "0", ctrlKey: true }), false);
 assert.strictEqual(calls.resetReview, 0, "Ctrl+0 should keep browser zoom reset behavior");
 assert.strictEqual(dispatchKey({ key: "f", ctrlKey: true }), false);
 assert.strictEqual(calls.favorite, 0, "Ctrl+F should keep browser find behavior");
+
+assert.deepStrictEqual(
+  getSwipeIntent(80, 10),
+  { isHorizontal: true, shouldNavigate: true, direction: "right" },
+  "large right swipe should navigate to the previous word"
+);
+assert.deepStrictEqual(
+  getSwipeIntent(-80, 10),
+  { isHorizontal: true, shouldNavigate: true, direction: "left" },
+  "large left swipe should navigate to the next word"
+);
+assert.deepStrictEqual(
+  getSwipeIntent(30, 5),
+  { isHorizontal: true, shouldNavigate: false, direction: null },
+  "short horizontal swipe should drag but not navigate"
+);
+assert.deepStrictEqual(
+  getSwipeIntent(80, 80),
+  { isHorizontal: false, shouldNavigate: false, direction: null },
+  "vertical movement should not be treated as a card swipe"
+);
+
+class MockElement {
+  constructor() {
+    this.classes = new Set();
+    this.style = { transform: "" };
+    this.classList = {
+      add: (...names) => names.forEach((name) => this.classes.add(name)),
+      remove: (...names) => names.forEach((name) => this.classes.delete(name)),
+      toggle: (name, force) => {
+        if (force) this.classes.add(name);
+        else this.classes.delete(name);
+      },
+      contains: (name) => this.classes.has(name)
+    };
+  }
+
+  closest() {
+    return null;
+  }
+}
+
+globalThis.Element = MockElement;
+
+let touchStartHandler = null;
+let touchMoveHandler = null;
+let touchEndHandler = null;
+globalThis.document = {
+  addEventListener(type, handler) {
+    if (type === "touchstart") touchStartHandler = handler;
+    if (type === "touchmove") touchMoveHandler = handler;
+    if (type === "touchend") touchEndHandler = handler;
+  }
+};
+
+const swipeCalls = { prev: 0, next: 0 };
+const swipeElement = new MockElement();
+bindTouchEvents({
+  prevWord: () => { swipeCalls.prev += 1; },
+  nextWord: () => { swipeCalls.next += 1; },
+  isSwipeAllowedTarget: () => true,
+  swipeElement
+});
+
+let now = 1000;
+const originalDateNow = Date.now;
+Date.now = () => now;
+
+function dispatchTouch(handler, x, y) {
+  let prevented = false;
+  handler({
+    changedTouches: [{ screenX: x, screenY: y }],
+    target: new MockElement(),
+    preventDefault() {
+      prevented = true;
+    }
+  });
+  return prevented;
+}
+
+dispatchTouch(touchStartHandler, 100, 100);
+now += 50;
+const shortSwipePrevented = dispatchTouch(touchMoveHandler, 135, 104);
+assert.strictEqual(shortSwipePrevented, true, "short horizontal swipes should be handled as card drag");
+assert.strictEqual(swipeElement.style.transform, "translateX(35px)");
+dispatchTouch(touchEndHandler, 135, 104);
+assert.strictEqual(swipeCalls.next, 0, "short swipes should not move to the next word");
+assert.strictEqual(swipeElement.style.transform, "", "short swipes should return the card to center");
+
+dispatchTouch(touchStartHandler, 100, 100);
+now += 50;
+const verticalPrevented = dispatchTouch(touchMoveHandler, 120, 160);
+assert.strictEqual(verticalPrevented, false, "vertical scroll should not be prevented");
+assert.strictEqual(swipeElement.style.transform, "", "vertical movement should not drag the card");
+dispatchTouch(touchEndHandler, 120, 160);
+
+dispatchTouch(touchStartHandler, 100, 100);
+now += 50;
+dispatchTouch(touchMoveHandler, 10, 100);
+dispatchTouch(touchEndHandler, 10, 100);
+assert.strictEqual(swipeCalls.next, 1, "left swipe should move to the next word");
+assert.strictEqual(swipeElement.style.transform, "", "completed swipes should reset card transform");
+
+dispatchTouch(touchStartHandler, 100, 100);
+now += 50;
+dispatchTouch(touchMoveHandler, 190, 100);
+dispatchTouch(touchEndHandler, 190, 100);
+assert.strictEqual(swipeCalls.prev, 1, "right swipe should move to the previous word");
+
+Date.now = originalDateNow;
 
 console.log("All keyboard shortcut tests passed.");

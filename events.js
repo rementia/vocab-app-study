@@ -144,7 +144,31 @@ function handleAppShortcutKeydown(event, handlers) {
   }
 }
 
-export function bindTouchEvents({ prevWord, nextWord, isSwipeAllowedTarget }) {
+const SWIPE_MOVE_INTENT_MIN_X = 12;
+const SWIPE_MOVE_HORIZONTAL_RATIO = 1.5;
+const SWIPE_NAVIGATION_THRESHOLD_X = 70;
+const SWIPE_VERTICAL_CANCEL_THRESHOLD_Y = 50;
+const SWIPE_MAX_TRANSLATE_X = 100;
+const SWIPE_MAX_DURATION_MS = 1000;
+
+export function getSwipeIntent(deltaX, deltaY, {
+  moveIntentMinX = SWIPE_MOVE_INTENT_MIN_X,
+  horizontalRatio = SWIPE_MOVE_HORIZONTAL_RATIO,
+  navigationThresholdX = SWIPE_NAVIGATION_THRESHOLD_X,
+  verticalCancelThresholdY = SWIPE_VERTICAL_CANCEL_THRESHOLD_Y
+} = {}) {
+  const absX = Math.abs(deltaX);
+  const absY = Math.abs(deltaY);
+  const isHorizontal = absX > moveIntentMinX && absX > absY * horizontalRatio;
+  const shouldNavigate = isHorizontal && absX >= navigationThresholdX && absY <= verticalCancelThresholdY;
+  const direction = shouldNavigate
+    ? (deltaX > 0 ? "right" : "left")
+    : null;
+
+  return { isHorizontal, shouldNavigate, direction };
+}
+
+export function bindTouchEvents({ prevWord, nextWord, isSwipeAllowedTarget, swipeElement = null }) {
   let touchStartX = 0;
   let touchStartY = 0;
   let touchEndX = 0;
@@ -152,6 +176,47 @@ export function bindTouchEvents({ prevWord, nextWord, isSwipeAllowedTarget }) {
   let lastTouchEnd = 0;
   let touchStartTime = 0;
   let swipeEnabled = false;
+  let isHorizontalSwipe = false;
+  let isDraggingCard = false;
+
+  function resetSwipeState() {
+    touchStartX = 0;
+    touchStartY = 0;
+    touchEndX = 0;
+    touchEndY = 0;
+    touchStartTime = 0;
+    swipeEnabled = false;
+    isHorizontalSwipe = false;
+    isDraggingCard = false;
+  }
+
+  function clearCardSwipeClasses() {
+    swipeElement?.classList.remove("is-dragging", "is-returning");
+  }
+
+  function resetCardPosition({ animated = false } = {}) {
+    if (!swipeElement) return;
+    swipeElement.classList.toggle("is-returning", animated);
+    swipeElement.classList.remove("is-dragging");
+    swipeElement.style.transform = "";
+
+    if (animated) {
+      const setTimeoutFn = typeof window !== "undefined" && typeof window.setTimeout === "function"
+        ? window.setTimeout.bind(window)
+        : globalThis.setTimeout;
+      setTimeoutFn(() => {
+        swipeElement?.classList.remove("is-returning");
+      }, 180);
+    }
+  }
+
+  function moveCard(deltaX) {
+    if (!swipeElement) return;
+    const clampedX = Math.max(-SWIPE_MAX_TRANSLATE_X, Math.min(SWIPE_MAX_TRANSLATE_X, deltaX));
+    swipeElement.classList.add("is-dragging");
+    swipeElement.classList.remove("is-returning");
+    swipeElement.style.transform = `translateX(${clampedX}px)`;
+  }
 
   document.addEventListener(
     "touchstart",
@@ -164,8 +229,35 @@ export function bindTouchEvents({ prevWord, nextWord, isSwipeAllowedTarget }) {
       swipeEnabled = isSwipeAllowedTarget(startTarget);
       touchStartX = touch.screenX;
       touchStartY = touch.screenY;
+      isHorizontalSwipe = false;
+      isDraggingCard = false;
+      clearCardSwipeClasses();
     },
     { passive: true }
+  );
+
+  document.addEventListener(
+    "touchmove",
+    (event) => {
+      if (!swipeEnabled) return;
+      const touch = event.changedTouches[0];
+      if (!touch) return;
+
+      const deltaX = touch.screenX - touchStartX;
+      const deltaY = touch.screenY - touchStartY;
+      const intent = getSwipeIntent(deltaX, deltaY);
+
+      if (!isHorizontalSwipe && intent.isHorizontal) {
+        isHorizontalSwipe = true;
+      }
+
+      if (!isHorizontalSwipe) return;
+
+      event.preventDefault();
+      isDraggingCard = true;
+      moveCard(deltaX);
+    },
+    { passive: false }
   );
 
   document.addEventListener(
@@ -175,8 +267,9 @@ export function bindTouchEvents({ prevWord, nextWord, isSwipeAllowedTarget }) {
       if (!touch) return;
 
       const touchDuration = Date.now() - touchStartTime;
-      if (touchDuration >= 1000) {
-        swipeEnabled = false;
+      if (touchDuration >= SWIPE_MAX_DURATION_MS) {
+        resetCardPosition({ animated: isDraggingCard });
+        resetSwipeState();
         return;
       }
 
@@ -185,16 +278,18 @@ export function bindTouchEvents({ prevWord, nextWord, isSwipeAllowedTarget }) {
 
       if (swipeEnabled) {
         const diffX = touchEndX - touchStartX;
-        const diffY = Math.abs(touchEndY - touchStartY);
-        const thresholdX = 50;
-        const thresholdY = 50;
+        const diffY = touchEndY - touchStartY;
+        const intent = getSwipeIntent(diffX, diffY);
 
-        if (Math.abs(diffX) >= thresholdX && diffY <= thresholdY) {
-          if (diffX > 0) {
+        if (intent.shouldNavigate) {
+          if (intent.direction === "right") {
             prevWord();
           } else {
             nextWord();
           }
+          resetCardPosition();
+        } else {
+          resetCardPosition({ animated: isDraggingCard || isHorizontalSwipe });
         }
       }
 
@@ -203,9 +298,18 @@ export function bindTouchEvents({ prevWord, nextWord, isSwipeAllowedTarget }) {
         event.preventDefault();
       }
       lastTouchEnd = now;
-      swipeEnabled = false;
+      resetSwipeState();
     },
     { passive: false }
+  );
+
+  document.addEventListener(
+    "touchcancel",
+    () => {
+      resetCardPosition({ animated: isDraggingCard });
+      resetSwipeState();
+    },
+    { passive: true }
   );
 }
 
