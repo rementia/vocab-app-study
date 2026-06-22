@@ -1627,8 +1627,8 @@ function startAutoPlayFromCurrentWord() {
   scheduleAutoPlay();
 }
 
-function scheduleSpeechSync(options) {
-  speechSyncController.schedule(options);
+function scheduleSpeechSync() {
+  speechSyncController.schedule();
 }
 
 function scheduleSpeechSyncAfterRender() {
@@ -1815,53 +1815,47 @@ function finishWordOrderSettingChange() {
   refreshWordOrderFromStart();
 }
 
-function getSpeechSyncOptions({ immediateSpeechSync = false } = {}) {
-  return immediateSpeechSync ? { immediate: true } : undefined;
+function prevWord() {
+  moveRelativeWord(-1);
 }
 
-function prevWord(options = {}) {
-  return moveRelativeWord(-1, options);
+function nextWord() {
+  moveRelativeWord(1, { stopAtAutoPlayStart: true });
 }
 
-function nextWord(options = {}) {
-  return moveRelativeWord(1, { ...options, stopAtAutoPlayStart: true });
-}
+function moveRelativeWord(direction, { stopAtAutoPlayStart = false } = {}) {
+  if (!words.length) return;
+  if (applyPendingWordOrderAsNext()) return;
 
-function moveRelativeWord(direction, { stopAtAutoPlayStart = false, immediateSpeechSync = false } = {}) {
-  if (!words.length) return false;
-  if (applyPendingWordOrderAsNext()) return true;
-
-  const speechSyncOptions = getSpeechSyncOptions({ immediateSpeechSync });
   const historyIndex = direction < 0
     ? navGetRandomPrevIndexFromHistory()
     : navGetRandomNextIndexFromHistory();
 
-  if (moveToRandomHistoryIndex(historyIndex, speechSyncOptions)) return true;
+  if (moveToRandomHistoryIndex(historyIndex)) return;
 
   const nextIndex = (index + direction + words.length) % words.length;
   if (stopAtAutoPlayStart && shouldStopAutoPlayOnce(nextIndex)) {
     stopAutoPlay();
-    return false;
+    return;
   }
 
-  return moveToWordIndex(nextIndex, speechSyncOptions);
+  moveToWordIndex(nextIndex);
 }
 
-function moveToRandomHistoryIndex(historyIndex, speechSyncOptions) {
+function moveToRandomHistoryIndex(historyIndex) {
   if (!randomMode || historyIndex === null) return false;
 
   index = historyIndex;
   renderCurrentWord();
-  scheduleSpeechSync(speechSyncOptions);
+  scheduleSpeechSync();
   scheduleAutoPlay();
   persistCurrentIndex();
   return true;
 }
 
-function moveToWordIndex(nextIndex, speechSyncOptions) {
-  const moved = navMoveToIndex(nextIndex, { pushHistory: randomMode, speechSyncOptions });
+function moveToWordIndex(nextIndex) {
+  navMoveToIndex(nextIndex, { pushHistory: randomMode });
   scheduleAutoPlayAfterRender();
-  return moved;
 }
 
 export { init, finishInitialLoading };

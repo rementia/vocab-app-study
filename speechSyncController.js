@@ -63,7 +63,7 @@ export function createSpeechSyncController({
     unbindActivationEvents();
   }
 
-  function schedule({ immediate = false } = {}) {
+  function schedule() {
     if (!speechSync) return;
     if (shouldBlockSpeech()) {
       clearTimer();
@@ -76,10 +76,6 @@ export function createSpeechSyncController({
 
     waitingForUserActivation = false;
     unbindActivationEvents();
-    if (immediate) {
-      speakNow();
-      return;
-    }
     clearTimer();
     speechSyncTimer = setTimeout(() => {
       speakWord();

@@ -61,15 +61,9 @@ assert.strictEqual(timers.at(-1).delay, 260);
 timers.at(-1).handler();
 assert.strictEqual(speakCalls, 1, "scheduled speech sync should speak after delay");
 
-controller.schedule({ immediate: true });
-assert.strictEqual(speakCalls, 2, "immediate speech sync should speak without delay");
-assert.strictEqual(timers.length, 1, "immediate speech sync should not create a new delay timer");
-
 controller.toggle();
 assert.strictEqual(controller.isEnabled(), false);
 assert.strictEqual(savedValue, false);
-controller.schedule({ immediate: true });
-assert.strictEqual(speakCalls, 2, "disabled speech sync should ignore immediate requests");
 
 if (originalNavigatorDescriptor) {
   Object.defineProperty(globalThis, "navigator", originalNavigatorDescriptor);
