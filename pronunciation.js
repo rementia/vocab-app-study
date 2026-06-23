@@ -2,8 +2,6 @@ import { normalizeWordKey } from './wordIdentity.js';
 import { safeGetItem, safeSetItem } from './storage.js';
 
 let pronunciationEl = null;
-let audioUnlockPromptEl = null;
-let audioUnlockBtnEl = null;
 let currentPronunciationController = null;
 let lastPronunciationRequest = "";
 let getCurrentWordFn = null;
@@ -15,16 +13,12 @@ let audioUnlockEventsBound = false;
 let audioUnlockAttempted = false;
 let audioUnlockInProgress = false;
 
-export function initPronunciation({ el, audioUnlockPrompt, audioUnlockButton, getCurrentWord }) {
+export function initPronunciation({ el, getCurrentWord }) {
   pronunciationEl = el;
-  audioUnlockPromptEl = audioUnlockPrompt || null;
-  audioUnlockBtnEl = audioUnlockButton || null;
   getCurrentWordFn = getCurrentWord;
   audioUnlocked = hasUserActivation();
   audioUnlockAttempted = false;
   audioUnlockInProgress = false;
-  hideAudioUnlockPrompt();
-  audioUnlockBtnEl?.addEventListener("click", handleAudioUnlockRequest);
   bindAudioUnlockEvents();
 }
 
@@ -49,14 +43,12 @@ export function safePlayPronunciation() {
 
   if (!audioUnlocked && !hasUserActivation()) {
     console.warn("発音再生はユーザー操作後に有効化できます: NotAllowedError");
-    showAudioUnlockPrompt();
     bindAudioUnlockEvents();
     return { ok: false, blocked: true };
   }
 
   audioUnlocked = true;
   audioUnlockAttempted = true;
-  hideAudioUnlockPrompt();
   unbindAudioUnlockEvents();
 
   try {
@@ -71,7 +63,6 @@ export function safePlayPronunciation() {
     console.warn("発音再生に失敗しました:", error);
     if (error?.name === "NotAllowedError") {
       audioUnlocked = false;
-      showAudioUnlockPrompt();
       bindAudioUnlockEvents();
       return { ok: false, blocked: true };
     }
@@ -81,7 +72,6 @@ export function safePlayPronunciation() {
 
 export function unlockPronunciationAudioOnce() {
   if (audioUnlocked && audioUnlockAttempted) {
-    hideAudioUnlockPrompt();
     unbindAudioUnlockEvents();
     return { ok: true, unlocked: true, attempted: false };
   }
@@ -95,7 +85,6 @@ export function unlockPronunciationAudioOnce() {
   }
 
   if (!hasUserActivation()) {
-    showAudioUnlockPrompt();
     bindAudioUnlockEvents();
     return { ok: false, unlocked: false, attempted: false, blocked: true };
   }
@@ -108,13 +97,11 @@ export function unlockPronunciationAudioOnce() {
       window.speechSynthesis.resume();
     }
     audioUnlocked = true;
-    hideAudioUnlockPrompt();
     unbindAudioUnlockEvents();
     return { ok: true, unlocked: true, attempted: true };
   } catch (error) {
     console.warn("発音再生の有効化に失敗しました:", error);
     audioUnlocked = false;
-    showAudioUnlockPrompt();
     bindAudioUnlockEvents();
     return { ok: false, unlocked: false, attempted: true, blocked: error?.name === "NotAllowedError" };
   } finally {
@@ -201,14 +188,6 @@ function isSpeechSynthesisSupported() {
 function hasUserActivation() {
   if (typeof navigator === "undefined" || !navigator.userActivation) return true;
   return navigator.userActivation.hasBeenActive || navigator.userActivation.isActive;
-}
-
-function showAudioUnlockPrompt() {
-  if (audioUnlockPromptEl) audioUnlockPromptEl.hidden = false;
-}
-
-function hideAudioUnlockPrompt() {
-  if (audioUnlockPromptEl) audioUnlockPromptEl.hidden = true;
 }
 
 function bindAudioUnlockEvents() {

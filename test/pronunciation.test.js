@@ -99,11 +99,6 @@ let speakCalls = 0;
 let resumeCalls = 0;
 let boundEvents = [];
 let eventHandlers = {};
-const audioUnlockPrompt = { hidden: true };
-const audioUnlockButton = {
-  addEventListener() {}
-};
-
 globalThis.window = {
   speechSynthesis: {
     cancel() {},
@@ -139,13 +134,10 @@ Object.defineProperty(globalThis, "navigator", {
 });
 initPronunciation({
   el: pronunciationEl,
-  audioUnlockPrompt,
-  audioUnlockButton,
   getCurrentWord: () => ({ word: "blocked" })
 });
 const blockedResult = safePlayPronunciation();
 assert.deepStrictEqual(blockedResult, { ok: false, blocked: true }, "speech should be marked as blocked before user activation");
-assert.strictEqual(audioUnlockPrompt.hidden, false, "audio unlock prompt should be shown when speech is blocked");
 assert.strictEqual(speakCalls, 0, "blocked speech should not call speechSynthesis.speak");
 assert.ok(boundEvents.includes("touchstart"), "touchstart should be listened to for mobile audio unlock");
 assert.ok(boundEvents.includes("click"), "click should be listened to for audio unlock");
@@ -173,16 +165,12 @@ Object.defineProperty(globalThis, "navigator", {
   configurable: true,
   value: { userActivation: { hasBeenActive: true, isActive: false } }
 });
-audioUnlockPrompt.hidden = false;
 initPronunciation({
   el: pronunciationEl,
-  audioUnlockPrompt,
-  audioUnlockButton,
   getCurrentWord: () => ({ word: "allowed" })
 });
 const allowedResult = safePlayPronunciation();
 assert.deepStrictEqual(allowedResult, { ok: true }, "speech should play after user activation");
-assert.strictEqual(audioUnlockPrompt.hidden, true, "audio unlock prompt should be hidden after speech is allowed");
 assert.strictEqual(speakCalls, 1, "allowed speech should call speechSynthesis.speak once");
 
 globalThis.window = originalWindow;

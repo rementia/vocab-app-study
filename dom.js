@@ -10,8 +10,6 @@ export function getDomElements() {
     meaningEl: document.getElementById("meaning"),
     progressEl: document.getElementById("progress"),
     pronunciationEl: document.getElementById("pronunciation"),
-    audioUnlockPromptEl: document.getElementById("audioUnlockPrompt"),
-    audioUnlockBtnEl: document.getElementById("audioUnlockBtn"),
     prevHintEl: document.getElementById("prevHint"),
     nextHintEl: document.getElementById("nextHint"),
     currentEl: document.getElementById("current"),
