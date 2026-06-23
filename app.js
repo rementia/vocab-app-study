@@ -116,7 +116,7 @@ const {
   reloadWordsStatusEl,
   listEl,
   sidebarEl,
-  centerBoxEl,
+  wordSlideCardEl,
   wordEl,
   meaningEl,
   progressEl,
@@ -250,7 +250,6 @@ const uiContext = {
     reloadWordsStatusEl,
     listEl,
     sidebarEl,
-  centerBoxEl,
     wordEl,
     meaningEl,
     progressEl,
@@ -330,7 +329,7 @@ async function init() {
     scheduleSpeechSync,
     getWordsLength: () => words.length
   });
-  bindTouchEvents({ prevWord, nextWord, isSwipeAllowedTarget, swipeElement: centerBoxEl });
+  bindTouchEvents({ prevWord, nextWord, isSwipeAllowedTarget, swipeElement: wordSlideCardEl });
   bindUIEvents();
   bindKeyboardEvents({
     prevWord,

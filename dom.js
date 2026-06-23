@@ -5,7 +5,7 @@ export function getDomElements() {
     reloadWordsStatusEl: document.getElementById("reloadWordsStatus"),
     listEl: document.getElementById("list"),
     sidebarEl: document.getElementById("sidebar"),
-    centerBoxEl: document.querySelector(".center-box"),
+    wordSlideCardEl: document.querySelector(".word-slide-card"),
     wordEl: document.getElementById("word"),
     meaningEl: document.getElementById("meaning"),
     progressEl: document.getElementById("progress"),

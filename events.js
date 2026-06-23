@@ -148,8 +148,7 @@ const SWIPE_MOVE_INTENT_MIN_X = 12;
 const SWIPE_MOVE_HORIZONTAL_RATIO = 1.5;
 const SWIPE_NAVIGATION_THRESHOLD_X = 70;
 const SWIPE_VERTICAL_CANCEL_THRESHOLD_Y = 50;
-const SWIPE_MAX_TRANSLATE_X = 100;
-const SWIPE_MAX_DURATION_MS = 1000;
+const SWIPE_SLIDE_DURATION_MS = 180;
 
 export function getSwipeIntent(deltaX, deltaY, {
   moveIntentMinX = SWIPE_MOVE_INTENT_MIN_X,
@@ -174,24 +173,23 @@ export function bindTouchEvents({ prevWord, nextWord, isSwipeAllowedTarget, swip
   let touchEndX = 0;
   let touchEndY = 0;
   let lastTouchEnd = 0;
-  let touchStartTime = 0;
   let swipeEnabled = false;
   let isHorizontalSwipe = false;
   let isDraggingCard = false;
+  let isAnimatingCard = false;
 
   function resetSwipeState() {
     touchStartX = 0;
     touchStartY = 0;
     touchEndX = 0;
     touchEndY = 0;
-    touchStartTime = 0;
     swipeEnabled = false;
     isHorizontalSwipe = false;
     isDraggingCard = false;
   }
 
   function clearCardSwipeClasses() {
-    swipeElement?.classList.remove("is-dragging", "is-returning");
+    swipeElement?.classList.remove("is-dragging", "is-returning", "is-sliding");
   }
 
   function resetCardPosition({ animated = false } = {}) {
@@ -206,22 +204,71 @@ export function bindTouchEvents({ prevWord, nextWord, isSwipeAllowedTarget, swip
         : globalThis.setTimeout;
       setTimeoutFn(() => {
         swipeElement?.classList.remove("is-returning");
-      }, 180);
+      }, SWIPE_SLIDE_DURATION_MS);
     }
   }
 
   function moveCard(deltaX) {
     if (!swipeElement) return;
-    const clampedX = Math.max(-SWIPE_MAX_TRANSLATE_X, Math.min(SWIPE_MAX_TRANSLATE_X, deltaX));
     swipeElement.classList.add("is-dragging");
-    swipeElement.classList.remove("is-returning");
-    swipeElement.style.transform = `translateX(${clampedX}px)`;
+    swipeElement.classList.remove("is-returning", "is-sliding");
+    swipeElement.style.transform = `translate3d(${deltaX}px, 0, 0)`;
+  }
+
+  function getSlideDistance() {
+    if (typeof window !== "undefined" && window.innerWidth) return window.innerWidth;
+    if (swipeElement && typeof swipeElement.getBoundingClientRect === "function") {
+      const rect = swipeElement.getBoundingClientRect();
+      if (rect.width) return rect.width + 80;
+    }
+    return 360;
+  }
+
+  function animateCardChange(direction, moveWord) {
+    if (!swipeElement) {
+      moveWord();
+      return;
+    }
+
+    const distance = getSlideDistance();
+    const outX = direction === "right" ? distance : -distance;
+    const inX = -outX;
+    const setTimeoutFn = typeof window !== "undefined" && typeof window.setTimeout === "function"
+      ? window.setTimeout.bind(window)
+      : globalThis.setTimeout;
+
+    isAnimatingCard = true;
+    swipeElement.classList.remove("is-dragging", "is-returning");
+    swipeElement.classList.add("is-sliding");
+    swipeElement.style.transform = `translate3d(${outX}px, 0, 0)`;
+
+    setTimeoutFn(() => {
+      moveWord();
+      swipeElement.classList.remove("is-sliding");
+      swipeElement.classList.add("is-dragging");
+      swipeElement.style.transform = `translate3d(${inX}px, 0, 0)`;
+
+      // Force the off-screen starting point to apply before sliding into center.
+      void swipeElement.offsetWidth;
+
+      swipeElement.classList.remove("is-dragging");
+      swipeElement.classList.add("is-sliding");
+      swipeElement.style.transform = "";
+
+      setTimeoutFn(() => {
+        swipeElement?.classList.remove("is-sliding");
+        isAnimatingCard = false;
+      }, SWIPE_SLIDE_DURATION_MS);
+    }, SWIPE_SLIDE_DURATION_MS);
   }
 
   document.addEventListener(
     "touchstart",
     (event) => {
-      touchStartTime = Date.now();
+      if (isAnimatingCard) {
+        swipeEnabled = false;
+        return;
+      }
       const touch = event.changedTouches[0];
       if (!touch) return;
 
@@ -266,13 +313,6 @@ export function bindTouchEvents({ prevWord, nextWord, isSwipeAllowedTarget, swip
       const touch = event.changedTouches[0];
       if (!touch) return;
 
-      const touchDuration = Date.now() - touchStartTime;
-      if (touchDuration >= SWIPE_MAX_DURATION_MS) {
-        resetCardPosition({ animated: isDraggingCard });
-        resetSwipeState();
-        return;
-      }
-
       touchEndX = touch.screenX;
       touchEndY = touch.screenY;
 
@@ -283,11 +323,10 @@ export function bindTouchEvents({ prevWord, nextWord, isSwipeAllowedTarget, swip
 
         if (intent.shouldNavigate) {
           if (intent.direction === "right") {
-            prevWord();
+            animateCardChange("right", prevWord);
           } else {
-            nextWord();
+            animateCardChange("left", nextWord);
           }
-          resetCardPosition();
         } else {
           resetCardPosition({ animated: isDraggingCard || isHorizontalSwipe });
         }

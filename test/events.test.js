@@ -195,6 +195,7 @@ class MockElement {
   constructor() {
     this.classes = new Set();
     this.style = { transform: "" };
+    this.offsetWidth = 320;
     this.classList = {
       add: (...names) => names.forEach((name) => this.classes.add(name)),
       remove: (...names) => names.forEach((name) => this.classes.delete(name)),
@@ -208,6 +209,10 @@ class MockElement {
 
   closest() {
     return null;
+  }
+
+  getBoundingClientRect() {
+    return { width: 320 };
   }
 }
 
@@ -235,7 +240,12 @@ bindTouchEvents({
 
 let now = 1000;
 const originalDateNow = Date.now;
+const originalSetTimeout = globalThis.setTimeout;
 Date.now = () => now;
+globalThis.setTimeout = (callback) => {
+  callback();
+  return 1;
+};
 
 function dispatchTouch(handler, x, y) {
   let prevented = false;
@@ -253,7 +263,7 @@ dispatchTouch(touchStartHandler, 100, 100);
 now += 50;
 const shortSwipePrevented = dispatchTouch(touchMoveHandler, 135, 104);
 assert.strictEqual(shortSwipePrevented, true, "short horizontal swipes should be handled as card drag");
-assert.strictEqual(swipeElement.style.transform, "translateX(35px)");
+assert.strictEqual(swipeElement.style.transform, "translate3d(35px, 0, 0)");
 dispatchTouch(touchEndHandler, 135, 104);
 assert.strictEqual(swipeCalls.next, 0, "short swipes should not move to the next word");
 assert.strictEqual(swipeElement.style.transform, "", "short swipes should return the card to center");
@@ -279,5 +289,6 @@ dispatchTouch(touchEndHandler, 190, 100);
 assert.strictEqual(swipeCalls.prev, 1, "right swipe should move to the previous word");
 
 Date.now = originalDateNow;
+globalThis.setTimeout = originalSetTimeout;
 
 console.log("All keyboard shortcut tests passed.");
