@@ -77,7 +77,8 @@ import {
   bindKeyboardEvents,
   bindTouchEvents,
   isSwipeAllowedTarget,
-  handleViewportChange
+  handleViewportChange,
+  resetSwipeElementState
 } from './events.js';
 import {
   initNavigation,
@@ -1214,6 +1215,7 @@ async function handleReloadWords() {
     index = getReloadedIndex({ words, previousIndex, preserveWordId });
     persistCurrentIndex();
     requestListRebuild();
+    resetSwipeElementState(wordSlideCardEl);
     render();
     scheduleSpeechSyncAfterRender();
     const reloadMessage = formatReloadSuccessMessage({

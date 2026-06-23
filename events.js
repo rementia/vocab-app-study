@@ -167,6 +167,12 @@ export function getSwipeIntent(deltaX, deltaY, {
   return { isHorizontal, shouldNavigate, direction };
 }
 
+export function resetSwipeElementState(swipeElement) {
+  if (!swipeElement) return;
+  swipeElement.classList.remove("is-dragging", "is-returning", "is-sliding");
+  swipeElement.style.transform = "";
+}
+
 export function bindTouchEvents({ prevWord, nextWord, isSwipeAllowedTarget, swipeElement = null }) {
   let touchStartX = 0;
   let touchStartY = 0;
@@ -189,7 +195,7 @@ export function bindTouchEvents({ prevWord, nextWord, isSwipeAllowedTarget, swip
   }
 
   function clearCardSwipeClasses() {
-    swipeElement?.classList.remove("is-dragging", "is-returning", "is-sliding");
+    resetSwipeElementState(swipeElement);
   }
 
   function resetCardPosition({ animated = false } = {}) {

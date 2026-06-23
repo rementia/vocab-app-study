@@ -1,5 +1,5 @@
 import assert from "assert";
-import { bindKeyboardEvents, bindTouchEvents, getSwipeIntent } from "../events.js";
+import { bindKeyboardEvents, bindTouchEvents, getSwipeIntent, resetSwipeElementState } from "../events.js";
 
 class MockInput {
   constructor() {
@@ -231,6 +231,14 @@ globalThis.document = {
 
 const swipeCalls = { prev: 0, next: 0 };
 const swipeElement = new MockElement();
+swipeElement.classList.add("is-dragging", "is-returning", "is-sliding");
+swipeElement.style.transform = "translate3d(120px, 0, 0)";
+resetSwipeElementState(swipeElement);
+assert.strictEqual(swipeElement.classList.contains("is-dragging"), false, "swipe reset should clear dragging state");
+assert.strictEqual(swipeElement.classList.contains("is-returning"), false, "swipe reset should clear returning state");
+assert.strictEqual(swipeElement.classList.contains("is-sliding"), false, "swipe reset should clear sliding state");
+assert.strictEqual(swipeElement.style.transform, "", "swipe reset should clear card transform");
+
 bindTouchEvents({
   prevWord: () => { swipeCalls.prev += 1; },
   nextWord: () => { swipeCalls.next += 1; },
