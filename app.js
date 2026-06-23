@@ -1162,7 +1162,7 @@ function setReloadWordsInProgress(isLoading) {
   if (!reloadWordsBtnEl) return;
   reloadWordsBtnEl.disabled = isLoading || !currentUser || wordEl?.classList.contains("status-message");
   reloadWordsBtnEl.classList.toggle("disabled", reloadWordsBtnEl.disabled);
-  reloadWordsBtnEl.textContent = isLoading ? "同期中..." : "単語データ同期";
+  reloadWordsBtnEl.textContent = isLoading ? "同期中..." : "単語更新";
 }
 
 function resetMultipleChoiceState() {

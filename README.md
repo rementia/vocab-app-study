@@ -218,7 +218,7 @@ privateWords/vol4
 
 アプリはログイン後、必要な volume の CSV を取得し、`word`, `meaning`, `sourceVol` を持つ単語データとして扱います。
 
-アプリ上の `単語データ同期` ボタンを使うと、設定済みの Apps Script Web App を呼び出して Google Sheets から Firestore `privateWords/{vol}` へ同期し、その後に現在の mode に必要な Firestore の CSV を再取得できます。Apps Script Web App URL が未設定の場合は、従来通り Firestore `privateWords/{vol}` の再取得だけを行います。
+アプリ上の `単語更新` ボタンを使うと、設定済みの Apps Script Web App を呼び出して Google Sheets から Firestore `privateWords/{vol}` へ同期し、その後に現在の mode に必要な Firestore の CSV を再取得できます。Apps Script Web App URL が未設定の場合は、従来通り Firestore `privateWords/{vol}` の再取得だけを行います。
 
 訳語だけの修正は比較的安全です。英単語そのものを変更すると word key が変わるため、お気に入り・苦手単語・復習スコアとの対応が別単語扱いになる可能性があります。
 
@@ -247,7 +247,7 @@ Apps Script Web Appを使う場合は、Apps Scriptエディタで `apps-script/
 
 ### スプレッドシート修正が反映されない場合
 
-Webアプリは Google Sheets を直接読みません。`単語データ同期` は、Apps Script Web App URL が設定されている場合だけ Google Sheets → Firestore 同期を呼び出し、その後 Firestore `privateWords/{vol}` を再取得します。
+Webアプリは Google Sheets を直接読みません。`単語更新` は、Apps Script Web App URL が設定されている場合だけ Google Sheets → Firestore 同期を呼び出し、その後 Firestore `privateWords/{vol}` を再取得します。
 
 反映されない場合は、次を確認します。
 
