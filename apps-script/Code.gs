@@ -8,7 +8,7 @@
  *   syncedAt: "2026-06-20T12:34:56.000Z"
  *
  * Do not paste service account private keys directly into this file.
- * Store CLIENT_EMAIL and PRIVATE_KEY in Apps Script Properties.
+ * Store CLIENT_EMAIL, PRIVATE_KEY, and SYNC_TOKEN in Apps Script Properties.
  */
 const CONFIG = {
   firebaseProjectId: "svl-app-65204",
@@ -373,7 +373,9 @@ function base64UrlEncode(value) {
 }
 
 function validateSyncToken(e) {
-  const expectedToken = PropertiesService.getScriptProperties().getProperty("SYNC_TOKEN");
+  const expectedToken = PropertiesService
+    .getScriptProperties()
+    .getProperty("SYNC_TOKEN");
 
   if (!expectedToken) {
     throw new Error("SYNC_TOKEN が設定されていません。");

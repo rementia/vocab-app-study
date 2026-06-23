@@ -39,9 +39,9 @@ The `csv` field is required by the web app. The `syncedAt` field is optional, bu
 3. Set `CONFIG.firebaseProjectId`.
 4. Choose the sheet layout in `CONFIG.mode`.
 5. Set Script Properties:
-   - `CLIENT_EMAIL`
-   - `PRIVATE_KEY`
-   - `SYNC_TOKEN`
+   - `CLIENT_EMAIL = service account JSON client_email`
+   - `PRIVATE_KEY = service account JSON private_key`
+   - `SYNC_TOKEN = the same string as the web app SHEET_SYNC_TOKEN`
 6. Run `dryRun()` to confirm row counts without writing to Firestore.
 7. Run `syncAllVolumesToFirestore()` or `syncVol1()` / `syncVol2()` / `syncVol3()` / `syncVol4()`.
 8. Approve the required Apps Script permissions.
