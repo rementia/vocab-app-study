@@ -1,5 +1,11 @@
 import assert from "assert";
-import { bindKeyboardEvents, bindTouchEvents, getSwipeIntent, resetSwipeElementState } from "../events.js";
+import {
+  bindKeyboardEvents,
+  bindTouchEvents,
+  getSwipeIntent,
+  isSwipeAllowedTarget,
+  resetSwipeElementState
+} from "../events.js";
 
 class MockInput {
   constructor() {
@@ -217,6 +223,26 @@ class MockElement {
 }
 
 globalThis.Element = MockElement;
+
+const buttonTarget = new MockElement();
+buttonTarget.closest = (selector) => (selector.includes("button") ? {} : null);
+assert.strictEqual(
+  isSwipeAllowedTarget(buttonTarget),
+  false,
+  "multiple-choice option buttons should not start a swipe"
+);
+const sidebarTarget = new MockElement();
+sidebarTarget.closest = (selector) => (selector === "#sidebar" ? {} : null);
+assert.strictEqual(
+  isSwipeAllowedTarget(sidebarTarget),
+  false,
+  "sidebar controls should not start a swipe"
+);
+assert.strictEqual(
+  isSwipeAllowedTarget(new MockElement()),
+  true,
+  "plain card areas should be swipeable"
+);
 
 let touchStartHandler = null;
 let touchMoveHandler = null;
