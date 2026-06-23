@@ -34,7 +34,7 @@ import {
   saveFrequencyModeState
 } from './storage.js';
 import { readSavedAppState } from './savedState.js';
-import { buildWordOrder } from './wordOrder.js';
+import { buildWordOrder, shouldRebuildOrderAtCycleEnd } from './wordOrder.js';
 import {
   renderApp,
   renderCurrentWord as renderCurrentWordUI,
@@ -557,15 +557,10 @@ function finishReviewScoreChange() {
   updateReviewButtons();
 }
 
-function finishReviewStatsChange(preserveCurrentId) {
+function finishReviewStatsChange() {
   reviewScoresVersion += 1;
   saveReviewScoresToLocalOnly(reviewScores);
   clearWordOrderCache();
-
-  if (frequencyMode) {
-    applyWordOrder(false, preserveCurrentId);
-    requestListRebuild();
-  }
 
   renderLayout();
   updateReviewButtons();
@@ -635,7 +630,7 @@ function handleMultipleChoiceOptionClick(event) {
   };
 
   recordReviewAnswer(reviewScores, current, selectedOption.isCorrect);
-  finishReviewStatsChange(current.id);
+  finishReviewStatsChange();
   scheduleSpeechSync();
 }
 function flashReviewButton(button) {
@@ -1833,6 +1828,14 @@ function moveRelativeWord(direction, { stopAtAutoPlayStart = false } = {}) {
   const nextIndex = (index + direction + words.length) % words.length;
   if (stopAtAutoPlayStart && shouldStopAutoPlayOnce(nextIndex)) {
     stopAutoPlay();
+    return;
+  }
+
+  if (direction > 0 && shouldRebuildOrderAtCycleEnd({ nextIndex, randomMode, frequencyMode })) {
+    navClearNavigationHistory();
+    clearWordOrderCache();
+    wordOrderUpdatePending = false;
+    refreshWordOrderFromStart();
     return;
   }
 

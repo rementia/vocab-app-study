@@ -15,6 +15,10 @@ function makeWordOrderCacheKey(orderMode, scope) {
   return `${orderMode}:${scope}`;
 }
 
+export function shouldRebuildOrderAtCycleEnd({ nextIndex, randomMode, frequencyMode }) {
+  return nextIndex === 0 && (randomMode || frequencyMode);
+}
+
 function shuffleWords(words) {
   const copied = [...words];
   for (let i = copied.length - 1; i > 0; i -= 1) {

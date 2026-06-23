@@ -1,10 +1,27 @@
 import assert from "node:assert/strict";
-import { buildWordOrder } from "../wordOrder.js";
+import { buildWordOrder, shouldRebuildOrderAtCycleEnd } from "../wordOrder.js";
 
 const words = [
   { id: "alpha", word: "alpha" },
   { id: "beta", word: "beta" }
 ];
+
+assert.equal(
+  shouldRebuildOrderAtCycleEnd({ nextIndex: 0, randomMode: false, frequencyMode: true }),
+  true
+);
+assert.equal(
+  shouldRebuildOrderAtCycleEnd({ nextIndex: 0, randomMode: true, frequencyMode: false }),
+  true
+);
+assert.equal(
+  shouldRebuildOrderAtCycleEnd({ nextIndex: 1, randomMode: true, frequencyMode: true }),
+  false
+);
+assert.equal(
+  shouldRebuildOrderAtCycleEnd({ nextIndex: 0, randomMode: false, frequencyMode: false }),
+  false
+);
 
 {
   const orderCache = {};
