@@ -58,7 +58,7 @@ const callbacks = {
 };
 
 const result = toggleDifficultCurrentWord(state, callbacks);
-assert.strictEqual(Boolean(savedDifficults.alpha), true);
+assert.strictEqual(Boolean(savedDifficults["vol1-1-alpha"]), true);
 assert.strictEqual(result.difficultsVersion, 1);
 assert.strictEqual(typeof result.difficultsUpdatedAt, "number");
 assert.strictEqual(savedDifficultsUpdatedAt, result.difficultsUpdatedAt);

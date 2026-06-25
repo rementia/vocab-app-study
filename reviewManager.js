@@ -1,9 +1,19 @@
-import { makeWordKey } from "./wordIdentity.js";
+import { makeWordKey, normalizeWordKey } from "./wordIdentity.js";
 
 const MIN_REVIEW_WEIGHT = 0.2;
 
 function makeReviewKey(item) {
   return makeWordKey(item);
+}
+
+function getLegacyReviewKey(item) {
+  return item?.legacyWordKey || normalizeWordKey(item?.word);
+}
+
+function getReviewRecord(reviewScores, item) {
+  const key = makeReviewKey(item);
+  const legacyKey = getLegacyReviewKey(item);
+  return reviewScores[key] || (legacyKey && reviewScores[legacyKey]) || {};
 }
 
 function createReviewSortEntry(item, originalIndex, getScore, randomizeTies) {
@@ -22,7 +32,7 @@ function compareReviewSortEntries(a, b) {
 }
 
 export function getReviewStats(reviewScores, item) {
-  const stats = reviewScores[makeReviewKey(item)] || {};
+  const stats = getReviewRecord(reviewScores, item);
   return {
     correct: Number(stats.correct) || 0,
     wrong: Number(stats.wrong) || 0,
@@ -34,7 +44,8 @@ export function getReviewStats(reviewScores, item) {
 
 export function recordReviewAnswer(reviewScores, item, isCorrect, answeredAt = Date.now()) {
   const key = makeReviewKey(item);
-  const current = reviewScores[key] || {};
+  const legacyKey = getLegacyReviewKey(item);
+  const current = reviewScores[key] || (legacyKey && reviewScores[legacyKey]) || {};
   const next = {
     ...current,
     correct: Number(current.correct) || 0,
@@ -55,6 +66,7 @@ export function recordReviewAnswer(reviewScores, item, isCorrect, answeredAt = D
   }
 
   reviewScores[key] = next;
+  if (legacyKey && legacyKey !== key) delete reviewScores[legacyKey];
   return getReviewStats(reviewScores, item);
 }
 

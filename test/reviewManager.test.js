@@ -28,6 +28,14 @@ assert.strictEqual(getReviewWeight(scores, item), 2.2, "correct streaks should r
 scores.alpha.score = 5;
 assert.strictEqual(getReviewWeight(scores, item), 2.2, "legacy manual scores should not affect frequency weight");
 assert.strictEqual(getReviewWeight(scores, item, { starred: true }), 3.2, "starred words should get a small weight bonus");
+const legacyScores = {
+  hello: { correct: 0, wrong: 2, streakCorrect: 0, streakWrong: 2, lastAnsweredAt: 1000 }
+};
+const stableIdItem = { id: "w_stable1234", word: "hello" };
+assert.strictEqual(getReviewStats(legacyScores, stableIdItem).wrong, 2, "legacy word-key review stats should remain readable");
+recordReviewAnswer(legacyScores, stableIdItem, true, 5000);
+assert.strictEqual(Boolean(legacyScores.w_stable1234), true, "new review answers should be saved under the stable id");
+assert.strictEqual(Boolean(legacyScores.hello), false, "legacy review keys should be migrated after the next answer");
 
 const scoredItems = [
   { id: "a" },

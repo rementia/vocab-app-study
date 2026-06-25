@@ -1,12 +1,21 @@
-import { makeWordKey } from "./wordIdentity.js";
+import { makeWordKey, normalizeWordKey } from "./wordIdentity.js";
 import { buildMarkedWordEntries, clampIndex } from "./wordList.js";
 
 function makeDifficultKey(item) {
   return makeWordKey(item);
 }
 
+function getDifficultRecordKey(difficults, item) {
+  const key = makeDifficultKey(item);
+  if (difficults[key]) return key;
+  if (item?.legacyWordKey && difficults[item.legacyWordKey]) return item.legacyWordKey;
+  const wordKey = normalizeWordKey(item?.word);
+  if (wordKey && difficults[wordKey]) return wordKey;
+  return key;
+}
+
 export function isDifficult(difficults, item) {
-  return !!difficults[makeDifficultKey(item)];
+  return !!difficults[getDifficultRecordKey(difficults, item)];
 }
 
 export function buildDifficultEntries(allWordsByVol, volOrder, difficults) {
@@ -74,7 +83,7 @@ export function toggleDifficultCurrentWord(state, callbacks) {
   const current = callbacks.getCurrentWord();
   if (!current) return null;
 
-  const key = makeDifficultKey(current);
+  const key = getDifficultRecordKey(state.difficults, current);
   toggleDifficultRecord(state.difficults, key);
 
   const updated = touchDifficultsChanged(

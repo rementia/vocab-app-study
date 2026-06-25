@@ -1,12 +1,21 @@
-import { makeWordKey } from "./wordIdentity.js";
+import { makeWordKey, normalizeWordKey } from "./wordIdentity.js";
 import { buildMarkedWordEntries, clampIndex } from "./wordList.js";
 
 function makeFavoriteKey(item) {
   return makeWordKey(item);
 }
 
+function getFavoriteRecordKey(favorites, item) {
+  const key = makeFavoriteKey(item);
+  if (favorites[key]) return key;
+  if (item?.legacyWordKey && favorites[item.legacyWordKey]) return item.legacyWordKey;
+  const wordKey = normalizeWordKey(item?.word);
+  if (wordKey && favorites[wordKey]) return wordKey;
+  return key;
+}
+
 export function isFavorite(favorites, item) {
-  return !!favorites[makeFavoriteKey(item)];
+  return !!favorites[getFavoriteRecordKey(favorites, item)];
 }
 
 export function buildFavoriteEntries(allWordsByVol, volOrder, favorites) {
@@ -74,7 +83,7 @@ export function toggleFavoriteCurrentWord(state, callbacks) {
   const current = callbacks.getCurrentWord();
   if (!current) return null;
 
-  const key = makeFavoriteKey(current);
+  const key = getFavoriteRecordKey(state.favorites, current);
   toggleFavoriteRecord(state.favorites, key);
 
   const updated = touchFavoritesChanged(
