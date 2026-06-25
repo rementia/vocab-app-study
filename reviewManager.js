@@ -1,4 +1,4 @@
-import { makeWordKey, normalizeWordKey } from "./wordIdentity.js";
+import { makeWordKey, migrateLegacyWordRecords, normalizeWordKey } from "./wordIdentity.js";
 
 const MIN_REVIEW_WEIGHT = 0.2;
 
@@ -14,6 +14,10 @@ function getReviewRecord(reviewScores, item) {
   const key = makeReviewKey(item);
   const legacyKey = getLegacyReviewKey(item);
   return reviewScores[key] || (legacyKey && reviewScores[legacyKey]) || {};
+}
+
+export function migrateLegacyReviewScores(reviewScores, allWordsByVol) {
+  return migrateLegacyWordRecords(reviewScores, allWordsByVol);
 }
 
 function createReviewSortEntry(item, originalIndex, getScore, randomizeTies) {

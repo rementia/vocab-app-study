@@ -3,6 +3,7 @@ import {
   buildFavoriteEntries,
   isFavorite,
   loadFavoritesMode,
+  migrateLegacyFavoriteRecords,
   toggleFavoriteCurrentWord
 } from "../favoritesManager.js";
 
@@ -23,6 +24,27 @@ const favorites = {
 
 assert.strictEqual(isFavorite(favorites, wordsByVol.vol1[1]), true);
 assert.strictEqual(isFavorite(favorites, wordsByVol.vol1[0]), false);
+assert.strictEqual(
+  isFavorite(favorites, { id: "w_beta001", word: "beta", legacyWordKey: "beta" }),
+  true,
+  "legacy word-key favorites should remain readable when a stable id exists"
+);
+
+const legacyFavorites = { beta: { addedAt: 1 } };
+assert.strictEqual(migrateLegacyFavoriteRecords(legacyFavorites, {
+  vol1: [{ id: "w_beta001", word: "beta", legacyWordKey: "beta" }]
+}).changed, true);
+assert.strictEqual(Boolean(legacyFavorites.w_beta001), true);
+assert.strictEqual(Boolean(legacyFavorites.beta), false);
+
+const duplicateFavorites = {
+  beta: { addedAt: 1 },
+  w_beta001: { addedAt: 2 }
+};
+migrateLegacyFavoriteRecords(duplicateFavorites, {
+  vol1: [{ id: "w_beta001", word: "beta", legacyWordKey: "beta" }]
+});
+assert.deepStrictEqual(duplicateFavorites, { w_beta001: { addedAt: 2 } });
 assert.deepStrictEqual(
   buildFavoriteEntries(wordsByVol, ["vol1", "vol2"], favorites).map((item) => item.word),
   ["beta", "gamma"]

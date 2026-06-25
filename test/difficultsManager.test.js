@@ -3,6 +3,7 @@ import {
   buildDifficultEntries,
   isDifficult,
   loadDifficultsMode,
+  migrateLegacyDifficultRecords,
   toggleDifficultCurrentWord
 } from "../difficultsManager.js";
 
@@ -23,6 +24,27 @@ const difficults = {
 
 assert.strictEqual(isDifficult(difficults, wordsByVol.vol1[1]), true);
 assert.strictEqual(isDifficult(difficults, wordsByVol.vol1[0]), false);
+assert.strictEqual(
+  isDifficult(difficults, { id: "w_beta001", word: "beta", legacyWordKey: "beta" }),
+  true,
+  "legacy word-key difficult records should remain readable when a stable id exists"
+);
+
+const legacyDifficults = { beta: { addedAt: 1 } };
+assert.strictEqual(migrateLegacyDifficultRecords(legacyDifficults, {
+  vol1: [{ id: "w_beta001", word: "beta", legacyWordKey: "beta" }]
+}).changed, true);
+assert.strictEqual(Boolean(legacyDifficults.w_beta001), true);
+assert.strictEqual(Boolean(legacyDifficults.beta), false);
+
+const duplicateDifficults = {
+  beta: { addedAt: 1 },
+  w_beta001: { addedAt: 2 }
+};
+migrateLegacyDifficultRecords(duplicateDifficults, {
+  vol1: [{ id: "w_beta001", word: "beta", legacyWordKey: "beta" }]
+});
+assert.deepStrictEqual(duplicateDifficults, { w_beta001: { addedAt: 2 } });
 assert.deepStrictEqual(
   buildDifficultEntries(wordsByVol, ["vol1", "vol2"], difficults).map((item) => item.word),
   ["beta", "gamma"]

@@ -1,4 +1,4 @@
-import { makeWordKey, normalizeWordKey } from "./wordIdentity.js";
+import { makeWordKey, migrateLegacyWordRecords, normalizeWordKey } from "./wordIdentity.js";
 import { buildMarkedWordEntries, clampIndex } from "./wordList.js";
 
 function makeDifficultKey(item) {
@@ -20,6 +20,10 @@ export function isDifficult(difficults, item) {
 
 export function buildDifficultEntries(allWordsByVol, volOrder, difficults) {
   return buildMarkedWordEntries(allWordsByVol, volOrder, difficults, isDifficult);
+}
+
+export function migrateLegacyDifficultRecords(difficults, allWordsByVol) {
+  return migrateLegacyWordRecords(difficults, allWordsByVol);
 }
 
 function createDifficultsResult(state, updated = {}) {
