@@ -8,7 +8,7 @@ The web app does not read Google Sheets directly. It reads CSV text from Firesto
 privateWords/{vol}.csv
 ```
 
-After editing Google Sheets, run this Apps Script first. Then use the app's `単語データ再読み込み` button to reload Firestore data in the browser.
+After editing Google Sheets, run this Apps Script first. Then use the app's `単語更新` button to reload Firestore data in the browser.
 
 ## Firestore Output
 
