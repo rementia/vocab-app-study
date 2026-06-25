@@ -149,27 +149,6 @@ updateRecallTimeControl(timeControlContext(false, "once"));
 assert.strictEqual(recallClassList.contains("is-inactive"), true, "recall time should dim when challenge mode is off even during auto play");
 assert.strictEqual(displayClassList.contains("is-inactive"), false, "display time should stay active when auto play is on and challenge mode is off");
 
-const reviewWords = [{ id: "word-1" }, { id: "word-2" }];
-let reviewIndex = 0;
-const reviewContext = {
-  dom: {
-    reviewScoreLabelEl: { textContent: "" },
-    decreaseReviewBtnEl: makeButton(),
-    resetReviewBtnEl: makeButton(),
-    increaseReviewBtnEl: makeButton()
-  },
-  callbacks: {
-    getCurrentWord: () => reviewWords[reviewIndex],
-    getReviewScore: (item) => item.id === "word-1" ? 2 : -1
-  }
-};
-
-updateReviewButtons(reviewContext);
-assert.strictEqual(reviewContext.dom.reviewScoreLabelEl.textContent, "頻度調整：2");
-assert.strictEqual(reviewContext.dom.decreaseReviewBtnEl.title, "頻度調整：2");
-assert.strictEqual(reviewContext.dom.increaseReviewBtnEl.title, "頻度調整：2");
-assert.strictEqual(reviewContext.dom.resetReviewBtnEl.title, "頻度調整を0に戻す");
-
 function makeWordContext(translationMode) {
   return {
     getState: () => ({
@@ -191,9 +170,6 @@ function makeWordContext(translationMode) {
       listEl: { querySelector: () => null },
       favoriteToggleBtnEl: null,
       difficultToggleBtnEl: null,
-      decreaseReviewBtnEl: null,
-      resetReviewBtnEl: null,
-      increaseReviewBtnEl: null,
       prevHintEl: null,
       nextHintEl: null
     },
@@ -206,7 +182,6 @@ function makeWordContext(translationMode) {
       loadPronunciation() {},
       isFavorite: () => false,
       isDifficult: () => false,
-      getReviewScore: () => 0
     }
   };
 }
@@ -220,12 +195,6 @@ const translatedWordContext = makeWordContext(true);
 renderCurrentWord(translatedWordContext);
 assert.strictEqual(translatedWordContext.dom.wordEl.textContent, "作る");
 assert.strictEqual(translatedWordContext.dom.meaningEl.textContent, "create");
-
-reviewIndex = 1;
-updateReviewButtons(reviewContext);
-assert.strictEqual(reviewContext.dom.reviewScoreLabelEl.textContent, "頻度調整：-1");
-assert.strictEqual(reviewContext.dom.decreaseReviewBtnEl.title, "頻度調整：-1");
-assert.strictEqual(reviewContext.dom.increaseReviewBtnEl.title, "頻度調整：-1");
 
 
 function makeMockClassList() {
@@ -296,9 +265,6 @@ function makeMultipleChoiceDom() {
     listEl: { querySelector: () => null },
     favoriteToggleBtnEl: null,
     difficultToggleBtnEl: null,
-    decreaseReviewBtnEl: null,
-    resetReviewBtnEl: null,
-    increaseReviewBtnEl: null,
     prevHintEl: null,
     nextHintEl: null
   };
@@ -342,7 +308,6 @@ function makeMultipleChoiceContext(overrides = {}) {
       loadPronunciation() {},
       isFavorite: () => false,
       isDifficult: () => false,
-      getReviewScore: () => 0
     }
   };
 }

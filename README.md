@@ -4,7 +4,7 @@
 
 ブラウザ上で動作する英単語学習アプリです。
 
-英単語を眺めるだけではなく、想起学習、四択問題、発音、自動再生、ランダム復習、頻度調整、お気に入り、苦手単語管理を組み合わせて、繰り返し復習しやすい形にしています。
+This study version uses automatic review weighting from answer history. Wrong answers increase weight, repeated correct answers reduce it slightly, and favorite words get a small bonus.
 
 ## Demo
 
@@ -166,8 +166,8 @@ localStorage
 - 想起時間・表示時間の調整
 - お気に入り登録・解除
 - 苦手単語登録・解除
-- 頻度調整 `+ / - / 0`
-- 頻度順レビュー
+- Automatic frequency review based on answer history and favorites
+- Random order review
 - 乱数配列レビュー
 - 進捗表示
 - Google ログイン

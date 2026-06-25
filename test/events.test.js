@@ -38,9 +38,6 @@ function makeCalls() {
     speakWord: 0,
     favorite: 0,
     difficult: 0,
-    decreaseReview: 0,
-    resetReview: 0,
-    increaseReview: 0,
     focusSearch: 0,
     clearSearch: 0,
     nextSearch: 0,
@@ -58,9 +55,6 @@ function bindWithCalls(calls, clearSearchResult = false) {
     speakWord: () => calls.speakWord++,
     handleToggleFavoriteCurrentWord: () => calls.favorite++,
     handleToggleDifficultCurrentWord: () => calls.difficult++,
-    decreaseReviewScore: () => calls.decreaseReview++,
-    resetReviewScore: () => calls.resetReview++,
-    increaseReviewScore: () => calls.increaseReview++,
     focusSearch: () => calls.focusSearch++,
     clearSearch: () => {
       calls.clearSearch++;
@@ -119,15 +113,6 @@ assert.strictEqual(calls.favorite, 1);
 assert.strictEqual(dispatchKey({ key: "D" }), true);
 assert.strictEqual(calls.difficult, 1);
 
-assert.strictEqual(dispatchKey({ key: "+" }), true);
-assert.strictEqual(calls.increaseReview, 1);
-
-assert.strictEqual(dispatchKey({ key: "-" }), true);
-assert.strictEqual(calls.decreaseReview, 1);
-
-assert.strictEqual(dispatchKey({ key: "0" }), true);
-assert.strictEqual(calls.resetReview, 1);
-
 assert.strictEqual(dispatchKey({ key: "/" }), true);
 assert.strictEqual(calls.focusSearch, 1);
 
@@ -168,11 +153,8 @@ assert.strictEqual(calls.nextWord, 0, "IME composing keys should be ignored");
 calls = makeCalls();
 bindWithCalls(calls);
 assert.strictEqual(dispatchKey({ key: "-", ctrlKey: true }), false);
-assert.strictEqual(calls.decreaseReview, 0, "Ctrl+- should keep browser zoom behavior");
 assert.strictEqual(dispatchKey({ key: "+", ctrlKey: true }), false);
-assert.strictEqual(calls.increaseReview, 0, "Ctrl++ should keep browser zoom behavior");
 assert.strictEqual(dispatchKey({ key: "0", ctrlKey: true }), false);
-assert.strictEqual(calls.resetReview, 0, "Ctrl+0 should keep browser zoom reset behavior");
 assert.strictEqual(dispatchKey({ key: "f", ctrlKey: true }), false);
 assert.strictEqual(calls.favorite, 0, "Ctrl+F should keep browser find behavior");
 

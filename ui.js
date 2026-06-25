@@ -326,33 +326,7 @@ function updateWordMarkToggleButton({
 }
 
 export function updateReviewButtons(context) {
-  const dom = getDom(context);
-  const callbacks = getCallbacks(context);
-  const current = callbacks.getCurrentWord();
-
-  if (!dom.decreaseReviewBtnEl || !dom.resetReviewBtnEl || !dom.increaseReviewBtnEl) return;
-
-  if (!current) {
-    if (dom.reviewScoreLabelEl) dom.reviewScoreLabelEl.textContent = "頻度調整：-";
-    setReviewButtonState(dom.decreaseReviewBtnEl, true, "頻度調整：-");
-    setReviewButtonState(dom.resetReviewBtnEl, true, "頻度調整：-");
-    setReviewButtonState(dom.increaseReviewBtnEl, true, "頻度調整：-");
-    return;
-  }
-
-  const score = callbacks.getReviewScore(current);
-  const label = `頻度調整：${score}`;
-  if (dom.reviewScoreLabelEl) dom.reviewScoreLabelEl.textContent = label;
-  setReviewButtonState(dom.decreaseReviewBtnEl, false, label);
-  setReviewButtonState(dom.resetReviewBtnEl, false, "頻度調整を0に戻す");
-  setReviewButtonState(dom.increaseReviewBtnEl, false, label);
-}
-
-function setReviewButtonState(button, disabled, label) {
-  button.disabled = disabled;
-  button.classList.remove("active");
-  button.setAttribute("aria-pressed", "false");
-  button.title = label;
+  // 手動の頻度調整UIは廃止。頻度配列は正誤履歴から自動計算する。
 }
 
 function updateNavHints(context) {

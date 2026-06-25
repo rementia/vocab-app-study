@@ -4,9 +4,6 @@ export function bindKeyboardEvents({
   speakWord,
   handleToggleFavoriteCurrentWord,
   handleToggleDifficultCurrentWord,
-  decreaseReviewScore,
-  resetReviewScore,
-  increaseReviewScore,
   focusSearch,
   clearSearch,
   selectNextSearchResult,
@@ -21,10 +18,7 @@ export function bindKeyboardEvents({
     speakWord,
     handleToggleFavoriteCurrentWord,
     handleToggleDifficultCurrentWord,
-    decreaseReviewScore,
-    resetReviewScore,
-    increaseReviewScore,
-    focusSearch,
+          focusSearch,
     clearSearch,
     selectNextSearchResult,
     selectPreviousSearchResult,
@@ -106,21 +100,6 @@ function handleAppShortcutKeydown(event, handlers) {
 
   if (event.key.toLowerCase() === "d") {
     preventAndRun(event, handlers.handleToggleDifficultCurrentWord);
-    return;
-  }
-
-  if (event.key === "+") {
-    preventAndRun(event, handlers.increaseReviewScore);
-    return;
-  }
-
-  if (event.key === "-" || event.key === "－") {
-    preventAndRun(event, handlers.decreaseReviewScore);
-    return;
-  }
-
-  if (event.key === "0") {
-    preventAndRun(event, handlers.resetReviewScore);
     return;
   }
 

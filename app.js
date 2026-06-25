@@ -48,7 +48,6 @@ import {
   updateFrequencyButton as uiUpdateFrequencyButton,
   updateFavoriteToggleButton as uiUpdateFavoriteToggleButton,
   updateDifficultToggleButton as uiUpdateDifficultToggleButton,
-  updateReviewButtons as uiUpdateReviewButtons,
   applySidebarState as uiApplySidebarState,
   updateAuthUI as uiUpdateAuthUI
 } from './ui.js';
@@ -65,11 +64,8 @@ import {
   loadDifficultsMode as loadDifficultsModeManager
 } from './difficultsManager.js';
 import {
-  getReviewScore,
   getReviewWeight,
   recordReviewAnswer,
-  updateReviewScore,
-  resetReviewScore,
   sortByReviewScore
 } from './reviewManager.js';
 import { clampIndex } from './wordList.js';
@@ -133,10 +129,6 @@ const {
   displayTimeValue,
   favoriteToggleBtnEl,
   difficultToggleBtnEl,
-  reviewScoreLabelEl,
-  decreaseReviewBtnEl,
-  resetReviewBtnEl,
-  increaseReviewBtnEl,
   favoriteListBtnEl,
   difficultListBtnEl,
   speechSyncBtnEl,
@@ -262,11 +254,7 @@ const uiContext = {
     displayTimeValue,
     favoriteToggleBtnEl,
     difficultToggleBtnEl,
-    reviewScoreLabelEl,
-    decreaseReviewBtnEl,
-    resetReviewBtnEl,
-    increaseReviewBtnEl,
-    favoriteListBtnEl,
+            favoriteListBtnEl,
     difficultListBtnEl,
     speechSyncBtnEl,
     challengeBtnEl,
@@ -287,7 +275,6 @@ const uiContext = {
   callbacks: {
     isFavorite: (item) => isFavorite(favorites, item),
     isDifficult: (item) => isDifficult(difficults, item),
-    getReviewScore: (item) => getReviewScore(reviewScores, item),
     getMultipleChoiceQuestion,
     getCurrentWord,
     persistCurrentIndex,
@@ -334,9 +321,6 @@ async function init() {
     speakWord: handleSpeakCurrentWord,
     handleToggleFavoriteCurrentWord,
     handleToggleDifficultCurrentWord,
-    decreaseReviewScore: () => handleReviewCurrentWord(-1, decreaseReviewBtnEl),
-    resetReviewScore: handleResetReviewCurrentWord,
-    increaseReviewScore: () => handleReviewCurrentWord(1, increaseReviewBtnEl),
     focusSearch,
     clearSearch,
     selectNextSearchResult,
@@ -527,43 +511,12 @@ function applyUserMarkToggleResult(result) {
   scheduleAutoPlayAfterRender();
 }
 
-function handleReviewCurrentWord(delta, button) {
-  const current = getCurrentWord();
-  if (!current) return;
-
-  flashReviewButton(button);
-  updateReviewScore(reviewScores, current, delta);
-  finishReviewScoreChange();
-}
-
-function handleResetReviewCurrentWord() {
-  const current = getCurrentWord();
-  if (!current) return;
-
-  flashReviewButton(resetReviewBtnEl);
-  resetReviewScore(reviewScores, current);
-  finishReviewScoreChange();
-}
-
-function finishReviewScoreChange() {
-  reviewScoresVersion += 1;
-  saveReviewScoresToLocalOnly(reviewScores);
-  clearWordOrderCache();
-  if (frequencyMode) {
-    applyWordOrder(false, getCurrentWord()?.id || null);
-    requestListRebuild();
-  }
-  renderLayout();
-  updateReviewButtons();
-}
-
 function finishReviewStatsChange() {
   reviewScoresVersion += 1;
   saveReviewScoresToLocalOnly(reviewScores);
   clearWordOrderCache();
 
   renderLayout();
-  updateReviewButtons();
 }
 
 function getMultipleChoiceQuestion() {
@@ -633,14 +586,6 @@ function handleMultipleChoiceOptionClick(event) {
   finishReviewStatsChange();
   scheduleSpeechSync();
 }
-function flashReviewButton(button) {
-  if (!button) return;
-  button.classList.remove("review-flash");
-  void button.offsetWidth;
-  button.classList.add("review-flash");
-  window.setTimeout(() => button.classList.remove("review-flash"), 500);
-}
-
 function finishInitialLoading() {
   if (hasFinishedInitialLoading) return;
   hasFinishedInitialLoading = true;
@@ -658,7 +603,6 @@ function bindUIEvents() {
   bindAuthButtons();
   bindModeButtons();
   bindWordActionButtons();
-  bindReviewButtons();
   bindSearchEvents();
   bindRecallTimeControls();
   bindVolumeButtons();
@@ -691,16 +635,6 @@ function bindWordActionButtons() {
   speakWordBtnEl?.addEventListener("click", handleSpeakCurrentWord);
   multipleChoiceOptionsEl?.addEventListener("click", handleMultipleChoiceOptionClick);
   document.querySelector(".center-box")?.addEventListener("click", handleAutoPlaySkipRequest);
-}
-
-function bindReviewButtons() {
-  decreaseReviewBtnEl?.addEventListener("click", () => handleReviewCurrentWord(-1, decreaseReviewBtnEl));
-  resetReviewBtnEl?.addEventListener("click", handleResetReviewCurrentWord);
-  increaseReviewBtnEl?.addEventListener("click", () => handleReviewCurrentWord(1, increaseReviewBtnEl));
-  [decreaseReviewBtnEl, resetReviewBtnEl, increaseReviewBtnEl].forEach((button) => {
-    button?.addEventListener("mouseenter", updateReviewButtons);
-    button?.addEventListener("focus", updateReviewButtons);
-  });
 }
 
 function bindSearchEvents() {
@@ -934,10 +868,7 @@ function getLockableControls() {
     frequencyBtnEl,
     favoriteToggleBtnEl,
     difficultToggleBtnEl,
-    decreaseReviewBtnEl,
-    resetReviewBtnEl,
-    increaseReviewBtnEl,
-    prevWordBtnEl,
+          prevWordBtnEl,
     nextWordBtnEl,
     speakWordBtnEl,
     timeSlider,
@@ -1326,7 +1257,7 @@ function applyWordOrder(resetIndex = false, preserveCurrentId = null) {
     frequencyMode,
     orderCache: wordOrderCache,
     createFrequencyOrder: (items, options) => (
-      sortByReviewScore(items, (item) => getReviewWeight(reviewScores, item), options)
+      sortByReviewScore(items, (item) => getReviewWeight(reviewScores, item, { starred: isFavorite(favorites, item) }), options)
     )
   });
 
@@ -1458,7 +1389,6 @@ function updateModeButtons() {
 function updateCurrentWordButtons() {
   updateFavoriteToggleButton();
   updateDifficultToggleButton();
-  updateReviewButtons();
 }
 
 function updateFavoriteToggleButton() {

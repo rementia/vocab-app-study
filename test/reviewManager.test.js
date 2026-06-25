@@ -1,49 +1,33 @@
-﻿import assert from "assert";
+import assert from "assert";
 import {
-  getReviewScore,
   getReviewStats,
   getReviewWeight,
   recordReviewAnswer,
-  resetReviewScore,
-  sortByReviewScore,
-  updateReviewScore
+  sortByReviewScore
 } from "../reviewManager.js";
 
-const item = { id: "vol1-1-alpha", word: "alpha" };
+const item = { id: "alpha", word: "alpha" };
 const scores = {};
 
-assert.strictEqual(getReviewScore(scores, item), 0);
-assert.strictEqual(updateReviewScore(scores, item, 1), 1);
-assert.strictEqual(getReviewScore(scores, item), 1);
-assert.strictEqual(updateReviewScore(scores, item, -1), 0);
-assert.strictEqual(getReviewScore(scores, item), 0);
-assert.strictEqual(Boolean(scores.alpha), false, "zero scores should be removed from storage data");
-assert.strictEqual(updateReviewScore(scores, item, -10), -5);
-assert.strictEqual(updateReviewScore(scores, item, 20), 5);
-assert.strictEqual(resetReviewScore(scores, item), 0);
-assert.strictEqual(getReviewScore(scores, item), 0);
-
-const statsScores = {};
-recordReviewAnswer(statsScores, item, true, 1000);
-recordReviewAnswer(statsScores, item, false, 2000);
-assert.deepStrictEqual(getReviewStats(statsScores, item), {
-  correct: 1,
-  wrong: 1,
-  streakCorrect: 0,
-  streakWrong: 1,
-  lastAnsweredAt: 2000
-});
-assert.strictEqual(getReviewWeight(statsScores, item), 4.5);
-updateReviewScore(statsScores, item, 2);
-assert.strictEqual(getReviewWeight(statsScores, item), 6.5);
-resetReviewScore(statsScores, item);
-assert.deepStrictEqual(getReviewStats(statsScores, item), {
-  correct: 1,
-  wrong: 1,
-  streakCorrect: 0,
-  streakWrong: 1,
-  lastAnsweredAt: 2000
-}, "resetting manual score should preserve answer stats");
+recordReviewAnswer(scores, item, true, 1000);
+assert.deepStrictEqual(
+  getReviewStats(scores, item),
+  { correct: 1, wrong: 0, streakCorrect: 1, streakWrong: 0, lastAnsweredAt: 1000 },
+  "correct answers should update correct stats"
+);
+recordReviewAnswer(scores, item, false, 2000);
+assert.deepStrictEqual(
+  getReviewStats(scores, item),
+  { correct: 1, wrong: 1, streakCorrect: 0, streakWrong: 1, lastAnsweredAt: 2000 },
+  "wrong answers should update wrong stats and reset correct streak"
+);
+assert.strictEqual(getReviewWeight(scores, item), 4.5, "wrong stats should increase frequency weight");
+recordReviewAnswer(scores, item, true, 3000);
+recordReviewAnswer(scores, item, true, 4000);
+assert.strictEqual(getReviewWeight(scores, item), 2.2, "correct streaks should reduce but not remove frequency weight");
+scores.alpha.score = 5;
+assert.strictEqual(getReviewWeight(scores, item), 2.2, "legacy manual scores should not affect frequency weight");
+assert.strictEqual(getReviewWeight(scores, item, { starred: true }), 3.2, "starred words should get a small weight bonus");
 
 const scoredItems = [
   { id: "a" },
@@ -71,7 +55,7 @@ const randomizedTieSorted = sortByReviewScore(scoredItems, () => 1, { randomizeT
 assert.deepStrictEqual(
   randomizedTieSorted.map((candidate) => candidate.id).sort(),
   ["a", "b", "c", "d"],
-  "tie randomization should keep the same items"
+  "weighted random ordering should keep the same items without duplicates"
 );
 
 console.log("All review score tests passed.");

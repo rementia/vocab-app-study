@@ -1,15 +1,9 @@
-﻿import { makeWordKey } from "./wordIdentity.js";
+import { makeWordKey } from "./wordIdentity.js";
 
-const MIN_REVIEW_SCORE = -5;
-const MAX_REVIEW_SCORE = 5;
-const MIN_REVIEW_WEIGHT = 0.5;
+const MIN_REVIEW_WEIGHT = 0.2;
 
 function makeReviewKey(item) {
   return makeWordKey(item);
-}
-
-function clampReviewScore(score) {
-  return Math.max(MIN_REVIEW_SCORE, Math.min(MAX_REVIEW_SCORE, score));
 }
 
 function createReviewSortEntry(item, originalIndex, getScore, randomizeTies) {
@@ -27,10 +21,6 @@ function compareReviewSortEntries(a, b) {
   return a.originalIndex - b.originalIndex;
 }
 
-export function getReviewScore(reviewScores, item) {
-  return Number(reviewScores[makeReviewKey(item)]?.score) || 0;
-}
-
 export function getReviewStats(reviewScores, item) {
   const stats = reviewScores[makeReviewKey(item)] || {};
   return {
@@ -40,46 +30,6 @@ export function getReviewStats(reviewScores, item) {
     streakWrong: Number(stats.streakWrong) || 0,
     lastAnsweredAt: Number(stats.lastAnsweredAt) || 0
   };
-}
-
-export function updateReviewScore(reviewScores, item, delta) {
-  const key = makeReviewKey(item);
-  const currentScore = getReviewScore(reviewScores, item);
-  const nextScore = clampReviewScore(currentScore + delta);
-
-  if (nextScore === 0) {
-    const current = reviewScores[key];
-    if (!current) return nextScore;
-
-    const { score, updatedAt, ...stats } = current;
-    if (Object.keys(stats).length) {
-      reviewScores[key] = stats;
-    } else {
-      delete reviewScores[key];
-    }
-  } else {
-    reviewScores[key] = {
-      ...(reviewScores[key] || {}),
-      score: nextScore,
-      updatedAt: Date.now()
-    };
-  }
-
-  return nextScore;
-}
-
-export function resetReviewScore(reviewScores, item) {
-  const key = makeReviewKey(item);
-  const current = reviewScores[key];
-  if (!current) return 0;
-
-  const { score, updatedAt, ...stats } = current;
-  if (Object.keys(stats).length) {
-    reviewScores[key] = stats;
-  } else {
-    delete reviewScores[key];
-  }
-  return 0;
 }
 
 export function recordReviewAnswer(reviewScores, item, isCorrect, answeredAt = Date.now()) {
@@ -108,18 +58,46 @@ export function recordReviewAnswer(reviewScores, item, isCorrect, answeredAt = D
   return getReviewStats(reviewScores, item);
 }
 
-export function getReviewWeight(reviewScores, item) {
-  const score = getReviewScore(reviewScores, item);
+export function getReviewWeight(reviewScores, item, options = {}) {
   const stats = getReviewStats(reviewScores, item);
-  const statsWeight = 1 + stats.wrong * 2 + stats.streakWrong * 1.5 - stats.streakCorrect * 0.5;
-  return Math.max(MIN_REVIEW_WEIGHT, statsWeight + score);
+  const starredBonus = options.starred ? 1 : 0;
+  const statsWeight = 1 + stats.wrong * 2 + stats.streakWrong * 1.5 - stats.streakCorrect * 0.4 + starredBonus;
+  return Math.max(MIN_REVIEW_WEIGHT, statsWeight);
+}
+
+function pickWeightedEntry(entries) {
+  const totalWeight = entries.reduce((sum, entry) => sum + Math.max(MIN_REVIEW_WEIGHT, entry.score), 0);
+  let random = Math.random() * totalWeight;
+
+  for (const entry of entries) {
+    random -= Math.max(MIN_REVIEW_WEIGHT, entry.score);
+    if (random <= 0) return entry;
+  }
+
+  return entries[entries.length - 1] || null;
+}
+
+function createWeightedRandomOrder(entries) {
+  const remaining = [...entries];
+  const ordered = [];
+
+  while (remaining.length) {
+    const picked = pickWeightedEntry(remaining);
+    if (!picked) break;
+    ordered.push(picked);
+    remaining.splice(remaining.indexOf(picked), 1);
+  }
+
+  return ordered;
 }
 
 export function sortByReviewScore(words, getScore, options = {}) {
   const randomizeTies = Boolean(options.randomizeTies);
 
-  return [...words]
-    .map((item, originalIndex) => createReviewSortEntry(item, originalIndex, getScore, randomizeTies))
-    .sort(compareReviewSortEntries)
+  const entries = [...words].map((item, originalIndex) => (
+    createReviewSortEntry(item, originalIndex, getScore, randomizeTies)
+  ));
+
+  return (randomizeTies ? createWeightedRandomOrder(entries) : entries.sort(compareReviewSortEntries))
     .map(({ item }) => item);
 }
