@@ -12,6 +12,10 @@ GitHub Pages:
 
 https://rementia.github.io/vocab-app-study/
 
+Firebase Hosting:
+
+https://svl-app-65204.web.app
+
 ## Overview
 
 このアプリは、HTML / CSS / JavaScript で作成した静的フロントエンドアプリです。
