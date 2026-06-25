@@ -5,7 +5,7 @@ export function normalizeWordKey(word) {
 }
 
 export function makeWordKey(item) {
-  return normalizeWordKey(item?.word || item?.id);
+  return normalizeWordKey(item?.id || item?.word);
 }
 
 export function normalizeStoredWordKey(key) {

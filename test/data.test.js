@@ -25,18 +25,21 @@ assert.deepStrictEqual(parsedWords[0], {
   id: "hello",
   word: "hello",
   meaning: "こんにちは",
+  legacyWordKey: "hello",
   sourceVol: "vol1"
 });
 assert.deepStrictEqual(parsedWords[1], {
   id: "good,bye",
   word: "good,bye",
   meaning: "さようなら",
+  legacyWordKey: "good,bye",
   sourceVol: "vol1"
 });
 assert.deepStrictEqual(parsedWords[2], {
   id: "quote\"test",
   word: "quote\"test",
   meaning: "テスト",
+  legacyWordKey: "quote\"test",
   sourceVol: "vol1"
 });
 
@@ -47,15 +50,36 @@ assert.deepStrictEqual(parsedSheetWords, [
     id: "create",
     word: "create",
     meaning: "作る",
+    legacyWordKey: "create",
     sourceVol: "vol2"
   },
   {
     id: "study",
     word: "study",
     meaning: "勉強する",
+    legacyWordKey: "study",
     sourceVol: "vol2"
   }
-], "parseCsvToWords should read word and meaning columns without mixing level into meaning");
+], "parseCsvToWords should fall back to word-derived ids when id column is missing");
+
+const stableIdCsv = "id,word,meaning,level\nw_abcd1234,create,作る,1\n,study,勉強する,2\n";
+const stableIdWords = parseCsvToWords(stableIdCsv, "vol3");
+assert.deepStrictEqual(stableIdWords, [
+  {
+    id: "w_abcd1234",
+    word: "create",
+    meaning: "作る",
+    legacyWordKey: "create",
+    sourceVol: "vol3"
+  },
+  {
+    id: "study",
+    word: "study",
+    meaning: "勉強する",
+    legacyWordKey: "study",
+    sourceVol: "vol3"
+  }
+], "parseCsvToWords should prefer stable id values and fall back to word when id is blank");
 
 assert.strictEqual(
   formatFirestoreSyncValue(new Date("2026-06-20T00:00:00.000Z")),

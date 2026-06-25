@@ -7,6 +7,7 @@ import {
 } from "../wordIdentity.js";
 
 assert.strictEqual(normalizeWordKey(" Hello "), "hello");
+assert.strictEqual(makeWordKey({ id: "w_abcd1234", word: "Hello" }), "w_abcd1234");
 assert.strictEqual(makeWordKey({ word: "Hello" }), "hello");
 assert.strictEqual(makeWordKey({ id: "vol1-2-Hello" }), "vol1-2-hello");
 

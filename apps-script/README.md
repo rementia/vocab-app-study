@@ -115,6 +115,20 @@ Rows are split into `vol1`, `vol2`, `vol3`, and `vol4` by the configured `level`
 
 `level` values such as `1`, `2`, `3`, `4`, `vol1`, `vol2`, `vol3`, and `vol4` are normalized before grouping.
 
+
+## Stable Word IDs
+
+The Apps Script manages a stable `id` column in Google Sheets before exporting CSV to Firestore.
+
+- If the sheet does not have an `id` column, the script creates one.
+- If a row already has an `id`, the script never overwrites it.
+- If a row has an empty `id`, the script generates a new internal ID such as `w_abcd1234efgh`.
+- If duplicate IDs are found, the sync stops with an error before writing to Firestore.
+- The exported Firestore CSV includes the `id` column, and the web app uses it as the internal word key.
+- If `id` is missing or blank in CSV, the web app falls back to the old word-derived key.
+
+In Google Sheets, hide and protect the `id` column so normal vocabulary edits do not accidentally change word identity. Changing an existing `id` can disconnect favorites, difficult words, and review history from that word.
+
 ## Firebase Console Check
 
 After running the script, confirm these values in Firebase Console:

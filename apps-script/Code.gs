@@ -32,6 +32,10 @@ const CONFIG = {
   ]
 };
 
+const ID_COLUMN_NAMES = ["id", "wordid", "word_id", "word id", "単語id"];
+const GENERATED_ID_PREFIX = "w_";
+const GENERATED_ID_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789";
+const GENERATED_ID_LENGTH = 12;
 function dryRun() {
   const groupedRows = buildGroupedRows();
 
@@ -117,15 +121,18 @@ function syncOneVolume(docId) {
 }
 
 function buildGroupedRows() {
+  let groupedRows = null;
+
   if (CONFIG.mode === "sheetsByVolume") {
-    return buildGroupedRowsFromVolumeSheets();
+    groupedRows = buildGroupedRowsFromVolumeSheets();
+  } else if (CONFIG.mode === "singleSheetWithLevel") {
+    groupedRows = buildGroupedRowsFromSingleSheet();
+  } else {
+    throw new Error(`未対応のmodeです: ${CONFIG.mode}`);
   }
 
-  if (CONFIG.mode === "singleSheetWithLevel") {
-    return buildGroupedRowsFromSingleSheet();
-  }
-
-  throw new Error(`未対応のmodeです: ${CONFIG.mode}`);
+  validateGroupedRowIds(groupedRows);
+  return groupedRows;
 }
 
 function buildGroupedRowsFromVolumeSheets() {
@@ -138,6 +145,7 @@ function buildGroupedRowsFromVolumeSheets() {
       throw new Error(`シートが見つかりません: ${sheetName}`);
     }
 
+    ensureStableIds(sheet);
     groupedRows[sheetName] = readSheetRows(sheet);
   });
 
@@ -146,6 +154,7 @@ function buildGroupedRowsFromVolumeSheets() {
 
 function buildGroupedRowsFromSingleSheet() {
   const sheet = getSourceSheet();
+  ensureStableIds(sheet);
   const values = readSheetRows(sheet);
 
   if (values.length < 2) {
@@ -153,6 +162,7 @@ function buildGroupedRowsFromSingleSheet() {
   }
 
   const headers = values[0].map(normalizeHeader);
+  const idIndex = getRequiredColumnIndexByNames(headers, ID_COLUMN_NAMES, "id");
   const wordIndex = getRequiredColumnIndex(headers, "word");
   const meaningIndex = getRequiredColumnIndex(headers, "meaning");
   const levelIndex = getRequiredColumnIndex(headers, CONFIG.levelColumnName);
@@ -160,11 +170,12 @@ function buildGroupedRowsFromSingleSheet() {
   const groupedRows = {};
 
   CONFIG.volumes.forEach(({ docId }) => {
-    groupedRows[docId] = [["word", "meaning"]];
+    groupedRows[docId] = [["id", "word", "meaning"]];
   });
 
   values.slice(1).forEach((row, index) => {
     const rowNumber = index + 2;
+    const stableId = String(row[idIndex] ?? "").trim();
     const word = String(row[wordIndex] ?? "").trim();
     const meaning = String(row[meaningIndex] ?? "").trim();
     const level = normalizeLevel(row[levelIndex]);
@@ -180,10 +191,98 @@ function buildGroupedRowsFromSingleSheet() {
       return;
     }
 
-    groupedRows[volume.docId].push([word, meaning]);
+    groupedRows[volume.docId].push([stableId, word, meaning]);
   });
 
   return groupedRows;
+}
+
+
+function getColumnIndexByNames(headers, names) {
+  return headers.findIndex((header) => names.includes(header));
+}
+
+function getRequiredColumnIndexByNames(headers, names, label) {
+  const index = getColumnIndexByNames(headers, names);
+
+  if (index === -1) {
+    throw new Error(`必須列が見つかりません: ${label}`);
+  }
+
+  return index;
+}
+
+function ensureStableIds(sheet) {
+  const range = sheet.getDataRange();
+  const values = range.getDisplayValues();
+
+  if (!values.length) return;
+
+  const headers = values[0].map(normalizeHeader);
+  let idIndex = getColumnIndexByNames(headers, ID_COLUMN_NAMES);
+
+  if (idIndex === -1) {
+    idIndex = values[0].length;
+    sheet.getRange(1, idIndex + 1).setValue("id");
+  }
+
+  const usedIds = new Set();
+
+  values.slice(1).forEach((row, index) => {
+    const rowNumber = index + 2;
+    const hasData = row.some((cell) => String(cell ?? "").trim() !== "");
+    if (!hasData) return;
+
+    const currentId = String(row[idIndex] ?? "").trim();
+    if (currentId) {
+      if (usedIds.has(currentId)) {
+        throw new Error(`重複idがあります: ${currentId} (row ${rowNumber})`);
+      }
+      usedIds.add(currentId);
+      return;
+    }
+
+    const newId = generateStableWordId(usedIds);
+    sheet.getRange(rowNumber, idIndex + 1).setValue(newId);
+    usedIds.add(newId);
+  });
+}
+
+function generateStableWordId(usedIds) {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    let body = "";
+    for (let i = 0; i < GENERATED_ID_LENGTH; i += 1) {
+      body += GENERATED_ID_CHARS.charAt(Math.floor(Math.random() * GENERATED_ID_CHARS.length));
+    }
+
+    const id = `${GENERATED_ID_PREFIX}${body}`;
+    if (!usedIds.has(id)) return id;
+  }
+
+  throw new Error("新しいidを生成できませんでした。");
+}
+
+function validateGroupedRowIds(groupedRows) {
+  const usedIds = new Set();
+
+  Object.entries(groupedRows).forEach(([docId, rows]) => {
+    if (!rows || rows.length < 2) return;
+
+    const headers = rows[0].map(normalizeHeader);
+    const idIndex = getColumnIndexByNames(headers, ID_COLUMN_NAMES);
+    if (idIndex === -1) return;
+
+    rows.slice(1).forEach((row, index) => {
+      const id = String(row[idIndex] ?? "").trim();
+      if (!id) return;
+
+      if (usedIds.has(id)) {
+        throw new Error(`重複idがあります: ${id} (${docId} row ${index + 2})`);
+      }
+
+      usedIds.add(id);
+    });
+  });
 }
 
 function getSourceSheet() {
