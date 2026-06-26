@@ -43,8 +43,7 @@ assert.deepStrictEqual(legacyRecords, {
   w_ambulance001: { addedAt: 2 },
   w_personnel001: { addedAt: 4 },
   w_ceiling001: { addedAt: 5 },
-  w_existing999: { addedAt: 8 },
-  custom_stable_id: { addedAt: 9 }
+  w_existing999: { addedAt: 8 }
 });
 
 const duplicateLegacyRecords = {
