@@ -1,5 +1,6 @@
 const LEGACY_ROW_ID_PATTERN = /^vol\d+-\d+-(.+)$/;
 const LEGACY_SCOPED_WORD_PATTERN = /^(vol\d+)::(.+)$/;
+const STABLE_WORD_ID_PATTERN = /^w_[a-z0-9]+$/;
 
 export function normalizeWordKey(word) {
   return String(word ?? "").toLowerCase().trim();
@@ -44,7 +45,12 @@ function getRecordKeyParts(key) {
   };
 }
 
+function isStableWordId(key) {
+  return STABLE_WORD_ID_PATTERN.test(normalizeWordKey(key));
+}
+
 function buildLegacyWordKeyMap(allWordsByVol) {
+  const stableIdKeys = new Set();
   const wordKeyMap = new Map();
   const scopedWordKeyMap = new Map();
 
@@ -52,6 +58,7 @@ function buildLegacyWordKeyMap(allWordsByVol) {
     (wordList || []).forEach((item) => {
       const newKey = makeWordKey(item);
       if (!newKey) return;
+      stableIdKeys.add(newKey);
 
       getLegacyWordKeys(item).forEach((legacyKey) => {
         if (legacyKey === newKey) return;
@@ -62,7 +69,7 @@ function buildLegacyWordKeyMap(allWordsByVol) {
     });
   });
 
-  return { wordKeyMap, scopedWordKeyMap };
+  return { stableIdKeys, wordKeyMap, scopedWordKeyMap };
 }
 
 export function migrateLegacyWordRecords(records, allWordsByVol) {
@@ -71,16 +78,17 @@ export function migrateLegacyWordRecords(records, allWordsByVol) {
   }
 
   let changed = false;
-  const { wordKeyMap, scopedWordKeyMap } = buildLegacyWordKeyMap(allWordsByVol);
+  const { stableIdKeys, wordKeyMap, scopedWordKeyMap } = buildLegacyWordKeyMap(allWordsByVol);
 
   Object.keys(records).forEach((recordKey) => {
+    const normalizedRecordKey = normalizeWordKey(recordKey);
     const { volName, wordKey } = getRecordKeyParts(recordKey);
     const scopedTargetKey = volName ? scopedWordKeyMap.get(getWordScopeKey(volName, wordKey)) : "";
     const newKey = scopedTargetKey || wordKeyMap.get(wordKey);
 
-    if (!newKey || newKey === recordKey) return;
+    if (stableIdKeys.has(normalizedRecordKey) || isStableWordId(recordKey)) return;
 
-    if (!records[newKey]) {
+    if (newKey && !records[newKey]) {
       records[newKey] = records[recordKey];
     }
     delete records[recordKey];
