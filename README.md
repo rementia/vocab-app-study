@@ -2,7 +2,7 @@
 
 [![Test](https://github.com/rementia/vocab-app-study/actions/workflows/test.yml/badge.svg)](https://github.com/rementia/vocab-app-study/actions/workflows/test.yml)
 
-ブラウザ上で動作する英単語学習アプリです。
+ブラウザ上で動作する英単語学習アプリです。単語学習、お気に入り、苦手単語、復習スコア、発音補助、Googleログイン、localStorage / Firestore連携を組み合わせた、個人学習用のWebアプリとして作っています。
 
 This study version uses automatic review weighting from answer history. Wrong answers increase weight, repeated correct answers reduce it slightly, and favorite words get a small bonus.
 
@@ -210,9 +210,11 @@ The following screenshots are expected to be placed under `docs/images/`.
 - JavaScript
 - Firebase Authentication
 - Cloud Firestore
+- Firebase Hosting
 - Google Sheets
 - Google Apps Script
 - GitHub Pages
+- GitHub Actions
 - Node.js test runner
 
 ## Data Flow
@@ -248,13 +250,13 @@ privateWords/vol4
 
 以前は、英単語の `word` をお気に入り・苦手単語・復習スコアの保存キーとして使っていました。ただし `word` は表示用データなので、スペル修正、訳語修正、level変更などの運用で変わる可能性があります。
 
-現在は、Google Sheets / Firestore CSV の `id` 列から作る `w_...` 形式の stable ID を内部管理用の保存キーとして使います。`id` が同じであれば、`word` / `meaning` / `level` を変更しても、favorites / difficults / reviewScores を同じ単語の学習データとして引き継げます。
+現在は、Google Sheets / Firestore CSV の `id` 列から作る `w_...` 形式の stable ID を内部管理用の保存キーとして使います。新規保存では、表示用の `word` 文字列や旧row ID形式を保存キーとして使わない方針です。`id` が同じであれば、`word` / `meaning` / `level` や単語順を変更しても、favorites / difficults / reviewScores を同じ単語の学習データとして引き継げます。
 
 `id` 列がない、または空欄の場合は、従来通り `word` 由来キーにフォールバックします。study版では Apps Script が Google Sheets の `id` 列を補完する設計です。
 
 ### Legacy Data Migration
 
-stable ID 導入前の localStorage / Firestore データを壊さないように、旧キーの移行処理を残しています。
+stable ID 導入前の localStorage / Firestore データを壊さないように、旧キーの移行処理と読み取りfallbackを残しています。旧キーは新規保存キーとしては使わず、過去データの移行・互換読み取りのために扱います。
 
 移行対象:
 
@@ -366,7 +368,7 @@ npm test
 
 GitHub Actions の `Test` workflow は、`main` への push、`main` 向け pull request、手動実行（`workflow_dispatch`）で同じ `npm test` を実行します。CI では Node.js 24 と `package-lock.json` に基づく `npm ci` を使い、依存関係を再現します。現在のテスト状態は README 上部の badge で確認できます。手動実行する場合は GitHub の Actions タブで `Test` workflow を選び、`Run workflow` を押します。
 
-Current Node-based tests cover parsing, saved state restore, word ordering, reload index preservation, Apps Script sync request/error handling, pronunciation helpers, speech sync controller state, multiple choice options, navigation, search result movement, storage, favorites/difficults managers, review stats, UI helpers, and keyboard events. Tests do not connect to real Firebase, Firestore, Google Sheets, or Apps Script deployments.
+Current Node-based tests cover word identity and stable ID migration, CSV parsing, saved state restore, word ordering, reload index preservation, Apps Script sync request/error handling, pronunciation helpers, speech sync controller state, multiple choice options, navigation, search result movement, storage, favorites/difficults managers, review manager behavior, UI helpers, and keyboard events. Tests do not connect to real Firebase, Firestore, Google Sheets, or Apps Script deployments.
 
 ## 動作確認チェックリスト
 
@@ -417,8 +419,7 @@ Current Node-based tests cover parsing, saved state restore, word ordering, relo
 - [ ] 自動再生中に再読み込みした場合、安全に停止する
 - [ ] 発音同期中に再読み込みしても壊れない
 - [ ] iOS Safariでは、初回のみ発音ボタンまたは画面タップが必要な場合がある
-- [ ] ブラウザ制限で鳴らない場合も、音声有効化の案内が表示される
-- [ ] 一度タップまたは音声有効化後、単語移動で発音同期される
+- [ ] 一度発音ボタンまたは画面タップ後、単語移動で発音同期される
 - [ ] 発音同期OFFではスワイプしても勝手に発音されない
 - [ ] ブラウザ仕様上、完全な自動再生は保証されないため、鳴らない場合は一度タップしてから再試行する
 
