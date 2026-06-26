@@ -6,6 +6,18 @@
 
 This study version uses automatic review weighting from answer history. Wrong answers increase weight, repeated correct answers reduce it slightly, and favorite words get a small bonus.
 
+## Portfolio Highlights
+
+This is a student-built personal vocabulary learning app, but it is designed beyond a simple flashcard UI. The project includes user-specific saved learning data, Firestore synchronization, browser-local state restore, vocabulary updates from Google Sheets through Apps Script, and compatibility handling for older saved data.
+
+Key design points:
+
+- Vocabulary learning features: favorites, difficult words, review scores, pronunciation support, search, random/frequency review, recall mode, and four-choice practice.
+- Data separation: private vocabulary data is stored in Firestore `privateWords/{vol}`, while user learning state is stored under `privateUsers/{uid}`.
+- Browser state restore: selected volume, mode, position, and UI settings are restored from `localStorage` with the `vocab_app_study_` prefix.
+- Stable word IDs: learning records are tied to stable `w_...` IDs instead of directly depending on editable display text.
+- Legacy migration: older word-key records are still readable and are migrated to stable IDs when vocabulary data is loaded.
+
 ## Demo
 
 GitHub Pages:
@@ -179,9 +191,17 @@ localStorage
 - localStorage による端末別状態復元
 - PC / スマートフォン対応
 
-## Screenshot
+## Screenshots
 
-![Main Screen](./images/main.png)
+The following screenshots are expected to be placed under `docs/images/`.
+
+![Main screen](./docs/images/main-screen.png)
+
+![Favorites screen](./docs/images/favorites-screen.png)
+
+![Difficult words screen](./docs/images/difficults-screen.png)
+
+![Review screen](./docs/images/review-screen.png)
 
 ## Technologies
 
@@ -228,7 +248,7 @@ privateWords/vol4
 
 以前は、英単語の `word` をお気に入り・苦手単語・復習スコアの保存キーとして使っていました。ただし `word` は表示用データなので、スペル修正、訳語修正、level変更などの運用で変わる可能性があります。
 
-現在は、Google Sheets / Firestore CSV の `id` 列を内部管理用の stable ID として使います。`id` が同じであれば、`word` / `meaning` / `level` を変更しても、favorites / difficults / reviewScores を同じ単語の学習データとして引き継げます。
+現在は、Google Sheets / Firestore CSV の `id` 列から作る `w_...` 形式の stable ID を内部管理用の保存キーとして使います。`id` が同じであれば、`word` / `meaning` / `level` を変更しても、favorites / difficults / reviewScores を同じ単語の学習データとして引き継げます。
 
 `id` 列がない、または空欄の場合は、従来通り `word` 由来キーにフォールバックします。study版では Apps Script が Google Sheets の `id` 列を補完する設計です。
 
@@ -342,7 +362,9 @@ privateUsers/{uid}
 npm test
 ```
 
-GitHub Actions の `Test` workflow は、`main` への push、`main` 向け pull request、手動実行（`workflow_dispatch`）で同じ `npm test` を実行します。CI では `package-lock.json` に基づいて `npm ci` を使い、依存関係を再現します。現在のテスト状態は README 上部の badge で確認できます。手動実行する場合は GitHub の Actions タブで `Test` workflow を選び、`Run workflow` を押します。
+ローカルでは Windows 環境なら `npm.cmd test`、通常のシェルでは `npm test` で同じ Node-based tests を実行できます。
+
+GitHub Actions の `Test` workflow は、`main` への push、`main` 向け pull request、手動実行（`workflow_dispatch`）で同じ `npm test` を実行します。CI では Node.js 24 と `package-lock.json` に基づく `npm ci` を使い、依存関係を再現します。現在のテスト状態は README 上部の badge で確認できます。手動実行する場合は GitHub の Actions タブで `Test` workflow を選び、`Run workflow` を押します。
 
 Current Node-based tests cover parsing, saved state restore, word ordering, reload index preservation, Apps Script sync request/error handling, pronunciation helpers, speech sync controller state, multiple choice options, navigation, search result movement, storage, favorites/difficults managers, review stats, UI helpers, and keyboard events. Tests do not connect to real Firebase, Firestore, Google Sheets, or Apps Script deployments.
 
@@ -469,3 +491,5 @@ package-lock.json              Locked npm dependency resolution for reproducible
 - Improve UI details for review flow and reload status.
 - Add screenshots for portfolio presentation.
 - Continue checking mobile and landscape layouts on real devices.
+- Organize public URLs for GitHub Pages and Firebase Hosting before portfolio submission.
+- Keep CI on Node.js 24 and update it when GitHub Actions support changes.
