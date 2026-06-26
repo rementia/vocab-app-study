@@ -72,6 +72,26 @@ function buildLegacyWordKeyMap(allWordsByVol) {
   return { stableIdKeys, wordKeyMap, scopedWordKeyMap };
 }
 
+export function getWordRecordKey(records, item) {
+  const stableKey = makeWordKey(item);
+  if (!records || typeof records !== "object" || Array.isArray(records)) return stableKey;
+  if (records[stableKey]) return stableKey;
+
+  const legacyKeys = getLegacyWordKeys(item);
+  for (const legacyKey of legacyKeys) {
+    if (records[legacyKey]) return legacyKey;
+  }
+
+  const sourceVol = normalizeWordKey(item?.sourceVol);
+  for (const recordKey of Object.keys(records)) {
+    const { volName, wordKey } = getRecordKeyParts(recordKey);
+    if (sourceVol && volName && sourceVol !== volName) continue;
+    if (legacyKeys.includes(wordKey)) return recordKey;
+  }
+
+  return stableKey;
+}
+
 export function migrateLegacyWordRecords(records, allWordsByVol) {
   if (!records || typeof records !== "object" || Array.isArray(records)) {
     return { changed: false };
