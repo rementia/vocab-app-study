@@ -220,11 +220,31 @@ privateWords/vol3
 privateWords/vol4
 ```
 
-アプリはログイン後、必要な volume の CSV を取得し、`word`, `meaning`, `sourceVol` を持つ単語データとして扱います。
+アプリはログイン後、必要な volume の CSV を取得し、`id`, `word`, `meaning`, `legacyWordKey`, `sourceVol` を持つ単語データとして扱います。
 
 アプリ上の `単語更新` ボタンを使うと、設定済みの Apps Script Web App を呼び出して Google Sheets から Firestore `privateWords/{vol}` へ同期し、その後に現在の mode に必要な Firestore の CSV を再取得できます。Apps Script Web App URL が未設定の場合は、従来通り Firestore `privateWords/{vol}` の再取得だけを行います。
 
-訳語だけの修正は比較的安全です。英単語そのものを変更すると word key が変わるため、お気に入り・苦手単語・復習スコアとの対応が別単語扱いになる可能性があります。
+### Stable Word IDs
+
+以前は、英単語の `word` をお気に入り・苦手単語・復習スコアの保存キーとして使っていました。ただし `word` は表示用データなので、スペル修正、訳語修正、level変更などの運用で変わる可能性があります。
+
+現在は、Google Sheets / Firestore CSV の `id` 列を内部管理用の stable ID として使います。`id` が同じであれば、`word` / `meaning` / `level` を変更しても、favorites / difficults / reviewScores を同じ単語の学習データとして引き継げます。
+
+`id` 列がない、または空欄の場合は、従来通り `word` 由来キーにフォールバックします。study版では Apps Script が Google Sheets の `id` 列を補完する設計です。
+
+### Legacy Data Migration
+
+stable ID 導入前の localStorage / Firestore データを壊さないように、旧キーの移行処理を残しています。
+
+移行対象:
+
+- `word` そのものを使った旧キー
+- `volN::word` 形式の旧キー
+- `volN-number-word` 形式の旧キー
+
+現在の単語一覧と照合できる旧キーは stable ID キーへ移行し、旧キーは削除します。新旧両方のキーがある場合は stable ID 側を優先します。現在の単語一覧に対応しない古いキーは削除します。
+
+この移行は favorites / difficults / reviewScores に対応しています。これにより、今後 `word` / `meaning` / `level` を修正しても、stable ID が同じであれば学習データを引き継げます。
 
 Apps Script sync example: see `apps-script/README.md`.
 
@@ -278,7 +298,7 @@ privateUsers/{uid}
 - `difficults`
 - `difficultsUpdatedAt`
 
-保存キーには、スプレッドシート上の英単語を小文字化した word key を使います。これにより、スプレッドシート側に専用 ID 列を追加しなくても、同じ英単語を同じ学習状態として扱えます。
+保存キーには、単語CSVの `id` 列から作る stable ID を使います。`id` が同じであれば、英単語表記・訳語・levelを修正しても、お気に入り・苦手単語・復習スコアを同じ単語の学習データとして引き継げます。
 
 ## localStorage
 
@@ -417,7 +437,7 @@ storage.js                     localStorage keys and safe storage helpers
 savedState.js                  Saved localStorage state restore and validation
 wordReloadService.js           Current word position handling after Firestore reload
 reloadStatusService.js         Reload status messages and auto-clear timers
-wordIdentity.js                Stable word key normalization
+wordIdentity.js                Stable word ID and legacy key migration helpers
 wordList.js                    Shared word-list helpers
 wordOrder.js                   Random and frequency-based ordering
 speechSyncController.js        Speech sync timing and user activation handling
@@ -442,3 +462,10 @@ package-lock.json              Locked npm dependency resolution for reproducible
 このアプリは個人学習とポートフォリオを目的としたプロジェクトです。
 
 単語データの管理元や管理用 URL は公開リポジトリに含めず、実装・認証・保存設計・UI・テスト構成を中心に確認できるようにしています。
+
+## Future Improvements
+
+- Consider switching Apps Script ID generation to `Utilities.getUuid()` if stronger uniqueness is needed.
+- Improve UI details for review flow and reload status.
+- Add screenshots for portfolio presentation.
+- Continue checking mobile and landscape layouts on real devices.
