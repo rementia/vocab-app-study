@@ -10,7 +10,8 @@ import {
 assert.strictEqual(normalizeWordKey(" Hello "), "hello");
 assert.strictEqual(makeWordKey({ id: "w_abcd1234", word: "Hello" }), "w_abcd1234");
 assert.strictEqual(makeWordKey({ word: "Hello" }), "hello");
-assert.strictEqual(makeWordKey({ id: "vol1-2-Hello" }), "vol1-2-hello");
+assert.strictEqual(makeWordKey({ id: "vol1-2-Hello" }), "");
+assert.strictEqual(makeWordKey({ id: "vol1-2-Hello", word: "Hello" }), "hello");
 assert.strictEqual(normalizeStoredWordKey("vol1-2-Hello"), "hello");
 assert.strictEqual(normalizeStoredWordKey("vol1::Ambulance"), "ambulance");
 assert.strictEqual(normalizeStoredWordKey("hello"), "hello");
