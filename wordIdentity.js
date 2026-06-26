@@ -7,7 +7,9 @@ export function normalizeWordKey(word) {
 }
 
 export function makeWordKey(item) {
-  return normalizeWordKey(item?.id || item?.word);
+  const id = normalizeWordKey(item?.id);
+  if (STABLE_WORD_ID_PATTERN.test(id)) return id;
+  return normalizeWordKey(item?.word);
 }
 
 function getLegacyWordKeys(item) {
