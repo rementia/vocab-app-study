@@ -37,6 +37,14 @@ assert.strictEqual(getReviewStats(legacyScores, stableIdItem).wrong, 2, "legacy 
 recordReviewAnswer(legacyScores, stableIdItem, true, 5000);
 assert.strictEqual(Boolean(legacyScores.w_stable1234), true, "new review answers should be saved under the stable id");
 assert.strictEqual(Boolean(legacyScores.hello), false, "legacy review keys should be migrated after the next answer");
+const scopedReviewScores = {
+  "vol1::delta": { correct: 0, wrong: 1, streakCorrect: 0, streakWrong: 1, lastAnsweredAt: 1000 }
+};
+assert.strictEqual(
+  getReviewStats(scopedReviewScores, { id: "w_delta001", word: "delta", legacyWordKey: "delta", sourceVol: "vol1" }).wrong,
+  1,
+  "vol-scoped legacy review stats should remain readable before migration"
+);
 const migrationReviewScores = { hello: { wrong: 1 } };
 assert.strictEqual(migrateLegacyReviewScores(migrationReviewScores, {
   vol1: [{ id: "w_hello001", word: "hello", legacyWordKey: "hello" }]

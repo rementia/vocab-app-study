@@ -10,7 +10,8 @@ import {
 const wordsByVol = {
   vol1: [
     { id: "vol1-1-alpha", word: "alpha", sourceVol: "vol1" },
-    { id: "vol1-2-beta", word: "beta", sourceVol: "vol1" }
+    { id: "vol1-2-beta", word: "beta", sourceVol: "vol1" },
+    { id: "w_delta001", word: "delta", legacyWordKey: "delta", sourceVol: "vol1" }
   ],
   vol2: [
     { id: "vol2-1-gamma", word: "gamma", sourceVol: "vol2" }
@@ -19,7 +20,8 @@ const wordsByVol = {
 
 const difficults = {
   beta: { addedAt: 1 },
-  gamma: { addedAt: 2 }
+  gamma: { addedAt: 2 },
+  "vol1::delta": { addedAt: 3 }
 };
 
 assert.strictEqual(isDifficult(difficults, wordsByVol.vol1[1]), true);
@@ -29,6 +31,12 @@ assert.strictEqual(
   true,
   "legacy word-key difficult records should remain readable when a stable id exists"
 );
+assert.strictEqual(
+  isDifficult(difficults, wordsByVol.vol1[2]),
+  true,
+  "vol-scoped legacy difficult records should remain readable before migration"
+);
+
 
 const legacyDifficults = { beta: { addedAt: 1 } };
 assert.strictEqual(migrateLegacyDifficultRecords(legacyDifficults, {
@@ -47,7 +55,7 @@ migrateLegacyDifficultRecords(duplicateDifficults, {
 assert.deepStrictEqual(duplicateDifficults, { w_beta001: { addedAt: 2 } });
 assert.deepStrictEqual(
   buildDifficultEntries(wordsByVol, ["vol1", "vol2"], difficults).map((item) => item.word),
-  ["beta", "gamma"]
+  ["beta", "delta", "gamma"]
 );
 
 let savedDifficults = null;

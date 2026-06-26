@@ -1,4 +1,4 @@
-import { makeWordKey, migrateLegacyWordRecords, normalizeWordKey } from "./wordIdentity.js";
+import { getWordRecordKey, makeWordKey, migrateLegacyWordRecords } from "./wordIdentity.js";
 import { buildMarkedWordEntries, clampIndex } from "./wordList.js";
 
 function makeFavoriteKey(item) {
@@ -6,12 +6,7 @@ function makeFavoriteKey(item) {
 }
 
 function getFavoriteRecordKey(favorites, item) {
-  const key = makeFavoriteKey(item);
-  if (favorites[key]) return key;
-  if (item?.legacyWordKey && favorites[item.legacyWordKey]) return item.legacyWordKey;
-  const wordKey = normalizeWordKey(item?.word);
-  if (wordKey && favorites[wordKey]) return wordKey;
-  return key;
+  return getWordRecordKey(favorites, item);
 }
 
 export function isFavorite(favorites, item) {

@@ -1,4 +1,4 @@
-import { makeWordKey, migrateLegacyWordRecords, normalizeWordKey } from "./wordIdentity.js";
+import { getWordRecordKey, makeWordKey, migrateLegacyWordRecords } from "./wordIdentity.js";
 import { buildMarkedWordEntries, clampIndex } from "./wordList.js";
 
 function makeDifficultKey(item) {
@@ -6,12 +6,7 @@ function makeDifficultKey(item) {
 }
 
 function getDifficultRecordKey(difficults, item) {
-  const key = makeDifficultKey(item);
-  if (difficults[key]) return key;
-  if (item?.legacyWordKey && difficults[item.legacyWordKey]) return item.legacyWordKey;
-  const wordKey = normalizeWordKey(item?.word);
-  if (wordKey && difficults[wordKey]) return wordKey;
-  return key;
+  return getWordRecordKey(difficults, item);
 }
 
 export function isDifficult(difficults, item) {

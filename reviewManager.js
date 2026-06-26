@@ -1,4 +1,4 @@
-import { makeWordKey, migrateLegacyWordRecords, normalizeWordKey } from "./wordIdentity.js";
+import { getWordRecordKey, makeWordKey, migrateLegacyWordRecords } from "./wordIdentity.js";
 
 const MIN_REVIEW_WEIGHT = 0.2;
 
@@ -6,14 +6,8 @@ function makeReviewKey(item) {
   return makeWordKey(item);
 }
 
-function getLegacyReviewKey(item) {
-  return item?.legacyWordKey || normalizeWordKey(item?.word);
-}
-
 function getReviewRecord(reviewScores, item) {
-  const key = makeReviewKey(item);
-  const legacyKey = getLegacyReviewKey(item);
-  return reviewScores[key] || (legacyKey && reviewScores[legacyKey]) || {};
+  return reviewScores[getWordRecordKey(reviewScores, item)] || {};
 }
 
 export function migrateLegacyReviewScores(reviewScores, allWordsByVol) {
@@ -48,8 +42,8 @@ export function getReviewStats(reviewScores, item) {
 
 export function recordReviewAnswer(reviewScores, item, isCorrect, answeredAt = Date.now()) {
   const key = makeReviewKey(item);
-  const legacyKey = getLegacyReviewKey(item);
-  const current = reviewScores[key] || (legacyKey && reviewScores[legacyKey]) || {};
+  const recordKey = getWordRecordKey(reviewScores, item);
+  const current = reviewScores[recordKey] || {};
   const next = {
     ...current,
     correct: Number(current.correct) || 0,
@@ -70,7 +64,7 @@ export function recordReviewAnswer(reviewScores, item, isCorrect, answeredAt = D
   }
 
   reviewScores[key] = next;
-  if (legacyKey && legacyKey !== key) delete reviewScores[legacyKey];
+  if (recordKey && recordKey !== key) delete reviewScores[recordKey];
   return getReviewStats(reviewScores, item);
 }
 
