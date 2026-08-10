@@ -19,6 +19,7 @@ export function renderApp(context, options = {}) {
   updateTranslationButton(context);
   updateMultipleChoiceButton(context);
   renderMultipleChoice(context);
+  updateMorphemeButton(context);
   updateAutoPlayButton(context);
   updateRandomButton(context);
   updateFrequencyButton(context);
@@ -159,6 +160,7 @@ export function renderCurrentWord(context) {
   renderWordText(context, current);
   updateMeaningDisplay(context, state.translationMode ? current.word : current.meaning);
   renderMultipleChoice(context);
+  updateMorphemeButton(context);
   updateCurrentStateMeta(context);
   if (state.multipleChoiceMode) {
     if (dom.pronunciationEl) dom.pronunciationEl.textContent = "";
@@ -178,6 +180,7 @@ function renderEmptyCurrentWord(context) {
   if (dom.prevHintEl) dom.prevHintEl.textContent = "";
   if (dom.nextHintEl) dom.nextHintEl.textContent = "";
   renderMultipleChoice(context);
+  updateMorphemeButton(context);
 
   updateFavoriteToggleButton(context);
   updateDifficultToggleButton(context);
@@ -484,6 +487,127 @@ export function renderMultipleChoice(context) {
     dom.multipleChoiceFeedbackEl.textContent = "";
   }
 }
+
+export function hasMorphemeInfo(item) {
+  return Boolean(
+    normalizeMorphemeText(item?.morpheme) ||
+    normalizeMorphemeText(item?.morphemeMeaning) ||
+    normalizeMorphemeText(item?.semanticDevelopment)
+  );
+}
+
+export function updateMorphemeButton(context) {
+  const state = getState(context);
+  const dom = getDom(context);
+  const callbacks = getCallbacks(context);
+  const button = dom.morphemeBtnEl;
+  if (!button) return;
+
+  const current = callbacks.getCurrentWord?.();
+  const shouldShow = Boolean(
+    current &&
+    hasMorphemeInfo(current) &&
+    !state.multipleChoiceMode &&
+    !isChallengeAnswerHidden(state, dom)
+  );
+
+  if (!shouldShow) {
+    button.hidden = true;
+    return;
+  }
+
+  moveMorphemeButton(button, getMorphemeSlot(dom));
+  button.hidden = false;
+  button.disabled = false;
+  button.setAttribute("aria-label", `${current.word} の語源を表示`);
+}
+
+export function openMorphemeDialog(context) {
+  const dom = getDom(context);
+  const current = getCallbacks(context).getCurrentWord?.();
+  if (!current || !hasMorphemeInfo(current) || !dom.morphemeDialogEl || !dom.morphemeDialogBodyEl) return;
+
+  dom.morphemeDialogBodyEl.innerHTML = "";
+  dom.morphemeDialogBodyEl.appendChild(createMorphemeWordHeading(current.word));
+  dom.morphemeDialogBodyEl.appendChild(createMorphemeDescriptionList(current));
+  dom.morphemeDialogEl.hidden = false;
+  dom.morphemeDialogCloseBtnEl?.focus();
+}
+
+export function closeMorphemeDialog(context) {
+  const dom = getDom(context);
+  if (!dom.morphemeDialogEl) return;
+
+  dom.morphemeDialogEl.hidden = true;
+  if (dom.morphemeDialogBodyEl) dom.morphemeDialogBodyEl.innerHTML = "";
+  if (dom.morphemeBtnEl && !dom.morphemeBtnEl.hidden) {
+    dom.morphemeBtnEl.focus();
+  }
+}
+
+export function isMorphemeDialogOpen(context) {
+  const dialog = getDom(context).morphemeDialogEl;
+  return Boolean(dialog && !dialog.hidden);
+}
+
+function normalizeMorphemeText(value) {
+  return String(value ?? "").trim();
+}
+
+function isChallengeAnswerHidden(state, dom) {
+  return Boolean(state.challengeMode && dom.meaningEl?.textContent === "・・・");
+}
+
+function getMorphemeSlot(dom) {
+  if (matchesMedia("(max-width: 768px) and (orientation: landscape), (max-height: 520px) and (orientation: landscape)")) {
+    return dom.morphemeSideSlotEl;
+  }
+
+  if (matchesMedia("(max-width: 520px) and (orientation: portrait)")) {
+    return dom.morphemeBottomSlotEl;
+  }
+
+  return dom.morphemeInlineSlotEl;
+}
+
+function matchesMedia(query) {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+  return window.matchMedia(query).matches;
+}
+
+function moveMorphemeButton(button, slot) {
+  if (!slot || button.parentElement === slot) return;
+  slot.appendChild(button);
+}
+
+function createMorphemeWordHeading(word) {
+  const heading = document.createElement("p");
+  heading.className = "morpheme-dialog-word";
+  heading.textContent = word;
+  return heading;
+}
+
+function createMorphemeDescriptionList(item) {
+  const list = document.createElement("dl");
+  list.className = "morpheme-dialog-list";
+
+  [
+    ["morpheme：形態素", item.morpheme],
+    ["morphemeMeaning：形態素の意味", item.morphemeMeaning],
+    ["semanticDevelopment：意味の展開", item.semanticDevelopment]
+  ].forEach(([label, value]) => {
+    const text = normalizeMorphemeText(value);
+    if (!text) return;
+
+    const term = document.createElement("dt");
+    term.textContent = label;
+    const detail = document.createElement("dd");
+    detail.textContent = text;
+    list.append(term, detail);
+  });
+
+  return list;
+}
 function updateMeaningDisplay(context, meaning) {
   const state = getState(context);
   const dom = getDom(context);
@@ -494,17 +618,21 @@ function updateMeaningDisplay(context, meaning) {
 
   if (state.multipleChoiceMode) {
     dom.meaningEl.textContent = "";
+    updateMorphemeButton(context);
     return;
   }
 
   if (!state.challengeMode) {
     dom.meaningEl.textContent = meaning;
+    updateMorphemeButton(context);
     return;
   }
 
   dom.meaningEl.textContent = "・・・";
+  updateMorphemeButton(context);
   callbacks.setMeaningRevealTimer(setTimeout(() => {
     dom.meaningEl.textContent = meaning;
+    updateMorphemeButton(context);
   }, state.challengeTime));
 }
 

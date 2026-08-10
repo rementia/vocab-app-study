@@ -49,7 +49,10 @@ import {
   updateFavoriteToggleButton as uiUpdateFavoriteToggleButton,
   updateDifficultToggleButton as uiUpdateDifficultToggleButton,
   applySidebarState as uiApplySidebarState,
-  updateAuthUI as uiUpdateAuthUI
+  updateAuthUI as uiUpdateAuthUI,
+  openMorphemeDialog as uiOpenMorphemeDialog,
+  closeMorphemeDialog as uiCloseMorphemeDialog,
+  isMorphemeDialogOpen as uiIsMorphemeDialogOpen
 } from './ui.js';
 import {
   buildFavoriteEntries,
@@ -121,6 +124,13 @@ const {
   meaningEl,
   progressEl,
   pronunciationEl,
+  morphemeBtnEl,
+  morphemeInlineSlotEl,
+  morphemeSideSlotEl,
+  morphemeBottomSlotEl,
+  morphemeDialogEl,
+  morphemeDialogBodyEl,
+  morphemeDialogCloseBtnEl,
   prevHintEl,
   nextHintEl,
   currentEl,
@@ -248,6 +258,13 @@ const uiContext = {
     meaningEl,
     progressEl,
     pronunciationEl,
+    morphemeBtnEl,
+    morphemeInlineSlotEl,
+    morphemeSideSlotEl,
+    morphemeBottomSlotEl,
+    morphemeDialogEl,
+    morphemeDialogBodyEl,
+    morphemeDialogCloseBtnEl,
     prevHintEl,
     nextHintEl,
     currentEl,
@@ -636,8 +653,33 @@ function bindWordActionButtons() {
   prevWordBtnEl?.addEventListener("click", prevWord);
   nextWordBtnEl?.addEventListener("click", nextWord);
   speakWordBtnEl?.addEventListener("click", handleSpeakCurrentWord);
+  morphemeBtnEl?.addEventListener("click", openMorphemeDialog);
+  morphemeDialogCloseBtnEl?.addEventListener("click", closeMorphemeDialog);
+  morphemeDialogEl?.addEventListener("click", handleMorphemeDialogBackdropClick);
+  document.addEventListener("keydown", handleMorphemeDialogKeydown);
   multipleChoiceOptionsEl?.addEventListener("click", handleMultipleChoiceOptionClick);
   document.querySelector(".center-box")?.addEventListener("click", handleAutoPlaySkipRequest);
+}
+
+function openMorphemeDialog() {
+  uiOpenMorphemeDialog(uiContext);
+}
+
+function closeMorphemeDialog() {
+  uiCloseMorphemeDialog(uiContext);
+}
+
+function handleMorphemeDialogBackdropClick(event) {
+  if (event.target === morphemeDialogEl) {
+    closeMorphemeDialog();
+  }
+}
+
+function handleMorphemeDialogKeydown(event) {
+  if (event.key !== "Escape" || !uiIsMorphemeDialogOpen(uiContext)) return;
+  event.preventDefault();
+  event.stopPropagation();
+  closeMorphemeDialog();
 }
 
 function bindSearchEvents() {
@@ -910,6 +952,8 @@ function lockAppUi(message) {
   if (meaningEl) meaningEl.textContent = "";
   if (progressEl) progressEl.textContent = "";
   if (pronunciationEl) pronunciationEl.textContent = "";
+  if (morphemeBtnEl) morphemeBtnEl.hidden = true;
+  closeMorphemeDialog();
   if (prevHintEl) prevHintEl.textContent = "";
   if (nextHintEl) nextHintEl.textContent = "";
 

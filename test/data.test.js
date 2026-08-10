@@ -25,6 +25,9 @@ assert.deepStrictEqual(parsedWords[0], {
   id: "hello",
   word: "hello",
   meaning: "こんにちは",
+  morpheme: "",
+  morphemeMeaning: "",
+  semanticDevelopment: "",
   legacyWordKey: "hello",
   sourceVol: "vol1"
 });
@@ -32,6 +35,9 @@ assert.deepStrictEqual(parsedWords[1], {
   id: "good,bye",
   word: "good,bye",
   meaning: "さようなら",
+  morpheme: "",
+  morphemeMeaning: "",
+  semanticDevelopment: "",
   legacyWordKey: "good,bye",
   sourceVol: "vol1"
 });
@@ -39,6 +45,9 @@ assert.deepStrictEqual(parsedWords[2], {
   id: "quote\"test",
   word: "quote\"test",
   meaning: "テスト",
+  morpheme: "",
+  morphemeMeaning: "",
+  semanticDevelopment: "",
   legacyWordKey: "quote\"test",
   sourceVol: "vol1"
 });
@@ -50,6 +59,9 @@ assert.deepStrictEqual(parsedSheetWords, [
     id: "create",
     word: "create",
     meaning: "作る",
+    morpheme: "",
+    morphemeMeaning: "",
+    semanticDevelopment: "",
     legacyWordKey: "create",
     sourceVol: "vol2"
   },
@@ -57,6 +69,9 @@ assert.deepStrictEqual(parsedSheetWords, [
     id: "study",
     word: "study",
     meaning: "勉強する",
+    morpheme: "",
+    morphemeMeaning: "",
+    semanticDevelopment: "",
     legacyWordKey: "study",
     sourceVol: "vol2"
   }
@@ -69,6 +84,9 @@ assert.deepStrictEqual(stableIdWords, [
     id: "w_abcd1234",
     word: "create",
     meaning: "作る",
+    morpheme: "",
+    morphemeMeaning: "",
+    semanticDevelopment: "",
     legacyWordKey: "create",
     sourceVol: "vol3"
   },
@@ -76,10 +94,27 @@ assert.deepStrictEqual(stableIdWords, [
     id: "study",
     word: "study",
     meaning: "勉強する",
+    morpheme: "",
+    morphemeMeaning: "",
+    semanticDevelopment: "",
     legacyWordKey: "study",
     sourceVol: "vol3"
   }
 ], "parseCsvToWords should prefer stable id values and fall back to word when id is blank");
+
+const morphemeCsv = "word,meaning,morpheme,morphemeMeaning,semanticDevelopment\ntransport,運ぶ,trans+port,across+carry,carry across a distance\nempty,空欄,,,\n";
+const morphemeWords = parseCsvToWords(morphemeCsv, "vol4");
+assert.deepStrictEqual(morphemeWords[0], {
+  id: "transport",
+  word: "transport",
+  meaning: "運ぶ",
+  morpheme: "trans+port",
+  morphemeMeaning: "across+carry",
+  semanticDevelopment: "carry across a distance",
+  legacyWordKey: "transport",
+  sourceVol: "vol4"
+}, "parseCsvToWords should read optional morpheme columns when present");
+assert.strictEqual(morphemeWords[1].morpheme, "", "blank morpheme cells should remain safe empty strings");
 
 assert.strictEqual(
   formatFirestoreSyncValue(new Date("2026-06-20T00:00:00.000Z")),

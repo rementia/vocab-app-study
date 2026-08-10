@@ -5,6 +5,9 @@ export const availableVolumes = Object.fromEntries(volOrder.map((vol) => [vol, t
 const ID_COLUMN_NAMES = ["id", "wordid", "word_id", "word id", "単語id"];
 const WORD_COLUMN_NAMES = ["word", "単語"];
 const MEANING_COLUMN_NAMES = ["meaning", "意味"];
+const MORPHEME_COLUMN_NAMES = ["morpheme"];
+const MORPHEME_MEANING_COLUMN_NAMES = ["morphememeaning", "morpheme_meaning", "morpheme meaning"];
+const SEMANTIC_DEVELOPMENT_COLUMN_NAMES = ["semanticdevelopment", "semantic_development", "semantic development"];
 const SYNC_TIME_FIELD_NAMES = ["syncedAt", "updatedAt", "lastSyncedAt"];
 
 function stripBom(text) {
@@ -82,6 +85,9 @@ function createColumnReader(rows) {
   const idIndex = hasHeader ? getHeaderIndex(headerRow, ID_COLUMN_NAMES) : -1;
   const wordIndex = hasHeader ? getHeaderIndex(headerRow, WORD_COLUMN_NAMES) : 0;
   const meaningIndex = hasHeader ? getHeaderIndex(headerRow, MEANING_COLUMN_NAMES) : 1;
+  const morphemeIndex = hasHeader ? getHeaderIndex(headerRow, MORPHEME_COLUMN_NAMES) : -1;
+  const morphemeMeaningIndex = hasHeader ? getHeaderIndex(headerRow, MORPHEME_MEANING_COLUMN_NAMES) : -1;
+  const semanticDevelopmentIndex = hasHeader ? getHeaderIndex(headerRow, SEMANTIC_DEVELOPMENT_COLUMN_NAMES) : -1;
 
   return {
     startIndex: hasHeader ? 1 : 0,
@@ -90,7 +96,10 @@ function createColumnReader(rows) {
     readMeaning: (cols) => {
       if (meaningIndex >= 0) return cols[meaningIndex] || "";
       return cols.slice(1).filter(Boolean).join(", ").trim();
-    }
+    },
+    readMorpheme: (cols) => (morphemeIndex >= 0 ? cols[morphemeIndex] || "" : ""),
+    readMorphemeMeaning: (cols) => (morphemeMeaningIndex >= 0 ? cols[morphemeMeaningIndex] || "" : ""),
+    readSemanticDevelopment: (cols) => (semanticDevelopmentIndex >= 0 ? cols[semanticDevelopmentIndex] || "" : "")
   };
 }
 
@@ -108,6 +117,9 @@ function createWordItem(cols, columnReader, volName) {
     id: normalizeWordKey(stableId || word),
     word,
     meaning,
+    morpheme: columnReader.readMorpheme(cols),
+    morphemeMeaning: columnReader.readMorphemeMeaning(cols),
+    semanticDevelopment: columnReader.readSemanticDevelopment(cols),
     legacyWordKey: normalizeWordKey(word),
     sourceVol: volName
   };

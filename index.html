@@ -171,6 +171,7 @@
           <input type="range" id="displayTimeSlider" min="1" max="5" step="0.5" value="1.5">
         </div>
       </div>
+      <div class="morpheme-slot morpheme-slot-side" id="morphemeSideSlot"></div>
     </div>
 
     <main class="main">
@@ -205,6 +206,7 @@
           <div class="word-slide-card">
             <div id="word" aria-live="polite">読み込み中...</div>
             <div id="meaning" aria-live="polite"></div>
+            <div class="morpheme-slot morpheme-slot-inline" id="morphemeInlineSlot"></div>
           </div>
 
           <div class="multiple-choice-panel" id="multipleChoicePanel" hidden>
@@ -228,12 +230,47 @@
             </div>
           </div>
 
+          <div class="morpheme-slot morpheme-slot-bottom" id="morphemeBottomSlot"></div>
+
           <div class="help-line">
             ← → : 前後移動　｜　Space : 発音　｜　F : ☆　｜　D : △　｜　/ : 検索　｜　Enter : 検索巡回　｜　L : 一覧　｜　R : 乱数配列　｜　Esc : 解除
           </div>
         </div>
       </div>
     </main>
+  </div>
+
+  <button
+    class="control-btn morpheme-btn"
+    id="morphemeBtn"
+    type="button"
+    hidden
+  >
+    語源
+  </button>
+
+  <div
+    class="morpheme-dialog-backdrop"
+    id="morphemeDialog"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="morphemeDialogTitle"
+    hidden
+  >
+    <div class="morpheme-dialog-panel">
+      <div class="morpheme-dialog-header">
+        <h2 id="morphemeDialogTitle">語源</h2>
+        <button
+          class="control-btn morpheme-dialog-close"
+          id="morphemeDialogCloseBtn"
+          type="button"
+          aria-label="語源ダイアログを閉じる"
+        >
+          ×
+        </button>
+      </div>
+      <div class="morpheme-dialog-body" id="morphemeDialogBody"></div>
+    </div>
   </div>
 
   <script type="module" src="bootstrap.js"></script>
