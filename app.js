@@ -1,4 +1,5 @@
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-auth.js";
+import { auth, db, provider } from './firebaseClient.js';
 import { availableVolumes, fetchWordsForVol, fetchWordsForVolWithMeta } from './data.js?v=20260812-3';
 import { getDomElements } from './dom.js';
 import {
