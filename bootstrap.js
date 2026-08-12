@@ -1,4 +1,4 @@
-import { init, finishInitialLoading } from './app.js?v=20260812-3';
+import { init, finishInitialLoading } from './app.js?v=20260813-1';
 
 (async () => {
   try {
