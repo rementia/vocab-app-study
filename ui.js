@@ -528,7 +528,6 @@ export function updateMorphemeButton(context) {
   const current = callbacks.getCurrentWord?.();
   const shouldShow = Boolean(
     current &&
-    hasMorphemeInfo(current) &&
     !state.multipleChoiceMode &&
     !isChallengeAnswerHidden(state, dom)
   );
@@ -541,14 +540,14 @@ export function updateMorphemeButton(context) {
   moveMorphemeButton(button, getMorphemeSlot(dom));
   button.hidden = false;
   button.disabled = false;
-  button.textContent = "単語情報";
-  button.setAttribute("aria-label", `${current.word} の単語情報を表示`);
+  button.textContent = "語源・形態素";
+  button.setAttribute("aria-label", `${current.word} の語源・形態素を表示`);
 }
 
 export function openMorphemeDialog(context) {
   const dom = getDom(context);
   const current = getCallbacks(context).getCurrentWord?.();
-  if (!current || !hasMorphemeInfo(current) || !dom.morphemeDialogEl || !dom.morphemeDialogBodyEl) return;
+  if (!current || !dom.morphemeDialogEl || !dom.morphemeDialogBodyEl) return;
 
   dom.morphemeDialogBodyEl.innerHTML = "";
   dom.morphemeDialogBodyEl.appendChild(createMorphemeWordHeading(current.word));
@@ -613,23 +612,33 @@ function createMorphemeWordHeading(word) {
 function createMorphemeDescriptionList(item) {
   const list = document.createElement("dl");
   list.className = "morpheme-dialog-list";
+  let hasDetails = false;
 
   [
-    ["partOfSpeech：品詞", item.partOfSpeech],
-    ["semanticCategory：意味カテゴリ", item.semanticCategory],
     ["morpheme：形態素", item.morpheme],
     ["morphemeMeaning：形態素の意味", item.morphemeMeaning],
-    ["semanticDevelopment：意味の展開", item.semanticDevelopment]
+    ["semanticDevelopment：意味の展開", item.semanticDevelopment],
+    ["partOfSpeech：品詞", item.partOfSpeech],
+    ["semanticCategory：意味カテゴリ", item.semanticCategory]
   ].forEach(([label, value]) => {
     const text = normalizeMorphemeText(value);
     if (!text) return;
 
+    hasDetails = true;
     const term = document.createElement("dt");
     term.textContent = label;
     const detail = document.createElement("dd");
     detail.textContent = text;
     list.append(term, detail);
   });
+
+  if (!hasDetails) {
+    const term = document.createElement("dt");
+    term.textContent = "語源・形態素";
+    const detail = document.createElement("dd");
+    detail.textContent = "この単語には語源・形態素データがまだ登録されていません。";
+    list.append(term, detail);
+  }
 
   return list;
 }

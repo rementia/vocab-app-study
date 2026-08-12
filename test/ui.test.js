@@ -433,8 +433,20 @@ const morphemeVisibleContext = {
 };
 updateMorphemeButton(morphemeVisibleContext);
 assert.strictEqual(morphemeButton.hidden, false, "morpheme button should be shown when morpheme info exists");
-assert.strictEqual(morphemeButton.textContent, "単語情報", "morpheme button should label the expanded word details");
+assert.strictEqual(morphemeButton.textContent, "語源・形態素", "morpheme button should label the etymology details");
 assert.strictEqual(morphemeInlineSlot.children[0], morphemeButton, "desktop/tablet placement should use the inline slot");
+
+const morphemeNoInfoContext = {
+  ...morphemeVisibleContext,
+  callbacks: {
+    getCurrentWord: () => ({
+      word: "plain",
+      meaning: "普通の"
+    })
+  }
+};
+updateMorphemeButton(morphemeNoInfoContext);
+assert.strictEqual(morphemeButton.hidden, false, "morpheme button should be shown even before morpheme info is registered");
 
 const morphemeMultipleChoiceContext = {
   ...morphemeVisibleContext,
@@ -487,13 +499,39 @@ assert.deepStrictEqual(
     .filter((child, index) => index % 2 === 0)
     .map((term) => term.textContent),
   [
-    "partOfSpeech：品詞",
-    "semanticCategory：意味カテゴリ",
     "morpheme：形態素",
     "morphemeMeaning：形態素の意味",
-    "semanticDevelopment：意味の展開"
+    "semanticDevelopment：意味の展開",
+    "partOfSpeech：品詞",
+    "semanticCategory：意味カテゴリ"
   ],
   "morpheme dialog should render the requested word detail labels"
+);
+
+const emptyMorphemeDialog = makeMockElement();
+const emptyMorphemeDialogBody = makeMockElement();
+openMorphemeDialog({
+  ...morphemeVisibleContext,
+  dom: {
+    ...morphemeVisibleContext.dom,
+    morphemeDialogEl: emptyMorphemeDialog,
+    morphemeDialogBodyEl: emptyMorphemeDialogBody
+  },
+  callbacks: {
+    getCurrentWord: () => ({
+      word: "plain",
+      meaning: "普通の"
+    })
+  }
+});
+assert.strictEqual(emptyMorphemeDialog.hidden, false, "morpheme dialog should open even before morpheme info is registered");
+assert.deepStrictEqual(
+  emptyMorphemeDialogBody.children[1].children.map((child) => child.textContent),
+  [
+    "語源・形態素",
+    "この単語には語源・形態素データがまだ登録されていません。"
+  ],
+  "morpheme dialog should explain when no morpheme info is registered"
 );
 
 console.log("All UI tests passed.");
