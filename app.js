@@ -1,9 +1,6 @@
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-auth.js";
 import { availableVolumes, fetchWordsForVol, fetchWordsForVolWithMeta } from './data.js?v=20260812-3';
 import { getDomElements } from './dom.js';
-import { SHEET_SYNC_TOKEN, SHEET_SYNC_WEB_APP_URL } from './syncConfig.js?v=20260812-3';
-import { syncSheetToFirestore } from './sheetSyncService.js?v=20260812-3';
-import { auth, db, provider } from './firebaseClient.js';
 import {
   USER_MARKS_COLLECTION,
   volOrder,
@@ -1219,11 +1216,8 @@ async function handleReloadWords() {
       wordsByVol: reloadedWordsByVol,
       metaByVol
     });
-    const statusMessage = sheetSyncResult.skipped
-      ? `${reloadMessage}。${sheetSyncResult.message}`
-      : reloadMessage;
     setReloadWordsStatus(
-      statusMessage,
+      reloadMessage,
       { clearAfterMs: 4000 }
     );
   } catch (error) {
