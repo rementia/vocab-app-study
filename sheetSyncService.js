@@ -41,6 +41,13 @@ export async function syncSheetToFirestore({ url, token, fetchFn = fetch }) {
   try {
     data = await response.json();
   } catch {
+    if (!response.ok) {
+      return {
+        ok: false,
+        error: `Apps Script同期URLまたはWeb Appデプロイが無効です (${response.status})`
+      };
+    }
+
     return {
       ok: false,
       error: "Apps Script同期レスポンスを読み取れませんでした"

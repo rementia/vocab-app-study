@@ -39,7 +39,7 @@ assert.strictEqual(
       vol1: [{ id: "a" }, { id: "b" }]
     }
   }),
-  "vol1 を再読み込みしました（2語）",
+  "vol1 を再読み込みしました（2語 / 分類情報なし）",
   "single volume reload summary should include volume name and count"
 );
 
@@ -51,7 +51,7 @@ assert.strictEqual(
       vol2: [{ id: "b" }, { id: "c" }]
     }
   }),
-  "全volumeを再読み込みしました（合計3語）",
+  "全volumeを再読み込みしました（合計3語 / 分類情報なし）",
   "multi-volume reload summary should include total count"
 );
 
@@ -65,8 +65,22 @@ assert.strictEqual(
       vol1: { syncLabel: "2026-06-20T00:00:00.000Z" }
     }
   }),
-  "vol1 を再読み込みしました（1語 / 同期: 2026-06-20T00:00:00.000Z）",
+  "vol1 を再読み込みしました（1語 / 同期: 2026-06-20T00:00:00.000Z / 分類情報なし）",
   "reload summary should include optional sync metadata"
+);
+
+assert.strictEqual(
+  formatReloadSuccessMessage({
+    volumes: ["vol1"],
+    wordsByVol: {
+      vol1: [
+        { id: "a", partOfSpeech: "verb", semanticCategory: "action_activity" },
+        { id: "b" }
+      ]
+    }
+  }),
+  "vol1 を再読み込みしました（2語 / 分類: 1/2語）",
+  "reload summary should show how many words include classification metadata"
 );
 
 console.log("All word reload service tests passed.");

@@ -17,6 +17,20 @@ function getTotalWordCount(volumes, wordsByVol) {
   return volumes.reduce((total, volName) => total + (wordsByVol[volName] || []).length, 0);
 }
 
+function hasClassificationInfo(item) {
+  return Boolean(
+    String(item?.partOfSpeech ?? "").trim() ||
+    String(item?.semanticCategory ?? "").trim()
+  );
+}
+
+function getClassificationCount(volumes, wordsByVol) {
+  return volumes.reduce(
+    (total, volName) => total + (wordsByVol[volName] || []).filter(hasClassificationInfo).length,
+    0
+  );
+}
+
 function getSyncMessagePart(volumes, metaByVol) {
   const syncLabels = volumes
     .map((volName) => metaByVol?.[volName]?.syncLabel)
@@ -32,12 +46,22 @@ function getSyncMessagePart(volumes, metaByVol) {
   return " / 同期情報あり";
 }
 
+function getClassificationMessagePart(volumes, wordsByVol) {
+  const total = getTotalWordCount(volumes, wordsByVol);
+  if (!total) return "";
+
+  const classified = getClassificationCount(volumes, wordsByVol);
+  return classified > 0
+    ? ` / 分類: ${classified}/${total}語`
+    : " / 分類情報なし";
+}
+
 export function formatReloadSuccessMessage({ volumes, wordsByVol, metaByVol = {} }) {
   if (volumes.length === 1) {
     const volName = volumes[0];
     const count = (wordsByVol[volName] || []).length;
-    return `${volName} を再読み込みしました（${count}語${getSyncMessagePart(volumes, metaByVol)}）`;
+    return `${volName} を再読み込みしました（${count}語${getSyncMessagePart(volumes, metaByVol)}${getClassificationMessagePart(volumes, wordsByVol)}）`;
   }
 
-  return `全volumeを再読み込みしました（合計${getTotalWordCount(volumes, wordsByVol)}語${getSyncMessagePart(volumes, metaByVol)}）`;
+  return `全volumeを再読み込みしました（合計${getTotalWordCount(volumes, wordsByVol)}語${getSyncMessagePart(volumes, metaByVol)}${getClassificationMessagePart(volumes, wordsByVol)}）`;
 }

@@ -73,4 +73,21 @@ assert.deepStrictEqual(failureResult, {
   error: "Invalid token"
 });
 
+const missingDeploymentResult = await syncSheetToFirestore({
+  url: "https://script.google.com/macros/s/missing/exec",
+  token: "token",
+  fetchFn: async () => ({
+    ok: false,
+    status: 404,
+    json: async () => {
+      throw new Error("HTML response");
+    }
+  })
+});
+
+assert.deepStrictEqual(missingDeploymentResult, {
+  ok: false,
+  error: "Apps Script同期URLまたはWeb Appデプロイが無効です (404)"
+});
+
 console.log("All sheet sync service tests passed.");
