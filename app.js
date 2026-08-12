@@ -1,8 +1,8 @@
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-auth.js";
-import { availableVolumes, fetchWordsForVol, fetchWordsForVolWithMeta } from './data.js';
+import { availableVolumes, fetchWordsForVol, fetchWordsForVolWithMeta } from './data.js?v=20260812-3';
 import { getDomElements } from './dom.js';
-import { SHEET_SYNC_TOKEN, SHEET_SYNC_WEB_APP_URL } from './syncConfig.js';
-import { syncSheetToFirestore } from './sheetSyncService.js';
+import { SHEET_SYNC_TOKEN, SHEET_SYNC_WEB_APP_URL } from './syncConfig.js?v=20260812-3';
+import { syncSheetToFirestore } from './sheetSyncService.js?v=20260812-3';
 import { auth, db, provider } from './firebaseClient.js';
 import {
   USER_MARKS_COLLECTION,
