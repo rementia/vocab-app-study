@@ -1139,11 +1139,7 @@ async function ensureVolLoaded(volName) {
 }
 
 function getReloadTargetVolumes() {
-  if (currentMode === "favorites" || currentMode === "difficults") {
-    return volOrder;
-  }
-
-  return [currentVol];
+  return volOrder;
 }
 
 async function reloadWordsForVolumes(volumes) {
@@ -1198,19 +1194,9 @@ async function handleReloadWords() {
   }
 
   setReloadWordsInProgress(true);
-  setReloadWordsStatus("スプレッドシート同期中...");
+  setReloadWordsStatus("Firestore再読み込み中...");
 
   try {
-    const sheetSyncResult = await syncSheetToFirestore({
-      url: SHEET_SYNC_WEB_APP_URL,
-      token: SHEET_SYNC_TOKEN
-    });
-
-    if (!sheetSyncResult.ok) {
-      setReloadWordsStatus(`Apps Script同期に失敗しました: ${sheetSyncResult.error}`);
-      return;
-    }
-
     setReloadWordsStatus("Firestore再読み込み中...");
     const { wordsByVol: reloadedWordsByVol, metaByVol } = await reloadWordsForVolumes(targetVolumes);
     allWordsByVol = {
