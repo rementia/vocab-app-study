@@ -35,20 +35,34 @@ function hasChoiceText(item, options) {
   return Boolean(getMultipleChoiceAnswerText(item, options));
 }
 
-export function collectMultipleChoiceDistractors({
-  current,
-  allWordsByVol,
-  volOrder,
-  translationMode
-}) {
-  const options = { translationMode };
-  const correctText = getMultipleChoiceAnswerText(current, options);
-  const sameVolCandidates = (allWordsByVol[current.sourceVol] || [])
-    .filter((item) => !sameWord(item, current) && hasChoiceText(item, options));
-  const allCandidates = getAllLoadedWords(allWordsByVol, volOrder)
-    .filter((item) => !sameWord(item, current) && hasChoiceText(item, options));
+function normalizeMetadata(value) {
+  return String(value ?? "").trim().toLowerCase();
+}
 
-  return [...sameVolCandidates, ...allCandidates].reduce((unique, item) => {
+function getDistractorPriority(current, item) {
+  const currentPartOfSpeech = normalizeMetadata(current?.partOfSpeech);
+  const candidatePartOfSpeech = normalizeMetadata(item?.partOfSpeech);
+  const currentSemanticCategory = normalizeMetadata(current?.semanticCategory);
+  const candidateSemanticCategory = normalizeMetadata(item?.semanticCategory);
+  const hasSamePartOfSpeech = Boolean(
+    currentPartOfSpeech &&
+    candidatePartOfSpeech &&
+    currentPartOfSpeech === candidatePartOfSpeech
+  );
+  const hasSameSemanticCategory = Boolean(
+    currentSemanticCategory &&
+    candidateSemanticCategory &&
+    currentSemanticCategory === candidateSemanticCategory
+  );
+
+  if (hasSamePartOfSpeech && hasSameSemanticCategory) return 0;
+  if (hasSamePartOfSpeech) return 1;
+  if (hasSameSemanticCategory) return 2;
+  return 3;
+}
+
+function uniqueByChoiceText(candidates, correctText, options) {
+  return candidates.reduce((unique, item) => {
     const choiceText = getMultipleChoiceAnswerText(item, options);
     if (
       !choiceText ||
@@ -62,6 +76,43 @@ export function collectMultipleChoiceDistractors({
   }, []);
 }
 
+function sortCandidatesByMetadataPriority(current, candidates) {
+  return candidates
+    .map((item, index) => ({
+      item,
+      index,
+      priority: getDistractorPriority(current, item)
+    }))
+    .sort((a, b) => a.priority - b.priority || a.index - b.index)
+    .map(({ item }) => item);
+}
+
+function shuffleWithinMetadataPriority(current, candidates, shuffle) {
+  return [0, 1, 2, 3].flatMap((priority) => {
+    const bucket = candidates.filter((item) => getDistractorPriority(current, item) === priority);
+    return shuffle(bucket);
+  });
+}
+
+export function collectMultipleChoiceDistractors({
+  current,
+  allWordsByVol,
+  volOrder,
+  translationMode
+}) {
+  const options = { translationMode };
+  const correctText = getMultipleChoiceAnswerText(current, options);
+  const sameVolCandidates = (allWordsByVol[current.sourceVol] || [])
+    .filter((item) => !sameWord(item, current) && hasChoiceText(item, options));
+  const allCandidates = getAllLoadedWords(allWordsByVol, volOrder)
+    .filter((item) => !sameWord(item, current) && hasChoiceText(item, options));
+
+  return sortCandidatesByMetadataPriority(
+    current,
+    uniqueByChoiceText([...sameVolCandidates, ...allCandidates], correctText, options)
+  );
+}
+
 export function buildMultipleChoiceQuestion({
   current,
   allWordsByVol,
@@ -73,12 +124,16 @@ export function buildMultipleChoiceQuestion({
   const correctText = getMultipleChoiceAnswerText(current, options);
   if (!current || !correctText) return null;
 
-  const distractors = shuffle(collectMultipleChoiceDistractors({
+  const distractors = shuffleWithinMetadataPriority(
     current,
-    allWordsByVol,
-    volOrder,
-    translationMode
-  })).slice(0, 3);
+    collectMultipleChoiceDistractors({
+      current,
+      allWordsByVol,
+      volOrder,
+      translationMode
+    }),
+    shuffle
+  ).slice(0, 3);
   const choices = shuffle([
     { text: correctText, secondaryText: getMultipleChoiceSecondaryText(current, options), isCorrect: true },
     ...distractors.map((item) => ({

@@ -106,14 +106,16 @@ Each sheet's first row is treated as the CSV header.
 Use one sheet, for example `words`, with a `level` column:
 
 ```txt
-word,meaning,level
-abandon,捨てる,vol1
-expand,拡大する,vol2
+word,meaning,level,morpheme,morphemeMeaning,semanticDevelopment,partOfSpeech,semanticCategory
+abandon,捨てる,vol1,a- + bandon,away + control,支配から離して手放す,verb,action_activity
+expand,拡大する,vol2,ex- + pand,out + spread,外へ広げる,verb,change
 ```
 
 Rows are split into `vol1`, `vol2`, `vol3`, and `vol4` by the configured `level` column.
 
 `level` values such as `1`, `2`, `3`, `4`, `vol1`, `vol2`, `vol3`, and `vol4` are normalized before grouping.
+
+The single-sheet export keeps these optional study columns when present: `morpheme`, `morphemeMeaning`, `semanticDevelopment`, `partOfSpeech`, and `semanticCategory`. Missing optional columns are exported as blank cells so older sheets remain compatible.
 
 
 ## Stable Word IDs

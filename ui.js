@@ -492,7 +492,9 @@ export function hasMorphemeInfo(item) {
   return Boolean(
     normalizeMorphemeText(item?.morpheme) ||
     normalizeMorphemeText(item?.morphemeMeaning) ||
-    normalizeMorphemeText(item?.semanticDevelopment)
+    normalizeMorphemeText(item?.semanticDevelopment) ||
+    normalizeMorphemeText(item?.partOfSpeech) ||
+    normalizeMorphemeText(item?.semanticCategory)
   );
 }
 
@@ -519,7 +521,8 @@ export function updateMorphemeButton(context) {
   moveMorphemeButton(button, getMorphemeSlot(dom));
   button.hidden = false;
   button.disabled = false;
-  button.setAttribute("aria-label", `${current.word} の語源を表示`);
+  button.textContent = "単語情報";
+  button.setAttribute("aria-label", `${current.word} の単語情報を表示`);
 }
 
 export function openMorphemeDialog(context) {
@@ -592,6 +595,8 @@ function createMorphemeDescriptionList(item) {
   list.className = "morpheme-dialog-list";
 
   [
+    ["partOfSpeech：品詞", item.partOfSpeech],
+    ["semanticCategory：意味カテゴリ", item.semanticCategory],
     ["morpheme：形態素", item.morpheme],
     ["morphemeMeaning：形態素の意味", item.morphemeMeaning],
     ["semanticDevelopment：意味の展開", item.semanticDevelopment]

@@ -382,6 +382,7 @@ assert.strictEqual(unrevealedChoiceContext.dom.multipleChoiceOptionsEl.children[
 
 assert.strictEqual(hasMorphemeInfo({ morpheme: "", morphemeMeaning: "", semanticDevelopment: "" }), false);
 assert.strictEqual(hasMorphemeInfo({ semanticDevelopment: "語義が広がる" }), true);
+assert.strictEqual(hasMorphemeInfo({ partOfSpeech: "verb", semanticCategory: "action_activity" }), true);
 
 const morphemeButton = makeMockElement();
 const morphemeInlineSlot = makeMockElement();
@@ -408,6 +409,7 @@ const morphemeVisibleContext = {
 };
 updateMorphemeButton(morphemeVisibleContext);
 assert.strictEqual(morphemeButton.hidden, false, "morpheme button should be shown when morpheme info exists");
+assert.strictEqual(morphemeButton.textContent, "単語情報", "morpheme button should label the expanded word details");
 assert.strictEqual(morphemeInlineSlot.children[0], morphemeButton, "desktop/tablet placement should use the inline slot");
 
 const morphemeMultipleChoiceContext = {
@@ -446,6 +448,8 @@ const morphemeDialogContext = {
   callbacks: {
     getCurrentWord: () => ({
       word: "transport",
+      partOfSpeech: "verb",
+      semanticCategory: "movement",
       morpheme: "trans+port",
       morphemeMeaning: "across+carry",
       semanticDevelopment: "carry across a distance"
@@ -458,8 +462,14 @@ assert.deepStrictEqual(
   morphemeDialogBody.children[1].children
     .filter((child, index) => index % 2 === 0)
     .map((term) => term.textContent),
-  ["morpheme：形態素", "morphemeMeaning：形態素の意味", "semanticDevelopment：意味の展開"],
-  "morpheme dialog should render the requested field labels"
+  [
+    "partOfSpeech：品詞",
+    "semanticCategory：意味カテゴリ",
+    "morpheme：形態素",
+    "morphemeMeaning：形態素の意味",
+    "semanticDevelopment：意味の展開"
+  ],
+  "morpheme dialog should render the requested word detail labels"
 );
 
 console.log("All UI tests passed.");

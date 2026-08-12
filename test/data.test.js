@@ -28,6 +28,8 @@ assert.deepStrictEqual(parsedWords[0], {
   morpheme: "",
   morphemeMeaning: "",
   semanticDevelopment: "",
+  partOfSpeech: "",
+  semanticCategory: "",
   legacyWordKey: "hello",
   sourceVol: "vol1"
 });
@@ -38,6 +40,8 @@ assert.deepStrictEqual(parsedWords[1], {
   morpheme: "",
   morphemeMeaning: "",
   semanticDevelopment: "",
+  partOfSpeech: "",
+  semanticCategory: "",
   legacyWordKey: "good,bye",
   sourceVol: "vol1"
 });
@@ -48,6 +52,8 @@ assert.deepStrictEqual(parsedWords[2], {
   morpheme: "",
   morphemeMeaning: "",
   semanticDevelopment: "",
+  partOfSpeech: "",
+  semanticCategory: "",
   legacyWordKey: "quote\"test",
   sourceVol: "vol1"
 });
@@ -62,6 +68,8 @@ assert.deepStrictEqual(parsedSheetWords, [
     morpheme: "",
     morphemeMeaning: "",
     semanticDevelopment: "",
+    partOfSpeech: "",
+    semanticCategory: "",
     legacyWordKey: "create",
     sourceVol: "vol2"
   },
@@ -72,6 +80,8 @@ assert.deepStrictEqual(parsedSheetWords, [
     morpheme: "",
     morphemeMeaning: "",
     semanticDevelopment: "",
+    partOfSpeech: "",
+    semanticCategory: "",
     legacyWordKey: "study",
     sourceVol: "vol2"
   }
@@ -87,6 +97,8 @@ assert.deepStrictEqual(stableIdWords, [
     morpheme: "",
     morphemeMeaning: "",
     semanticDevelopment: "",
+    partOfSpeech: "",
+    semanticCategory: "",
     legacyWordKey: "create",
     sourceVol: "vol3"
   },
@@ -97,6 +109,8 @@ assert.deepStrictEqual(stableIdWords, [
     morpheme: "",
     morphemeMeaning: "",
     semanticDevelopment: "",
+    partOfSpeech: "",
+    semanticCategory: "",
     legacyWordKey: "study",
     sourceVol: "vol3"
   }
@@ -111,10 +125,17 @@ assert.deepStrictEqual(morphemeWords[0], {
   morpheme: "trans+port",
   morphemeMeaning: "across+carry",
   semanticDevelopment: "carry across a distance",
+  partOfSpeech: "",
+  semanticCategory: "",
   legacyWordKey: "transport",
   sourceVol: "vol4"
 }, "parseCsvToWords should read optional morpheme columns when present");
 assert.strictEqual(morphemeWords[1].morpheme, "", "blank morpheme cells should remain safe empty strings");
+
+const classificationCsv = "word,meaning,partOfSpeech,semanticCategory\nabandon,捨てる,verb,action_activity\n";
+const classificationWords = parseCsvToWords(classificationCsv, "vol4");
+assert.strictEqual(classificationWords[0].partOfSpeech, "verb", "partOfSpeech should be read when present");
+assert.strictEqual(classificationWords[0].semanticCategory, "action_activity", "semanticCategory should be read when present");
 
 assert.strictEqual(
   formatFirestoreSyncValue(new Date("2026-06-20T00:00:00.000Z")),

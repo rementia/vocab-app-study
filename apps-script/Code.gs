@@ -33,6 +33,13 @@ const CONFIG = {
 };
 
 const ID_COLUMN_NAMES = ["id", "wordid", "word_id", "word id", "単語id"];
+const OPTIONAL_WORD_COLUMN_NAMES = [
+  "morpheme",
+  "morphemeMeaning",
+  "semanticDevelopment",
+  "partOfSpeech",
+  "semanticCategory"
+];
 const GENERATED_ID_PREFIX = "w_";
 const GENERATED_ID_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789";
 const GENERATED_ID_LENGTH = 12;
@@ -166,11 +173,15 @@ function buildGroupedRowsFromSingleSheet() {
   const wordIndex = getRequiredColumnIndex(headers, "word");
   const meaningIndex = getRequiredColumnIndex(headers, "meaning");
   const levelIndex = getRequiredColumnIndex(headers, CONFIG.levelColumnName);
+  const optionalColumnIndexes = OPTIONAL_WORD_COLUMN_NAMES.map((columnName) => ({
+    columnName,
+    index: getColumnIndexByNames(headers, [normalizeHeader(columnName)])
+  }));
 
   const groupedRows = {};
 
   CONFIG.volumes.forEach(({ docId }) => {
-    groupedRows[docId] = [["id", "word", "meaning"]];
+    groupedRows[docId] = [["id", "word", "meaning", ...OPTIONAL_WORD_COLUMN_NAMES]];
   });
 
   values.slice(1).forEach((row, index) => {
@@ -191,7 +202,11 @@ function buildGroupedRowsFromSingleSheet() {
       return;
     }
 
-    groupedRows[volume.docId].push([stableId, word, meaning]);
+    const optionalValues = optionalColumnIndexes.map(({ index }) => (
+      index >= 0 ? String(row[index] ?? "").trim() : ""
+    ));
+
+    groupedRows[volume.docId].push([stableId, word, meaning, ...optionalValues]);
   });
 
   return groupedRows;
@@ -220,6 +235,7 @@ function ensureStableIds(sheet) {
 
   const headers = values[0].map(normalizeHeader);
   let idIndex = getColumnIndexByNames(headers, ID_COLUMN_NAMES);
+  const wordIndex = getRequiredColumnIndex(headers, "word");
 
   if (idIndex === -1) {
     idIndex = values[0].length;
@@ -227,25 +243,122 @@ function ensureStableIds(sheet) {
   }
 
   const usedIds = new Set();
+  const idRows = {};
 
   values.slice(1).forEach((row, index) => {
     const rowNumber = index + 2;
-    const hasData = row.some((cell) => String(cell ?? "").trim() !== "");
-    if (!hasData) return;
+    const word = String(row[wordIndex] ?? "").trim();
+    if (!word) return;
 
     const currentId = String(row[idIndex] ?? "").trim();
     if (currentId) {
       if (usedIds.has(currentId)) {
-        throw new Error(`重複idがあります: ${currentId} (row ${rowNumber})`);
+        throw new Error(`重複idがあります: ${currentId} (row ${idRows[currentId]} と row ${rowNumber})`);
       }
       usedIds.add(currentId);
+      idRows[currentId] = rowNumber;
       return;
     }
 
     const newId = generateStableWordId(usedIds);
     sheet.getRange(rowNumber, idIndex + 1).setValue(newId);
     usedIds.add(newId);
+    idRows[newId] = rowNumber;
   });
+}
+
+function logDuplicateStableIds() {
+  const sheet = getSourceSheet();
+  const duplicates = collectDuplicateStableIdRows(sheet);
+
+  if (!duplicates.length) {
+    Logger.log("重複idはありません。");
+    return [];
+  }
+
+  duplicates.forEach((item) => {
+    Logger.log(
+      `重複id: ${item.id} / row ${item.first.rowNumber} word=${item.first.word} meaning=${item.first.meaning} / row ${item.duplicate.rowNumber} word=${item.duplicate.word} meaning=${item.duplicate.meaning}`
+    );
+  });
+
+  return duplicates;
+}
+
+function regenerateDuplicateStableIds() {
+  const sheet = getSourceSheet();
+  const duplicates = collectDuplicateStableIdRows(sheet);
+
+  if (!duplicates.length) {
+    Logger.log("重複idはありません。");
+    return [];
+  }
+
+  const values = sheet.getDataRange().getDisplayValues();
+  const headers = values[0].map(normalizeHeader);
+  const idIndex = getRequiredColumnIndexByNames(headers, ID_COLUMN_NAMES, "id");
+  const usedIds = new Set();
+
+  values.slice(1).forEach((row) => {
+    const id = String(row[idIndex] ?? "").trim();
+    if (id) usedIds.add(id);
+  });
+
+  const repaired = duplicates.map((item) => {
+    const newId = generateStableWordId(usedIds);
+    usedIds.add(newId);
+    sheet.getRange(item.duplicate.rowNumber, idIndex + 1).setValue(newId);
+    Logger.log(`重複idを再発行: row ${item.duplicate.rowNumber}, ${item.id} -> ${newId}`);
+    return {
+      rowNumber: item.duplicate.rowNumber,
+      oldId: item.id,
+      newId,
+      word: item.duplicate.word,
+      meaning: item.duplicate.meaning
+    };
+  });
+
+  return repaired;
+}
+
+function collectDuplicateStableIdRows(sheet) {
+  const values = sheet.getDataRange().getDisplayValues();
+  if (!values.length) return [];
+
+  const headers = values[0].map(normalizeHeader);
+  const idIndex = getRequiredColumnIndexByNames(headers, ID_COLUMN_NAMES, "id");
+  const wordIndex = getRequiredColumnIndex(headers, "word");
+  const meaningIndex = getRequiredColumnIndex(headers, "meaning");
+  const seen = {};
+  const duplicates = [];
+
+  values.slice(1).forEach((row, index) => {
+    const rowNumber = index + 2;
+    const word = String(row[wordIndex] ?? "").trim();
+    if (!word) return;
+
+    const id = String(row[idIndex] ?? "").trim();
+    if (!id) return;
+
+    const entry = {
+      rowNumber,
+      word,
+      meaning: String(row[meaningIndex] ?? "").trim()
+    };
+
+    if (seen[id]) {
+      duplicates.push({
+        id,
+        first: seen[id],
+        duplicate: entry
+      });
+      return;
+    }
+
+    seen[id] = entry;
+  });
+
+  return duplicates;
 }
 
 function generateStableWordId(usedIds) {

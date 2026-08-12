@@ -8,6 +8,8 @@ const MEANING_COLUMN_NAMES = ["meaning", "意味"];
 const MORPHEME_COLUMN_NAMES = ["morpheme"];
 const MORPHEME_MEANING_COLUMN_NAMES = ["morphememeaning", "morpheme_meaning", "morpheme meaning"];
 const SEMANTIC_DEVELOPMENT_COLUMN_NAMES = ["semanticdevelopment", "semantic_development", "semantic development"];
+const PART_OF_SPEECH_COLUMN_NAMES = ["partofspeech", "part_of_speech", "part of speech"];
+const SEMANTIC_CATEGORY_COLUMN_NAMES = ["semanticcategory", "semantic_category", "semantic category"];
 const SYNC_TIME_FIELD_NAMES = ["syncedAt", "updatedAt", "lastSyncedAt"];
 
 function stripBom(text) {
@@ -88,6 +90,8 @@ function createColumnReader(rows) {
   const morphemeIndex = hasHeader ? getHeaderIndex(headerRow, MORPHEME_COLUMN_NAMES) : -1;
   const morphemeMeaningIndex = hasHeader ? getHeaderIndex(headerRow, MORPHEME_MEANING_COLUMN_NAMES) : -1;
   const semanticDevelopmentIndex = hasHeader ? getHeaderIndex(headerRow, SEMANTIC_DEVELOPMENT_COLUMN_NAMES) : -1;
+  const partOfSpeechIndex = hasHeader ? getHeaderIndex(headerRow, PART_OF_SPEECH_COLUMN_NAMES) : -1;
+  const semanticCategoryIndex = hasHeader ? getHeaderIndex(headerRow, SEMANTIC_CATEGORY_COLUMN_NAMES) : -1;
 
   return {
     startIndex: hasHeader ? 1 : 0,
@@ -99,7 +103,9 @@ function createColumnReader(rows) {
     },
     readMorpheme: (cols) => (morphemeIndex >= 0 ? cols[morphemeIndex] || "" : ""),
     readMorphemeMeaning: (cols) => (morphemeMeaningIndex >= 0 ? cols[morphemeMeaningIndex] || "" : ""),
-    readSemanticDevelopment: (cols) => (semanticDevelopmentIndex >= 0 ? cols[semanticDevelopmentIndex] || "" : "")
+    readSemanticDevelopment: (cols) => (semanticDevelopmentIndex >= 0 ? cols[semanticDevelopmentIndex] || "" : ""),
+    readPartOfSpeech: (cols) => (partOfSpeechIndex >= 0 ? cols[partOfSpeechIndex] || "" : ""),
+    readSemanticCategory: (cols) => (semanticCategoryIndex >= 0 ? cols[semanticCategoryIndex] || "" : "")
   };
 }
 
@@ -120,6 +126,8 @@ function createWordItem(cols, columnReader, volName) {
     morpheme: columnReader.readMorpheme(cols),
     morphemeMeaning: columnReader.readMorphemeMeaning(cols),
     semanticDevelopment: columnReader.readSemanticDevelopment(cols),
+    partOfSpeech: columnReader.readPartOfSpeech(cols),
+    semanticCategory: columnReader.readSemanticCategory(cols),
     legacyWordKey: normalizeWordKey(word),
     sourceVol: volName
   };

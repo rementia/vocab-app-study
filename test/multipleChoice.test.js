@@ -80,4 +80,55 @@ const keepOrder = (items) => items;
   );
 }
 
+{
+  const classifiedWordsByVol = {
+    vol1: [
+      {
+        id: "abandon",
+        word: "abandon",
+        meaning: "捨てる",
+        sourceVol: "vol1",
+        partOfSpeech: "verb",
+        semanticCategory: "action_activity"
+      },
+      {
+        id: "chair",
+        word: "chair",
+        meaning: "椅子",
+        sourceVol: "vol1",
+        partOfSpeech: "noun",
+        semanticCategory: "object"
+      },
+      {
+        id: "expand",
+        word: "expand",
+        meaning: "拡大する",
+        sourceVol: "vol1",
+        partOfSpeech: "verb",
+        semanticCategory: "change"
+      },
+      {
+        id: "perform",
+        word: "perform",
+        meaning: "実行する",
+        sourceVol: "vol1",
+        partOfSpeech: "verb",
+        semanticCategory: "action_activity"
+      }
+    ]
+  };
+  const distractors = collectMultipleChoiceDistractors({
+    current: classifiedWordsByVol.vol1[0],
+    allWordsByVol: classifiedWordsByVol,
+    volOrder: ["vol1"],
+    translationMode: false
+  });
+
+  assert.deepStrictEqual(
+    distractors.map((item) => item.word),
+    ["perform", "expand", "chair"],
+    "same partOfSpeech and semanticCategory should be prioritized before broader fallbacks"
+  );
+}
+
 console.log("All multiple choice tests passed.");
