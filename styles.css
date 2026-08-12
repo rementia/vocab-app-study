@@ -780,6 +780,15 @@ body.mode-multiple-choice .multiple-choice-panel {
   min-height: 1.6em;
 }
 
+.word-detail-meta {
+  min-height: 1.4em;
+  color: var(--muted-text);
+  font-size: clamp(13px, 1.5vw, 16px);
+  line-height: 1.4;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
 .button-row {
   display: flex;
   gap: var(--space-row);

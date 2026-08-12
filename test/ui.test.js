@@ -153,9 +153,15 @@ assert.strictEqual(recallClassList.contains("is-inactive"), true, "recall time s
 assert.strictEqual(displayClassList.contains("is-inactive"), false, "display time should stay active when auto play is on and challenge mode is off");
 
 function makeWordContext(translationMode) {
+  const currentWord = {
+    word: "create",
+    meaning: "作る",
+    partOfSpeech: "verb",
+    semanticCategory: "action_activity"
+  };
   return {
     getState: () => ({
-      words: [{ word: "create", meaning: "作る" }],
+      words: [currentWord],
       index: 0,
       currentMode: "vol",
       currentVol: "vol1",
@@ -169,6 +175,7 @@ function makeWordContext(translationMode) {
     dom: {
       wordEl: { textContent: "" },
       meaningEl: { textContent: "" },
+      wordDetailMetaEl: { textContent: "", hidden: true },
       progressEl: { textContent: "" },
       listEl: { querySelector: () => null },
       favoriteToggleBtnEl: null,
@@ -180,7 +187,7 @@ function makeWordContext(translationMode) {
       clearMeaningRevealTimer() {},
       clearSpeechSyncTimer() {},
       clearAutoPlayTimer() {},
-      getCurrentWord: () => ({ word: "create", meaning: "作る" }),
+      getCurrentWord: () => currentWord,
       persistCurrentIndex() {},
       loadPronunciation() {},
       isFavorite: () => false,
@@ -193,6 +200,11 @@ const normalWordContext = makeWordContext(false);
 renderCurrentWord(normalWordContext);
 assert.strictEqual(normalWordContext.dom.wordEl.textContent, "create");
 assert.strictEqual(normalWordContext.dom.meaningEl.textContent, "作る");
+assert.strictEqual(normalWordContext.dom.wordDetailMetaEl.hidden, false);
+assert.strictEqual(
+  normalWordContext.dom.wordDetailMetaEl.textContent,
+  "品詞: verb / カテゴリ: action_activity"
+);
 
 const translatedWordContext = makeWordContext(true);
 renderCurrentWord(translatedWordContext);
@@ -271,6 +283,7 @@ function makeMultipleChoiceDom() {
   return {
     wordEl: makeMockElement(),
     meaningEl: makeMockElement(),
+    wordDetailMetaEl: makeMockElement(),
     progressEl: makeMockElement(),
     pronunciationEl: makeMockElement(),
     multipleChoicePanelEl: makeMockElement(),
@@ -295,7 +308,12 @@ const multipleChoiceOptions = [
 function makeMultipleChoiceContext(overrides = {}) {
   const dom = makeMultipleChoiceDom();
   const state = {
-    words: [{ word: "abandon", meaning: "捨てる" }],
+    words: [{
+      word: "abandon",
+      meaning: "捨てる",
+      partOfSpeech: "verb",
+      semanticCategory: "action_activity"
+    }],
     index: 0,
     currentMode: "vol",
     currentVol: "vol1",
@@ -317,7 +335,12 @@ function makeMultipleChoiceContext(overrides = {}) {
       clearMeaningRevealTimer() {},
       clearSpeechSyncTimer() {},
       clearAutoPlayTimer() {},
-      getCurrentWord: () => ({ word: "abandon", meaning: "捨てる" }),
+      getCurrentWord: () => ({
+        word: "abandon",
+        meaning: "捨てる",
+        partOfSpeech: "verb",
+        semanticCategory: "action_activity"
+      }),
       getMultipleChoiceQuestion: () => ({ options: multipleChoiceOptions }),
       persistCurrentIndex() {},
       loadPronunciation() {},
@@ -336,6 +359,7 @@ const activeChoiceContext = makeMultipleChoiceContext({ multipleChoiceMode: true
 renderCurrentWord(activeChoiceContext);
 assert.strictEqual(activeChoiceContext.dom.wordEl.textContent, "abandon", "multiple choice question should be shown as the current word");
 assert.strictEqual(activeChoiceContext.dom.meaningEl.textContent, "", "normal meaning should be hidden in multiple choice mode");
+assert.strictEqual(activeChoiceContext.dom.wordDetailMetaEl.hidden, true, "word detail metadata should be hidden during multiple choice prompts");
 assert.strictEqual(activeChoiceContext.dom.multipleChoicePanelEl.hidden, false, "multiple choice panel should be visible when mode is on");
 assert.strictEqual(activeChoiceContext.dom.multipleChoiceOptionsEl.children.length, 4, "multiple choice mode should render four option buttons");
 assert.deepStrictEqual(

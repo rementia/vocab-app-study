@@ -8,6 +8,7 @@ export function getDomElements() {
     wordSlideCardEl: document.querySelector(".word-slide-card"),
     wordEl: document.getElementById("word"),
     meaningEl: document.getElementById("meaning"),
+    wordDetailMetaEl: document.getElementById("wordDetailMeta"),
     progressEl: document.getElementById("progress"),
     pronunciationEl: document.getElementById("pronunciation"),
     morphemeBtnEl: document.getElementById("morphemeBtn"),

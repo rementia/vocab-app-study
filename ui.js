@@ -177,6 +177,7 @@ function renderEmptyCurrentWord(context) {
   if (dom.meaningEl) dom.meaningEl.textContent = getEmptyMeaningText(state.currentMode);
   if (dom.progressEl) dom.progressEl.textContent = "";
   if (dom.pronunciationEl) dom.pronunciationEl.textContent = "";
+  updateWordDetailMeta(context, null);
   if (dom.prevHintEl) dom.prevHintEl.textContent = "";
   if (dom.nextHintEl) dom.nextHintEl.textContent = "";
   renderMultipleChoice(context);
@@ -203,6 +204,25 @@ function renderWordText(context, current) {
   const state = getState(context);
   const dom = getDom(context);
   if (dom.wordEl) dom.wordEl.textContent = state.translationMode ? current.meaning : current.word;
+  updateWordDetailMeta(context, current);
+}
+
+function updateWordDetailMeta(context, current) {
+  const state = getState(context);
+  const dom = getDom(context);
+  const target = dom.wordDetailMetaEl;
+  if (!target) return;
+
+  const partOfSpeech = normalizeMorphemeText(current?.partOfSpeech);
+  const semanticCategory = normalizeMorphemeText(current?.semanticCategory);
+  const shouldShow = Boolean(current && !state.multipleChoiceMode && (partOfSpeech || semanticCategory));
+
+  target.hidden = !shouldShow;
+  target.textContent = shouldShow
+    ? [partOfSpeech && `品詞: ${partOfSpeech}`, semanticCategory && `カテゴリ: ${semanticCategory}`]
+      .filter(Boolean)
+      .join(" / ")
+    : "";
 }
 
 function updateCurrentStateMeta(context) {
@@ -623,6 +643,7 @@ function updateMeaningDisplay(context, meaning) {
 
   if (state.multipleChoiceMode) {
     dom.meaningEl.textContent = "";
+    updateWordDetailMeta(context, null);
     updateMorphemeButton(context);
     return;
   }
