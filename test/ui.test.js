@@ -8,7 +8,7 @@ import {
   updateDifficultToggleButton,
   updateFavoriteToggleButton,
   hasMorphemeInfo,
-  openMorphemeDialog,
+  updateMorphemeAnalysisPanel,
   updateMorphemeButton,
   updateRecallTimeControl,
   updateReviewButtons
@@ -168,6 +168,7 @@ function makeWordContext(translationMode) {
       translationMode,
       challengeMode: false,
       challengeTime: 1500,
+      morphemeAnalysisMode: false,
       randomMode: false,
       historyBackStack: [],
       historyForwardStack: []
@@ -325,6 +326,7 @@ function makeMultipleChoiceContext(overrides = {}) {
     historyForwardStack: [],
     multipleChoiceMode: false,
     multipleChoiceAnswer: null,
+    morphemeAnalysisMode: false,
     multipleChoiceRevealedOptionIndexes: [],
     ...overrides
   };
@@ -409,17 +411,15 @@ assert.strictEqual(hasMorphemeInfo({ semanticDevelopment: "語義が広がる" }
 assert.strictEqual(hasMorphemeInfo({ partOfSpeech: "verb", semanticCategory: "action_activity" }), true);
 
 const morphemeButton = makeMockElement();
-const morphemeInlineSlot = makeMockElement();
 const morphemeVisibleContext = {
   getState: () => ({
     multipleChoiceMode: false,
-    challengeMode: false
+    challengeMode: false,
+    morphemeAnalysisMode: false
   }),
   dom: {
     morphemeBtnEl: morphemeButton,
-    morphemeInlineSlotEl: morphemeInlineSlot,
-    morphemeSideSlotEl: makeMockElement(),
-    morphemeBottomSlotEl: makeMockElement(),
+    morphemeAnalysisPanelEl: makeMockElement(),
     meaningEl: { textContent: "運ぶ" }
   },
   callbacks: {
@@ -432,9 +432,8 @@ const morphemeVisibleContext = {
   }
 };
 updateMorphemeButton(morphemeVisibleContext);
-assert.strictEqual(morphemeButton.hidden, false, "morpheme button should be shown when morpheme info exists");
-assert.strictEqual(morphemeButton.textContent, "語源・形態素", "morpheme button should label the etymology details");
-assert.strictEqual(morphemeInlineSlot.children[0], morphemeButton, "desktop/tablet placement should use the inline slot");
+assert.strictEqual(morphemeButton.textContent, "語源解析", "morpheme button should use the etymology analysis label");
+assert.strictEqual(morphemeButton.attributes["aria-pressed"], "false", "morpheme button should start as an off toggle");
 
 const morphemeNoInfoContext = {
   ...morphemeVisibleContext,
@@ -446,23 +445,25 @@ const morphemeNoInfoContext = {
   }
 };
 updateMorphemeButton(morphemeNoInfoContext);
-assert.strictEqual(morphemeButton.hidden, false, "morpheme button should be shown even before morpheme info is registered");
+assert.strictEqual(morphemeButton.textContent, "語源解析", "morpheme button should be shown even before morpheme info is registered");
 
 const morphemeMultipleChoiceContext = {
   ...morphemeVisibleContext,
   getState: () => ({
     multipleChoiceMode: true,
-    challengeMode: false
+    challengeMode: false,
+    morphemeAnalysisMode: false
   })
 };
 updateMorphemeButton(morphemeMultipleChoiceContext);
-assert.strictEqual(morphemeButton.hidden, true, "morpheme button should be hidden in multiple choice mode");
+assert.strictEqual(morphemeButton.textContent, "語源解析", "morpheme button should stay visible in multiple choice mode");
 
 const morphemeChallengeHiddenContext = {
   ...morphemeVisibleContext,
   getState: () => ({
     multipleChoiceMode: false,
-    challengeMode: true
+    challengeMode: true,
+    morphemeAnalysisMode: false
   }),
   dom: {
     ...morphemeVisibleContext.dom,
@@ -470,16 +471,19 @@ const morphemeChallengeHiddenContext = {
   }
 };
 updateMorphemeButton(morphemeChallengeHiddenContext);
-assert.strictEqual(morphemeButton.hidden, true, "morpheme button should be hidden while recall answer is hidden");
+assert.strictEqual(morphemeButton.textContent, "語源解析", "morpheme button should stay visible while recall answer is hidden");
 
-const morphemeDialog = makeMockElement();
-const morphemeDialogBody = makeMockElement();
-const morphemeDialogContext = {
+const morphemePanel = makeMockElement();
+const morphemePanelContext = {
   ...morphemeVisibleContext,
+  getState: () => ({
+    multipleChoiceMode: false,
+    challengeMode: false,
+    morphemeAnalysisMode: true
+  }),
   dom: {
     ...morphemeVisibleContext.dom,
-    morphemeDialogEl: morphemeDialog,
-    morphemeDialogBodyEl: morphemeDialogBody
+    morphemeAnalysisPanelEl: morphemePanel
   },
   callbacks: {
     getCurrentWord: () => ({
@@ -492,10 +496,10 @@ const morphemeDialogContext = {
     })
   }
 };
-openMorphemeDialog(morphemeDialogContext);
-assert.strictEqual(morphemeDialog.hidden, false, "morpheme dialog should open when morpheme info exists");
+updateMorphemeAnalysisPanel(morphemePanelContext);
+assert.strictEqual(morphemePanel.hidden, false, "morpheme analysis panel should be visible while the mode is on");
 assert.deepStrictEqual(
-  morphemeDialogBody.children[1].children
+  morphemePanel.children[1].children
     .filter((child, index) => index % 2 === 0)
     .map((term) => term.textContent),
   [
@@ -505,17 +509,20 @@ assert.deepStrictEqual(
     "partOfSpeech：品詞",
     "semanticCategory：意味カテゴリ"
   ],
-  "morpheme dialog should render the requested word detail labels"
+  "morpheme analysis panel should render the requested word detail labels"
 );
 
-const emptyMorphemeDialog = makeMockElement();
-const emptyMorphemeDialogBody = makeMockElement();
-openMorphemeDialog({
+const emptyMorphemePanel = makeMockElement();
+updateMorphemeAnalysisPanel({
   ...morphemeVisibleContext,
+  getState: () => ({
+    multipleChoiceMode: false,
+    challengeMode: false,
+    morphemeAnalysisMode: true
+  }),
   dom: {
     ...morphemeVisibleContext.dom,
-    morphemeDialogEl: emptyMorphemeDialog,
-    morphemeDialogBodyEl: emptyMorphemeDialogBody
+    morphemeAnalysisPanelEl: emptyMorphemePanel
   },
   callbacks: {
     getCurrentWord: () => ({
@@ -524,14 +531,14 @@ openMorphemeDialog({
     })
   }
 });
-assert.strictEqual(emptyMorphemeDialog.hidden, false, "morpheme dialog should open even before morpheme info is registered");
+assert.strictEqual(emptyMorphemePanel.hidden, false, "morpheme analysis panel should open even before morpheme info is registered");
 assert.deepStrictEqual(
-  emptyMorphemeDialogBody.children[1].children.map((child) => child.textContent),
+  emptyMorphemePanel.children[1].children.map((child) => child.textContent),
   [
-    "語源・形態素",
+    "語源解析",
     "この単語には語源・形態素データがまだ登録されていません。"
   ],
-  "morpheme dialog should explain when no morpheme info is registered"
+  "morpheme analysis panel should explain when no morpheme info is registered"
 );
 
 console.log("All UI tests passed.");

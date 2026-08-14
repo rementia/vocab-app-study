@@ -1,7 +1,7 @@
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-auth.js";
 import { auth, db, provider } from './firebaseClient.js';
 import { availableVolumes, fetchWordsForVol, fetchWordsForVolWithMeta } from './data.js?v=20260812-3';
-import { getDomElements } from './dom.js?v=20260813-1';
+import { getDomElements } from './dom.js?v=20260814-1';
 import {
   USER_MARKS_COLLECTION,
   volOrder,
@@ -27,11 +27,12 @@ import {
   saveDisplayTimeState,
   saveTranslationModeState,
   saveMultipleChoiceModeState,
+  saveMorphemeAnalysisModeState,
   saveAutoPlayState,
   saveRandomModeState,
   saveFrequencyModeState
-} from './storage.js';
-import { readSavedAppState } from './savedState.js';
+} from './storage.js?v=20260814-1';
+import { readSavedAppState } from './savedState.js?v=20260814-1';
 import { buildWordOrder, shouldRebuildOrderAtCycleEnd } from './wordOrder.js';
 import {
   renderApp,
@@ -48,10 +49,8 @@ import {
   updateDifficultToggleButton as uiUpdateDifficultToggleButton,
   applySidebarState as uiApplySidebarState,
   updateAuthUI as uiUpdateAuthUI,
-  openMorphemeDialog as uiOpenMorphemeDialog,
-  closeMorphemeDialog as uiCloseMorphemeDialog,
-  isMorphemeDialogOpen as uiIsMorphemeDialogOpen
-} from './ui.js?v=20260813-1';
+  updateMorphemeButton as uiUpdateMorphemeButton
+} from './ui.js?v=20260814-1';
 import {
   buildFavoriteEntries,
   isFavorite,
@@ -123,12 +122,7 @@ const {
   progressEl,
   pronunciationEl,
   morphemeBtnEl,
-  morphemeInlineSlotEl,
-  morphemeSideSlotEl,
-  morphemeBottomSlotEl,
-  morphemeDialogEl,
-  morphemeDialogBodyEl,
-  morphemeDialogCloseBtnEl,
+  morphemeAnalysisPanelEl,
   prevHintEl,
   nextHintEl,
   currentEl,
@@ -183,6 +177,7 @@ let challengeTime = 1500;
 let displayTime = 1500;
 let translationMode = false;
 let multipleChoiceMode = false;
+let morphemeAnalysisMode = false;
 let autoPlayMode = "off";
 let autoPlayOnceStartPoint = null;
 let randomMode = false;
@@ -237,6 +232,7 @@ const uiContext = {
     displayTime,
     translationMode,
     multipleChoiceMode,
+    morphemeAnalysisMode,
     multipleChoiceAnswer,
     multipleChoiceRevealedOptionIndexes: [...multipleChoiceRevealedOptionIndexes],
     autoPlayMode,
@@ -257,12 +253,7 @@ const uiContext = {
     progressEl,
     pronunciationEl,
     morphemeBtnEl,
-    morphemeInlineSlotEl,
-    morphemeSideSlotEl,
-    morphemeBottomSlotEl,
-    morphemeDialogEl,
-    morphemeDialogBodyEl,
-    morphemeDialogCloseBtnEl,
+    morphemeAnalysisPanelEl,
     prevHintEl,
     nextHintEl,
     currentEl,
@@ -638,6 +629,7 @@ function bindModeButtons() {
   challengeBtnEl?.addEventListener("click", toggleChallengeMode);
   translationBtnEl?.addEventListener("click", toggleTranslationMode);
   multipleChoiceBtnEl?.addEventListener("click", toggleMultipleChoiceMode);
+  morphemeBtnEl?.addEventListener("click", toggleMorphemeAnalysisMode);
   autoPlayBtnEl?.addEventListener("click", toggleAutoPlay);
   randomBtnEl?.addEventListener("click", toggleRandomMode);
   frequencyBtnEl?.addEventListener("click", toggleFrequencyMode);
@@ -651,33 +643,8 @@ function bindWordActionButtons() {
   prevWordBtnEl?.addEventListener("click", prevWord);
   nextWordBtnEl?.addEventListener("click", nextWord);
   speakWordBtnEl?.addEventListener("click", handleSpeakCurrentWord);
-  morphemeBtnEl?.addEventListener("click", openMorphemeDialog);
-  morphemeDialogCloseBtnEl?.addEventListener("click", closeMorphemeDialog);
-  morphemeDialogEl?.addEventListener("click", handleMorphemeDialogBackdropClick);
-  document.addEventListener("keydown", handleMorphemeDialogKeydown);
   multipleChoiceOptionsEl?.addEventListener("click", handleMultipleChoiceOptionClick);
   document.querySelector(".center-box")?.addEventListener("click", handleAutoPlaySkipRequest);
-}
-
-function openMorphemeDialog() {
-  uiOpenMorphemeDialog(uiContext);
-}
-
-function closeMorphemeDialog() {
-  uiCloseMorphemeDialog(uiContext);
-}
-
-function handleMorphemeDialogBackdropClick(event) {
-  if (event.target === morphemeDialogEl) {
-    closeMorphemeDialog();
-  }
-}
-
-function handleMorphemeDialogKeydown(event) {
-  if (event.key !== "Escape" || !uiIsMorphemeDialogOpen(uiContext)) return;
-  event.preventDefault();
-  event.stopPropagation();
-  closeMorphemeDialog();
 }
 
 function bindSearchEvents() {
@@ -774,6 +741,7 @@ function loadSavedState() {
       displayTime,
       translationMode,
       multipleChoiceMode,
+      morphemeAnalysisMode,
       randomMode,
       frequencyMode
     },
@@ -799,6 +767,7 @@ function loadSavedState() {
   displayTime = savedState.displayTime;
   translationMode = savedState.translationMode;
   multipleChoiceMode = savedState.multipleChoiceMode;
+  morphemeAnalysisMode = savedState.morphemeAnalysisMode;
   randomMode = savedState.randomMode;
   frequencyMode = savedState.frequencyMode;
 
@@ -906,6 +875,7 @@ function getLockableControls() {
     challengeBtnEl,
     translationBtnEl,
     multipleChoiceBtnEl,
+    morphemeBtnEl,
     autoPlayBtnEl,
     randomBtnEl,
     frequencyBtnEl,
@@ -950,8 +920,11 @@ function lockAppUi(message) {
   if (meaningEl) meaningEl.textContent = "";
   if (progressEl) progressEl.textContent = "";
   if (pronunciationEl) pronunciationEl.textContent = "";
-  if (morphemeBtnEl) morphemeBtnEl.hidden = true;
-  closeMorphemeDialog();
+  document.body.classList.remove("mode-morpheme-analysis");
+  if (morphemeAnalysisPanelEl) {
+    morphemeAnalysisPanelEl.hidden = true;
+    morphemeAnalysisPanelEl.innerHTML = "";
+  }
   if (prevHintEl) prevHintEl.textContent = "";
   if (nextHintEl) nextHintEl.textContent = "";
 
@@ -1428,6 +1401,10 @@ function updateMultipleChoiceButton() {
   uiUpdateMultipleChoiceButton(uiContext);
 }
 
+function updateMorphemeButton() {
+  uiUpdateMorphemeButton(uiContext);
+}
+
 function updateAutoPlayButton() {
   uiUpdateAutoPlayButton(uiContext);
   updateRecallTimeControl();
@@ -1446,6 +1423,7 @@ function updateModeButtons() {
   updateChallengeButton();
   updateTranslationButton();
   updateMultipleChoiceButton();
+  updateMorphemeButton();
   updateAutoPlayButton();
   updateRandomButton();
   updateFrequencyButton();
@@ -1753,6 +1731,13 @@ function toggleMultipleChoiceMode() {
     stopAutoPlay();
   }
 
+  renderCurrentWord();
+}
+
+function toggleMorphemeAnalysisMode() {
+  morphemeAnalysisMode = !morphemeAnalysisMode;
+  saveMorphemeAnalysisModeState(morphemeAnalysisMode);
+  updateMorphemeButton();
   renderCurrentWord();
 }
 

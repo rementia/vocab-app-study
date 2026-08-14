@@ -21,6 +21,7 @@ const keys = {
   displayTime: "displayTime",
   translationMode: "translationMode",
   multipleChoiceMode: "multipleChoiceMode",
+  morphemeAnalysisMode: "morphemeAnalysisMode",
   autoPlay: "autoPlay",
   randomMode: "randomMode",
   frequencyMode: "frequencyMode"
@@ -39,6 +40,7 @@ const defaults = {
   displayTime: 1500,
   translationMode: false,
   multipleChoiceMode: false,
+  morphemeAnalysisMode: false,
   randomMode: false,
   frequencyMode: false
 };
@@ -62,6 +64,7 @@ const defaults = {
       displayTime: "500",
       translationMode: "true",
       multipleChoiceMode: "true",
+      morphemeAnalysisMode: "true",
       autoPlay: "once",
       randomMode: "true",
       frequencyMode: "true"
@@ -87,6 +90,7 @@ const defaults = {
   assert.equal(state.displayTime, 1000);
   assert.equal(state.translationMode, true);
   assert.equal(state.multipleChoiceMode, true);
+  assert.equal(state.morphemeAnalysisMode, true);
   assert.equal(state.shouldResetAutoPlay, true);
   assert.equal(state.randomMode, true);
   assert.equal(state.frequencyMode, true);
@@ -112,6 +116,7 @@ const defaults = {
   assert.deepEqual(state.indexByVol, defaults.indexByVol);
   assert.equal(state.sidebarOpen, true);
   assert.equal(state.multipleChoiceMode, false);
+  assert.equal(state.morphemeAnalysisMode, false);
   assert.equal(state.shouldResetAutoPlay, false);
 }
 

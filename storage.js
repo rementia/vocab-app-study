@@ -16,6 +16,7 @@ const STORAGE_KEY_NAMES = {
   displayTime: "display_time",
   translationMode: "translation_mode",
   multipleChoiceMode: "multiple_choice_mode",
+  morphemeAnalysisMode: "morpheme_analysis_mode",
   autoPlay: "auto_play",
   randomMode: "random_mode",
   frequencyMode: "frequency_mode"
@@ -128,6 +129,10 @@ export function saveTranslationModeState(value) {
 
 export function saveMultipleChoiceModeState(value) {
   saveTextValue(STORAGE_KEYS.multipleChoiceMode, value);
+}
+
+export function saveMorphemeAnalysisModeState(value) {
+  saveTextValue(STORAGE_KEYS.morphemeAnalysisMode, value);
 }
 
 export function saveAutoPlayState(value) {
