@@ -407,7 +407,7 @@ body.mode-multiple-choice .multiple-choice-panel {
 }
 
 .morpheme-analysis-panel {
-  width: min(720px, 100%);
+  width: min(860px, calc(100vw - 32px));
   height: min(58vh, 520px);
   max-height: min(58vh, 520px);
   overflow: hidden;
@@ -1216,6 +1216,45 @@ body.mode-morpheme-analysis .morpheme-analysis-panel {
     row-gap: 5px;
   }
 
+  .center-box {
+    display: grid;
+    grid-template-columns: auto auto;
+    align-content: center;
+    justify-content: center;
+    column-gap: 28px;
+    row-gap: 8px;
+  }
+
+  .current-meta-row {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  .current-action-row {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+    justify-self: start;
+  }
+
+  .word-slide-card {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .multiple-choice-panel {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    justify-self: center;
+  }
+
+  .button-row {
+    grid-column: 1 / -1;
+    grid-row: 4;
+    justify-self: center;
+  }
+
   .review-panel {
     width: 160px;
     max-width: calc(100vw - 16px);
@@ -1283,6 +1322,7 @@ body.mode-morpheme-analysis .morpheme-analysis-panel {
   }
 
   .morpheme-analysis-panel {
+    width: min(620px, calc(100vw - 184px));
     height: calc(100vh - 150px);
     height: calc(100dvh - 150px);
     max-height: calc(100vh - 150px);
@@ -1311,33 +1351,7 @@ body.mode-morpheme-analysis .morpheme-analysis-panel {
     right: 0px;
   }
 
-  body.mode-morpheme-analysis .center-box {
-    display: grid;
-    grid-template-columns: auto auto;
-    align-content: center;
-    justify-content: center;
-    column-gap: 12px;
-    row-gap: 6px;
-  }
-
-  body.mode-morpheme-analysis .current-meta-row {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  body.mode-morpheme-analysis .current-action-row {
-    grid-column: 2;
-    grid-row: 1;
-    align-self: center;
-  }
-
-  body.mode-morpheme-analysis .word-slide-card {
-    grid-column: 1 / -1;
-    grid-row: 2;
-  }
-
   body.mode-morpheme-analysis .button-row {
-    grid-column: 1 / -1;
     grid-row: 3;
   }
 }
