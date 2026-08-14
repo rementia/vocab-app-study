@@ -370,6 +370,21 @@ assert.deepStrictEqual(
 );
 assert.strictEqual(activeChoiceContext.dom.multipleChoiceFeedbackEl.textContent, "", "multiple choice should not show text feedback before answering");
 
+const morphemeChoiceContext = makeMultipleChoiceContext({
+  multipleChoiceMode: true,
+  morphemeAnalysisMode: true
+});
+let morphemeChoicePronunciationWord = "";
+morphemeChoiceContext.callbacks.loadPronunciation = (word) => {
+  morphemeChoicePronunciationWord = word;
+};
+renderCurrentWord(morphemeChoiceContext);
+assert.strictEqual(
+  morphemeChoicePronunciationWord,
+  "abandon",
+  "morpheme analysis mode should keep pronunciation visible even during multiple choice"
+);
+
 const correctChoiceContext = makeMultipleChoiceContext({
   multipleChoiceMode: true,
   multipleChoiceAnswer: { selectedText: "abandon", correctText: "abandon", isCorrect: true }

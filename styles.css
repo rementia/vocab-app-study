@@ -767,6 +767,14 @@ body.mode-morpheme-analysis .multiple-choice-panel {
   display: none;
 }
 
+body.mode-morpheme-analysis #pronunciation {
+  display: block;
+}
+
+body.mode-morpheme-analysis .time-adjustments {
+  display: none;
+}
+
 body.mode-morpheme-analysis .center-box {
   gap: 10px;
 }
@@ -783,6 +791,12 @@ body.mode-morpheme-analysis .current-action-row {
 body.mode-morpheme-analysis .morpheme-analysis-panel {
   height: min(52vh, 480px);
   max-height: min(52vh, 480px);
+}
+
+body.mode-morpheme-analysis .current-meta-row,
+body.mode-morpheme-analysis .current-action-row,
+body.mode-morpheme-analysis .morpheme-analysis-panel {
+  transform: translateY(-15px);
 }
 
 .button-row {
@@ -1222,7 +1236,8 @@ body.mode-morpheme-analysis .morpheme-analysis-panel {
     align-content: center;
     justify-content: center;
     column-gap: 28px;
-    row-gap: 8px;
+    row-gap: 4px;
+    transform: translateY(6px);
   }
 
   .current-meta-row {
@@ -1241,6 +1256,7 @@ body.mode-morpheme-analysis .morpheme-analysis-panel {
   .word-slide-card {
     grid-column: 1 / -1;
     grid-row: 2;
+    gap: 4px;
   }
 
   .multiple-choice-panel {

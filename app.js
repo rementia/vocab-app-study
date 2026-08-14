@@ -50,7 +50,7 @@ import {
   applySidebarState as uiApplySidebarState,
   updateAuthUI as uiUpdateAuthUI,
   updateMorphemeButton as uiUpdateMorphemeButton
-} from './ui.js?v=20260814-2';
+} from './ui.js?v=20260814-5';
 import {
   buildFavoriteEntries,
   isFavorite,

@@ -164,7 +164,7 @@ export function renderCurrentWord(context) {
   updateMorphemeButton(context);
   updateMorphemeAnalysisPanel(context);
   updateCurrentStateMeta(context);
-  if (state.multipleChoiceMode) {
+  if (state.multipleChoiceMode && !state.morphemeAnalysisMode) {
     if (dom.pronunciationEl) dom.pronunciationEl.textContent = "";
   } else {
     callbacks.loadPronunciation(current.word);
