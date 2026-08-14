@@ -690,7 +690,7 @@ body.mode-multiple-choice .multiple-choice-panel {
 }
 
 .time-adjustments {
-  top: 40%;
+  top: 35%;
   bottom: auto;
   flex-direction: column;
 }
@@ -1350,6 +1350,12 @@ body.mode-morpheme-analysis .morpheme-analysis-panel {
     max-height: calc(100vh - 150px);
     max-height: calc(100dvh - 150px);
     padding: 12px 14px 14px;
+  }
+
+  body.mode-morpheme-analysis .morpheme-analysis-panel {
+    position: relative;
+    top: -15px;
+    transform: none;
   }
 
   .morpheme-analysis-word {

@@ -360,7 +360,7 @@ async function init() {
 
   handleViewportResize();
 
-  setAppLocked(true, "Googleログインしてください");
+  setAppLocked(true, "Googleログイン必須");
   finishInitialLoading();
 }
 
@@ -840,7 +840,7 @@ function setupAuthListener() {
 
 function handleSignedOut() {
   clearUserMarksForLoggedOut();
-  setAppLocked(true, "Googleログインしてください");
+  setAppLocked(true, "Googleログイン必須");
   finishInitialLoading();
 }
 
@@ -887,7 +887,7 @@ function clearUserMarksForLoggedOut() {
   render();
 }
 
-function setAppLocked(isLocked, message = "Googleログインしてください") {
+function setAppLocked(isLocked, message = "Googleログイン必須") {
   setControlsLocked(isLocked);
 
   if (!isLocked) {
