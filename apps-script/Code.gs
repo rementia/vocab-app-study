@@ -21,8 +21,11 @@ const CONFIG = {
   volumeSheetNames: ["vol1", "vol2", "vol3", "vol4"],
 
   // singleSheetWithLevel mode reads one sheet and splits rows by level.
+  // Preferred source sheet. If this sheet has no usable classification data,
+  // the script automatically searches other sheets for the required columns.
   sourceSheetName: "シート1",
   levelColumnName: "level",
+  requireClassificationData: true,
 
   volumes: [
     { level: "1", docId: "vol1" },
@@ -40,9 +43,25 @@ const OPTIONAL_WORD_COLUMN_NAMES = [
   "partOfSpeech",
   "semanticCategory"
 ];
+const CLASSIFICATION_COLUMN_NAMES = ["partOfSpeech", "semanticCategory"];
 const GENERATED_ID_PREFIX = "w_";
 const GENERATED_ID_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789";
 const GENERATED_ID_LENGTH = 12;
+function diagnoseClassificationSource() {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const diagnostics = spreadsheet.getSheets().map(inspectSheetForSync);
+
+  diagnostics.forEach((item) => {
+    Logger.log(
+      `${item.sheetName}: base=${item.hasBaseColumns}, classificationColumns=${item.hasClassificationColumns}, ` +
+      `classifiedRows=${item.classifiedRows}, dataRows=${item.dataRows}`
+    );
+  });
+
+  const selected = getSourceSheet();
+  Logger.log(`選択される同期元: ${selected.getName()}`);
+}
+
 function dryRun() {
   const groupedRows = buildGroupedRows();
 
@@ -56,17 +75,31 @@ function dryRun() {
 
 function doPost(e) {
   try {
+    Logger.log("doPost開始");
+
     validateSyncToken(e);
+    Logger.log("トークン検証成功");
+
     const result = syncAllVolumesToFirestore();
+
+    Logger.log(
+      `doPost成功: syncedAt=${result.syncedAt}, volumes=${JSON.stringify(result.volumes)}`
+    );
+
     return createJsonResponse({
       ok: true,
       syncedAt: result.syncedAt,
       volumes: result.volumes
     });
   } catch (error) {
+    const message = error && error.message ? error.message : String(error);
+
+    Logger.log(`doPost失敗: ${message}`);
+    Logger.log(error && error.stack ? error.stack : "");
+
     return createJsonResponse({
       ok: false,
-      error: error && error.message ? error.message : String(error)
+      error: message
     });
   }
 }
@@ -139,6 +172,7 @@ function buildGroupedRows() {
   }
 
   validateGroupedRowIds(groupedRows);
+  validateClassificationRows(groupedRows);
   return groupedRows;
 }
 
@@ -267,100 +301,6 @@ function ensureStableIds(sheet) {
   });
 }
 
-function logDuplicateStableIds() {
-  const sheet = getSourceSheet();
-  const duplicates = collectDuplicateStableIdRows(sheet);
-
-  if (!duplicates.length) {
-    Logger.log("重複idはありません。");
-    return [];
-  }
-
-  duplicates.forEach((item) => {
-    Logger.log(
-      `重複id: ${item.id} / row ${item.first.rowNumber} word=${item.first.word} meaning=${item.first.meaning} / row ${item.duplicate.rowNumber} word=${item.duplicate.word} meaning=${item.duplicate.meaning}`
-    );
-  });
-
-  return duplicates;
-}
-
-function regenerateDuplicateStableIds() {
-  const sheet = getSourceSheet();
-  const duplicates = collectDuplicateStableIdRows(sheet);
-
-  if (!duplicates.length) {
-    Logger.log("重複idはありません。");
-    return [];
-  }
-
-  const values = sheet.getDataRange().getDisplayValues();
-  const headers = values[0].map(normalizeHeader);
-  const idIndex = getRequiredColumnIndexByNames(headers, ID_COLUMN_NAMES, "id");
-  const usedIds = new Set();
-
-  values.slice(1).forEach((row) => {
-    const id = String(row[idIndex] ?? "").trim();
-    if (id) usedIds.add(id);
-  });
-
-  const repaired = duplicates.map((item) => {
-    const newId = generateStableWordId(usedIds);
-    usedIds.add(newId);
-    sheet.getRange(item.duplicate.rowNumber, idIndex + 1).setValue(newId);
-    Logger.log(`重複idを再発行: row ${item.duplicate.rowNumber}, ${item.id} -> ${newId}`);
-    return {
-      rowNumber: item.duplicate.rowNumber,
-      oldId: item.id,
-      newId,
-      word: item.duplicate.word,
-      meaning: item.duplicate.meaning
-    };
-  });
-
-  return repaired;
-}
-
-function collectDuplicateStableIdRows(sheet) {
-  const values = sheet.getDataRange().getDisplayValues();
-  if (!values.length) return [];
-
-  const headers = values[0].map(normalizeHeader);
-  const idIndex = getRequiredColumnIndexByNames(headers, ID_COLUMN_NAMES, "id");
-  const wordIndex = getRequiredColumnIndex(headers, "word");
-  const meaningIndex = getRequiredColumnIndex(headers, "meaning");
-  const seen = {};
-  const duplicates = [];
-
-  values.slice(1).forEach((row, index) => {
-    const rowNumber = index + 2;
-    const word = String(row[wordIndex] ?? "").trim();
-    if (!word) return;
-
-    const id = String(row[idIndex] ?? "").trim();
-    if (!id) return;
-
-    const entry = {
-      rowNumber,
-      word,
-      meaning: String(row[meaningIndex] ?? "").trim()
-    };
-
-    if (seen[id]) {
-      duplicates.push({
-        id,
-        first: seen[id],
-        duplicate: entry
-      });
-      return;
-    }
-
-    seen[id] = entry;
-  });
-
-  return duplicates;
-}
-
 function generateStableWordId(usedIds) {
   for (let attempt = 0; attempt < 20; attempt += 1) {
     let body = "";
@@ -400,24 +340,128 @@ function validateGroupedRowIds(groupedRows) {
 
 function getSourceSheet() {
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const sheets = spreadsheet.getSheets();
 
-  if (CONFIG.sourceSheetName) {
-    const sheet = spreadsheet.getSheetByName(CONFIG.sourceSheetName);
-
-    if (!sheet) {
-      throw new Error(`シートが見つかりません: ${CONFIG.sourceSheetName}`);
-    }
-
-    return sheet;
-  }
-
-  const sheet = spreadsheet.getSheets()[0];
-
-  if (!sheet) {
+  if (!sheets.length) {
     throw new Error("スプレッドシートにシートがありません。");
   }
 
-  return sheet;
+  const preferredSheet = CONFIG.sourceSheetName
+    ? spreadsheet.getSheetByName(CONFIG.sourceSheetName)
+    : null;
+
+  const orderedSheets = preferredSheet
+    ? [preferredSheet, ...sheets.filter((sheet) => sheet.getSheetId() !== preferredSheet.getSheetId())]
+    : sheets;
+
+  const diagnostics = orderedSheets.map(inspectSheetForSync);
+  const usable = diagnostics.filter((item) => item.hasBaseColumns && item.hasClassificationColumns);
+
+  if (!usable.length) {
+    const summary = diagnostics
+      .map((item) => `${item.sheetName}: base=${item.hasBaseColumns}, classificationColumns=${item.hasClassificationColumns}, classifiedRows=${item.classifiedRows}`)
+      .join(" / ");
+    throw new Error(
+      "word / meaning / level / partOfSpeech / semanticCategory を備えた同期元シートが見つかりません。" +
+      (summary ? ` 候補: ${summary}` : "")
+    );
+  }
+
+  const withData = usable.filter((item) => item.classifiedRows > 0);
+  const selected = (withData.length ? withData : usable)[0];
+
+  if (CONFIG.requireClassificationData && selected.classifiedRows === 0) {
+    throw new Error(
+      `分類データが空のため同期を中止しました: ${selected.sheetName} ` +
+      "(partOfSpeech / semanticCategory に値がありません)"
+    );
+  }
+
+  Logger.log(
+    `同期元シート: ${selected.sheetName} / 分類済み行: ${selected.classifiedRows} / データ行: ${selected.dataRows}`
+  );
+  return selected.sheet;
+}
+
+function inspectSheetForSync(sheet) {
+  const values = sheet.getDataRange().getDisplayValues();
+  if (!values.length) {
+    return {
+      sheet,
+      sheetName: sheet.getName(),
+      hasBaseColumns: false,
+      hasClassificationColumns: false,
+      classifiedRows: 0,
+      dataRows: 0
+    };
+  }
+
+  const headers = values[0].map(normalizeHeader);
+  const wordIndex = getColumnIndexByNames(headers, [normalizeHeader("word")]);
+  const meaningIndex = getColumnIndexByNames(headers, [normalizeHeader("meaning")]);
+  const levelIndex = getColumnIndexByNames(headers, [normalizeHeader(CONFIG.levelColumnName)]);
+  const partOfSpeechIndex = getColumnIndexByNames(headers, [normalizeHeader("partOfSpeech")]);
+  const semanticCategoryIndex = getColumnIndexByNames(headers, [normalizeHeader("semanticCategory")]);
+
+  const hasBaseColumns = wordIndex >= 0 && meaningIndex >= 0 && levelIndex >= 0;
+  const hasClassificationColumns = partOfSpeechIndex >= 0 && semanticCategoryIndex >= 0;
+
+  let dataRows = 0;
+  let classifiedRows = 0;
+
+  if (hasBaseColumns) {
+    values.slice(1).forEach((row) => {
+      const word = String(row[wordIndex] ?? "").trim();
+      if (!word) return;
+      dataRows += 1;
+
+      if (hasClassificationColumns) {
+        const partOfSpeech = String(row[partOfSpeechIndex] ?? "").trim();
+        const semanticCategory = String(row[semanticCategoryIndex] ?? "").trim();
+        if (partOfSpeech || semanticCategory) classifiedRows += 1;
+      }
+    });
+  }
+
+  return {
+    sheet,
+    sheetName: sheet.getName(),
+    hasBaseColumns,
+    hasClassificationColumns,
+    classifiedRows,
+    dataRows
+  };
+}
+
+function validateClassificationRows(groupedRows) {
+  if (!CONFIG.requireClassificationData) return;
+
+  CONFIG.volumes.forEach(({ docId }) => {
+    const rows = groupedRows[docId] || [];
+    if (rows.length < 2) return;
+
+    const headers = rows[0].map(normalizeHeader);
+    const partOfSpeechIndex = getColumnIndexByNames(headers, [normalizeHeader("partOfSpeech")]);
+    const semanticCategoryIndex = getColumnIndexByNames(headers, [normalizeHeader("semanticCategory")]);
+
+    if (partOfSpeechIndex < 0 || semanticCategoryIndex < 0) {
+      throw new Error(`${docId}: 分類列がCSVヘッダーにありません。`);
+    }
+
+    const classifiedRows = rows.slice(1).filter((row) => {
+      const partOfSpeech = String(row[partOfSpeechIndex] ?? "").trim();
+      const semanticCategory = String(row[semanticCategoryIndex] ?? "").trim();
+      return partOfSpeech || semanticCategory;
+    }).length;
+
+    if (classifiedRows === 0) {
+      throw new Error(
+        `${docId}: partOfSpeech / semanticCategory が全件空のため、Firestore上書きを中止しました。`
+      );
+    }
+
+    Logger.log(`${docId}: 分類情報あり ${classifiedRows}/${rows.length - 1}語`);
+  });
 }
 
 function readSheetRows(sheet) {
