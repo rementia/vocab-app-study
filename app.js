@@ -50,7 +50,7 @@ import {
   applySidebarState as uiApplySidebarState,
   updateAuthUI as uiUpdateAuthUI,
   updateMorphemeButton as uiUpdateMorphemeButton
-} from './ui.js?v=20260814-1';
+} from './ui.js?v=20260814-2';
 import {
   buildFavoriteEntries,
   isFavorite,
@@ -78,7 +78,7 @@ import {
   isSwipeAllowedTarget,
   handleViewportChange,
   resetSwipeElementState
-} from './events.js';
+} from './events.js?v=20260814-2';
 import {
   initNavigation,
   moveToIndex as navMoveToIndex,
@@ -322,7 +322,13 @@ async function init() {
     scheduleSpeechSync,
     getWordsLength: () => words.length
   });
-  bindTouchEvents({ prevWord, nextWord, isSwipeAllowedTarget, swipeElement: wordSlideCardEl });
+  bindTouchEvents({
+    prevWord,
+    nextWord,
+    isSwipeAllowedTarget,
+    swipeElement: wordSlideCardEl,
+    getSwipeElement: getCurrentSwipeElement
+  });
   bindUIEvents();
   bindKeyboardEvents({
     prevWord,
@@ -644,7 +650,41 @@ function bindWordActionButtons() {
   nextWordBtnEl?.addEventListener("click", nextWord);
   speakWordBtnEl?.addEventListener("click", handleSpeakCurrentWord);
   multipleChoiceOptionsEl?.addEventListener("click", handleMultipleChoiceOptionClick);
+  document.addEventListener("click", handleMorphemeAnalysisBackgroundClick);
   document.querySelector(".center-box")?.addEventListener("click", handleAutoPlaySkipRequest);
+}
+
+function getCurrentSwipeElement() {
+  if (!morphemeAnalysisMode) return wordSlideCardEl;
+  return morphemeAnalysisPanelEl?.querySelector(".morpheme-analysis-content") || morphemeAnalysisPanelEl || wordSlideCardEl;
+}
+
+function handleMorphemeAnalysisBackgroundClick(event) {
+  if (!morphemeAnalysisMode) return;
+  if (!(event.target instanceof Element)) return;
+  if (!isMorphemeAnalysisBackgroundTarget(event.target)) return;
+
+  closeMorphemeAnalysisMode();
+}
+
+function isMorphemeAnalysisBackgroundTarget(target) {
+  return !target.closest([
+    "#morphemeBtn",
+    "#morphemeAnalysisPanel",
+    "button",
+    "a",
+    "input",
+    "textarea",
+    "select",
+    "label",
+    "#sidebar",
+    ".time-adjustments",
+    ".feature-controls",
+    ".button-row",
+    ".top-bar",
+    ".word-mark-actions",
+    ".multiple-choice-panel"
+  ].join(","));
 }
 
 function bindSearchEvents() {
@@ -1736,6 +1776,14 @@ function toggleMultipleChoiceMode() {
 
 function toggleMorphemeAnalysisMode() {
   morphemeAnalysisMode = !morphemeAnalysisMode;
+  saveMorphemeAnalysisModeState(morphemeAnalysisMode);
+  updateMorphemeButton();
+  renderCurrentWord();
+}
+
+function closeMorphemeAnalysisMode() {
+  if (!morphemeAnalysisMode) return;
+  morphemeAnalysisMode = false;
   saveMorphemeAnalysisModeState(morphemeAnalysisMode);
   updateMorphemeButton();
   renderCurrentWord();

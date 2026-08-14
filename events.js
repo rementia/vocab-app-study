@@ -152,7 +152,7 @@ export function resetSwipeElementState(swipeElement) {
   swipeElement.style.transform = "";
 }
 
-export function bindTouchEvents({ prevWord, nextWord, isSwipeAllowedTarget, swipeElement = null }) {
+export function bindTouchEvents({ prevWord, nextWord, isSwipeAllowedTarget, swipeElement = null, getSwipeElement = null }) {
   let touchStartX = 0;
   let touchStartY = 0;
   let touchEndX = 0;
@@ -162,6 +162,11 @@ export function bindTouchEvents({ prevWord, nextWord, isSwipeAllowedTarget, swip
   let isHorizontalSwipe = false;
   let isDraggingCard = false;
   let isAnimatingCard = false;
+  let activeSwipeElement = null;
+
+  function getActiveSwipeElement() {
+    return activeSwipeElement || swipeElement;
+  }
 
   function resetSwipeState() {
     touchStartX = 0;
@@ -171,46 +176,51 @@ export function bindTouchEvents({ prevWord, nextWord, isSwipeAllowedTarget, swip
     swipeEnabled = false;
     isHorizontalSwipe = false;
     isDraggingCard = false;
+    activeSwipeElement = null;
   }
 
   function clearCardSwipeClasses() {
-    resetSwipeElementState(swipeElement);
+    resetSwipeElementState(getActiveSwipeElement());
   }
 
   function resetCardPosition({ animated = false } = {}) {
-    if (!swipeElement) return;
-    swipeElement.classList.toggle("is-returning", animated);
-    swipeElement.classList.remove("is-dragging");
-    swipeElement.style.transform = "";
+    const targetElement = getActiveSwipeElement();
+    if (!targetElement) return;
+    targetElement.classList.toggle("is-returning", animated);
+    targetElement.classList.remove("is-dragging");
+    targetElement.style.transform = "";
 
     if (animated) {
       const setTimeoutFn = typeof window !== "undefined" && typeof window.setTimeout === "function"
         ? window.setTimeout.bind(window)
         : globalThis.setTimeout;
       setTimeoutFn(() => {
-        swipeElement?.classList.remove("is-returning");
+        targetElement?.classList.remove("is-returning");
       }, SWIPE_SLIDE_DURATION_MS);
     }
   }
 
   function moveCard(deltaX) {
-    if (!swipeElement) return;
-    swipeElement.classList.add("is-dragging");
-    swipeElement.classList.remove("is-returning", "is-sliding");
-    swipeElement.style.transform = `translate3d(${deltaX}px, 0, 0)`;
+    const targetElement = getActiveSwipeElement();
+    if (!targetElement) return;
+    targetElement.classList.add("is-dragging");
+    targetElement.classList.remove("is-returning", "is-sliding");
+    targetElement.style.transform = `translate3d(${deltaX}px, 0, 0)`;
   }
 
   function getSlideDistance() {
+    const targetElement = getActiveSwipeElement();
     if (typeof window !== "undefined" && window.innerWidth) return window.innerWidth;
-    if (swipeElement && typeof swipeElement.getBoundingClientRect === "function") {
-      const rect = swipeElement.getBoundingClientRect();
+    if (targetElement && typeof targetElement.getBoundingClientRect === "function") {
+      const rect = targetElement.getBoundingClientRect();
       if (rect.width) return rect.width + 80;
     }
     return 360;
   }
 
   function animateCardChange(direction, moveWord) {
-    if (!swipeElement) {
+    const targetElement = getActiveSwipeElement();
+    if (!targetElement) {
       moveWord();
       return;
     }
@@ -223,25 +233,25 @@ export function bindTouchEvents({ prevWord, nextWord, isSwipeAllowedTarget, swip
       : globalThis.setTimeout;
 
     isAnimatingCard = true;
-    swipeElement.classList.remove("is-dragging", "is-returning");
-    swipeElement.classList.add("is-sliding");
-    swipeElement.style.transform = `translate3d(${outX}px, 0, 0)`;
+    targetElement.classList.remove("is-dragging", "is-returning");
+    targetElement.classList.add("is-sliding");
+    targetElement.style.transform = `translate3d(${outX}px, 0, 0)`;
 
     setTimeoutFn(() => {
       moveWord();
-      swipeElement.classList.remove("is-sliding");
-      swipeElement.classList.add("is-dragging");
-      swipeElement.style.transform = `translate3d(${inX}px, 0, 0)`;
+      targetElement.classList.remove("is-sliding");
+      targetElement.classList.add("is-dragging");
+      targetElement.style.transform = `translate3d(${inX}px, 0, 0)`;
 
       // Force the off-screen starting point to apply before sliding into center.
-      void swipeElement.offsetWidth;
+      void targetElement.offsetWidth;
 
-      swipeElement.classList.remove("is-dragging");
-      swipeElement.classList.add("is-sliding");
-      swipeElement.style.transform = "";
+      targetElement.classList.remove("is-dragging");
+      targetElement.classList.add("is-sliding");
+      targetElement.style.transform = "";
 
       setTimeoutFn(() => {
-        swipeElement?.classList.remove("is-sliding");
+        targetElement?.classList.remove("is-sliding");
         isAnimatingCard = false;
       }, SWIPE_SLIDE_DURATION_MS);
     }, SWIPE_SLIDE_DURATION_MS);
@@ -259,6 +269,9 @@ export function bindTouchEvents({ prevWord, nextWord, isSwipeAllowedTarget, swip
 
       const startTarget = event.target instanceof Element ? event.target : null;
       swipeEnabled = isSwipeAllowedTarget(startTarget);
+      activeSwipeElement = typeof getSwipeElement === "function"
+        ? (getSwipeElement(startTarget) || swipeElement)
+        : swipeElement;
       touchStartX = touch.screenX;
       touchStartY = touch.screenY;
       isHorizontalSwipe = false;

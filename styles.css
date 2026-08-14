@@ -408,14 +408,31 @@ body.mode-multiple-choice .multiple-choice-panel {
 
 .morpheme-analysis-panel {
   width: min(720px, 100%);
+  height: min(58vh, 520px);
   max-height: min(58vh, 520px);
-  overflow-y: auto;
+  overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--app-bg);
   color: var(--app-text);
   padding: 18px 20px 22px;
   text-align: left;
+}
+
+.morpheme-analysis-content {
+  height: 100%;
+  overflow-y: auto;
+  transition: transform 180ms ease;
+  will-change: transform;
+}
+
+.morpheme-analysis-content.is-dragging {
+  transition: none;
+}
+
+.morpheme-analysis-content.is-returning,
+.morpheme-analysis-content.is-sliding {
+  transition: transform 180ms ease;
 }
 
 .morpheme-analysis-word {
@@ -1032,6 +1049,29 @@ body.mode-morpheme-analysis .multiple-choice-panel {
   .review-panel {
     width: 164px;
   }
+
+  .button-row {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: center;
+  }
+
+  .button-row .nav-box:nth-child(1) {
+    order: 1;
+  }
+
+  .button-row .nav-box:nth-child(2) {
+    order: 2;
+  }
+
+  .button-row .nav-box:nth-child(3) {
+    order: 3;
+  }
+
+  body.mode-morpheme-analysis .feature-control-list .control-btn:not(.morpheme-btn),
+  body.mode-morpheme-analysis .time-adjustments {
+    display: none;
+  }
 }
 
 @media (max-width: 768px) and (orientation: landscape), (max-height: 520px) and (orientation: landscape) {
@@ -1076,17 +1116,18 @@ body.mode-morpheme-analysis .multiple-choice-panel {
   }
 
   .multiple-choice-btn {
-    top: 52%;
+    top: calc(var(--landscape-feature-top) + 104px);
+    right: calc(var(--landscape-feature-button-width) + var(--landscape-feature-gap));
   }
 
   .morpheme-btn {
-    top: calc(52% + var(--landscape-feature-button-width) - 28px);
+    top: calc(var(--landscape-feature-top) + 104px);
   }
 
   .time-adjustments {
     position: fixed;
     right: 0px;
-    top: 24%;
+    top: var(--landscape-feature-top);
     bottom: auto;
     flex-direction: column;
     pointer-events: auto;
@@ -1208,6 +1249,8 @@ body.mode-morpheme-analysis .multiple-choice-panel {
   }
 
   .morpheme-analysis-panel {
+    height: calc(100vh - 150px);
+    height: calc(100dvh - 150px);
     max-height: calc(100vh - 150px);
     max-height: calc(100dvh - 150px);
     padding: 12px 14px 14px;
@@ -1222,6 +1265,11 @@ body.mode-morpheme-analysis .multiple-choice-panel {
     margin-bottom: 8px;
     font-size: 15px;
     line-height: 1.5;
+  }
+
+  body.mode-morpheme-analysis .feature-control-list .control-btn:not(.morpheme-btn),
+  body.mode-morpheme-analysis .time-adjustments {
+    display: none;
   }
 }
 
