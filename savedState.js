@@ -86,6 +86,7 @@ export function readSavedAppState({
     ),
     translationMode: parseSavedBoolean(saved.translationMode, defaults.translationMode),
     multipleChoiceMode: parseSavedBoolean(saved.multipleChoiceMode, defaults.multipleChoiceMode),
+    morphemeAnalysisMode: parseSavedBoolean(saved.morphemeAnalysisMode, defaults.morphemeAnalysisMode),
     randomMode: parseSavedBoolean(saved.randomMode, defaults.randomMode),
     frequencyMode: parseSavedBoolean(saved.frequencyMode, defaults.frequencyMode),
     shouldResetAutoPlay: saved.autoPlay !== null

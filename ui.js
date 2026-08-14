@@ -20,6 +20,7 @@ export function renderApp(context, options = {}) {
   updateMultipleChoiceButton(context);
   renderMultipleChoice(context);
   updateMorphemeButton(context);
+  updateMorphemeAnalysisPanel(context);
   updateAutoPlayButton(context);
   updateRandomButton(context);
   updateFrequencyButton(context);
@@ -161,6 +162,7 @@ export function renderCurrentWord(context) {
   updateMeaningDisplay(context, state.translationMode ? current.word : current.meaning);
   renderMultipleChoice(context);
   updateMorphemeButton(context);
+  updateMorphemeAnalysisPanel(context);
   updateCurrentStateMeta(context);
   if (state.multipleChoiceMode) {
     if (dom.pronunciationEl) dom.pronunciationEl.textContent = "";
@@ -182,6 +184,7 @@ function renderEmptyCurrentWord(context) {
   if (dom.nextHintEl) dom.nextHintEl.textContent = "";
   renderMultipleChoice(context);
   updateMorphemeButton(context);
+  updateMorphemeAnalysisPanel(context);
 
   updateFavoriteToggleButton(context);
   updateDifficultToggleButton(context);
@@ -419,6 +422,16 @@ export function updateMultipleChoiceButton(context) {
   updateToggleButton(context, getDom(context).multipleChoiceBtnEl, "四択問題", getState(context).multipleChoiceMode);
 }
 
+export function updateMorphemeButton(context) {
+  const state = getState(context);
+  const button = getDom(context).morphemeBtnEl;
+  updateToggleButton(context, button, "語源解析", state.morphemeAnalysisMode);
+
+  if (typeof document !== "undefined") {
+    document.body.classList.toggle("mode-morpheme-analysis", state.morphemeAnalysisMode);
+  }
+}
+
 export function updateAutoPlayButton(context) {
   const state = getState(context);
   const isActive = state.autoPlayMode === "once";
@@ -518,100 +531,39 @@ export function hasMorphemeInfo(item) {
   );
 }
 
-export function updateMorphemeButton(context) {
+export function updateMorphemeAnalysisPanel(context) {
   const state = getState(context);
   const dom = getDom(context);
-  const callbacks = getCallbacks(context);
-  const button = dom.morphemeBtnEl;
-  if (!button) return;
+  const panel = dom.morphemeAnalysisPanelEl;
+  if (!panel) return;
 
-  const current = callbacks.getCurrentWord?.();
-  const shouldShow = Boolean(
-    current &&
-    !state.multipleChoiceMode &&
-    !isChallengeAnswerHidden(state, dom)
-  );
-
-  if (!shouldShow) {
-    button.hidden = true;
+  const current = getCallbacks(context).getCurrentWord?.();
+  if (!state.morphemeAnalysisMode || !current) {
+    panel.hidden = true;
+    panel.innerHTML = "";
     return;
   }
 
-  moveMorphemeButton(button, getMorphemeSlot(dom));
-  button.hidden = false;
-  button.disabled = false;
-  button.textContent = "語源・形態素";
-  button.setAttribute("aria-label", `${current.word} の語源・形態素を表示`);
-}
-
-export function openMorphemeDialog(context) {
-  const dom = getDom(context);
-  const current = getCallbacks(context).getCurrentWord?.();
-  if (!current || !dom.morphemeDialogEl || !dom.morphemeDialogBodyEl) return;
-
-  dom.morphemeDialogBodyEl.innerHTML = "";
-  dom.morphemeDialogBodyEl.appendChild(createMorphemeWordHeading(current.word));
-  dom.morphemeDialogBodyEl.appendChild(createMorphemeDescriptionList(current));
-  dom.morphemeDialogEl.hidden = false;
-  dom.morphemeDialogCloseBtnEl?.focus();
-}
-
-export function closeMorphemeDialog(context) {
-  const dom = getDom(context);
-  if (!dom.morphemeDialogEl) return;
-
-  dom.morphemeDialogEl.hidden = true;
-  if (dom.morphemeDialogBodyEl) dom.morphemeDialogBodyEl.innerHTML = "";
-  if (dom.morphemeBtnEl && !dom.morphemeBtnEl.hidden) {
-    dom.morphemeBtnEl.focus();
-  }
-}
-
-export function isMorphemeDialogOpen(context) {
-  const dialog = getDom(context).morphemeDialogEl;
-  return Boolean(dialog && !dialog.hidden);
+  panel.innerHTML = "";
+  panel.appendChild(createMorphemeWordHeading(current.word));
+  panel.appendChild(createMorphemeDescriptionList(current));
+  panel.hidden = false;
 }
 
 function normalizeMorphemeText(value) {
   return String(value ?? "").trim();
 }
 
-function isChallengeAnswerHidden(state, dom) {
-  return Boolean(state.challengeMode && dom.meaningEl?.textContent === "・・・");
-}
-
-function getMorphemeSlot(dom) {
-  if (matchesMedia("(max-width: 768px) and (orientation: landscape), (max-height: 520px) and (orientation: landscape)")) {
-    return dom.morphemeSideSlotEl;
-  }
-
-  if (matchesMedia("(max-width: 520px) and (orientation: portrait)")) {
-    return dom.morphemeBottomSlotEl;
-  }
-
-  return dom.morphemeInlineSlotEl;
-}
-
-function matchesMedia(query) {
-  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
-  return window.matchMedia(query).matches;
-}
-
-function moveMorphemeButton(button, slot) {
-  if (!slot || button.parentElement === slot) return;
-  slot.appendChild(button);
-}
-
 function createMorphemeWordHeading(word) {
   const heading = document.createElement("p");
-  heading.className = "morpheme-dialog-word";
+  heading.className = "morpheme-analysis-word";
   heading.textContent = word;
   return heading;
 }
 
 function createMorphemeDescriptionList(item) {
   const list = document.createElement("dl");
-  list.className = "morpheme-dialog-list";
+  list.className = "morpheme-analysis-list";
   let hasDetails = false;
 
   [
@@ -634,7 +586,7 @@ function createMorphemeDescriptionList(item) {
 
   if (!hasDetails) {
     const term = document.createElement("dt");
-    term.textContent = "語源・形態素";
+    term.textContent = "語源解析";
     const detail = document.createElement("dd");
     detail.textContent = "この単語には語源・形態素データがまだ登録されていません。";
     list.append(term, detail);
@@ -653,21 +605,17 @@ function updateMeaningDisplay(context, meaning) {
   if (state.multipleChoiceMode) {
     dom.meaningEl.textContent = "";
     updateWordDetailMeta(context, null);
-    updateMorphemeButton(context);
     return;
   }
 
   if (!state.challengeMode) {
     dom.meaningEl.textContent = meaning;
-    updateMorphemeButton(context);
     return;
   }
 
   dom.meaningEl.textContent = "・・・";
-  updateMorphemeButton(context);
   callbacks.setMeaningRevealTimer(setTimeout(() => {
     dom.meaningEl.textContent = meaning;
-    updateMorphemeButton(context);
   }, state.challengeTime));
 }
 

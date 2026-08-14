@@ -13,6 +13,7 @@ import {
   saveDifficultsToLocalOnly,
   saveDifficultsUpdatedAt,
   saveFrequencyModeState,
+  saveMorphemeAnalysisModeState,
   saveMultipleChoiceModeState,
   saveIndexByVol
 } from "../storage.js";
@@ -69,6 +70,9 @@ assert.strictEqual(values.get(STORAGE_KEYS.displayTime), "1800", "saveDisplayTim
 
 saveMultipleChoiceModeState(true);
 assert.strictEqual(values.get(STORAGE_KEYS.multipleChoiceMode), "true", "saveMultipleChoiceModeState should store booleans as strings");
+
+saveMorphemeAnalysisModeState(true);
+assert.strictEqual(values.get(STORAGE_KEYS.morphemeAnalysisMode), "true", "saveMorphemeAnalysisModeState should store booleans as strings");
 
 saveFrequencyModeState(true);
 assert.strictEqual(values.get(STORAGE_KEYS.frequencyMode), "true", "saveFrequencyModeState should store booleans as strings");

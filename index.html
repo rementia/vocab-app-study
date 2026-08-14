@@ -13,7 +13,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <link rel="stylesheet" href="styles.css?v=10" />
+  <link rel="stylesheet" href="styles.css?v=20260814-1" />
 </head>
 <body class="loading">
   <div class="app">
@@ -110,6 +110,15 @@
           </button>
 
           <button
+            class="control-btn morpheme-btn"
+            id="morphemeBtn"
+            aria-label="語源解析"
+            aria-pressed="false"
+          >
+            語源解析
+          </button>
+
+          <button
             class="control-btn multiple-choice-btn"
             id="multipleChoiceBtn"
             aria-label="四択問題"
@@ -171,7 +180,6 @@
           <input type="range" id="displayTimeSlider" min="1" max="5" step="0.5" value="1.5">
         </div>
       </div>
-      <div class="morpheme-slot morpheme-slot-side" id="morphemeSideSlot"></div>
     </div>
 
     <main class="main">
@@ -207,7 +215,12 @@
             <div id="word" aria-live="polite">読み込み中...</div>
             <div id="meaning" aria-live="polite"></div>
             <div class="word-detail-meta" id="wordDetailMeta" hidden></div>
-            <div class="morpheme-slot morpheme-slot-inline" id="morphemeInlineSlot"></div>
+            <section
+              class="morpheme-analysis-panel"
+              id="morphemeAnalysisPanel"
+              aria-live="polite"
+              hidden
+            ></section>
           </div>
 
           <div class="multiple-choice-panel" id="multipleChoicePanel" hidden>
@@ -231,8 +244,6 @@
             </div>
           </div>
 
-          <div class="morpheme-slot morpheme-slot-bottom" id="morphemeBottomSlot"></div>
-
           <div class="help-line">
             ← → : 前後移動　｜　Space : 発音　｜　F : ☆　｜　D : △　｜　/ : 検索　｜　Enter : 検索巡回　｜　L : 一覧　｜　R : 乱数配列　｜　Esc : 解除
           </div>
@@ -241,40 +252,7 @@
     </main>
   </div>
 
-  <button
-    class="control-btn morpheme-btn"
-    id="morphemeBtn"
-    type="button"
-    hidden
-  >
-    語源・形態素
-  </button>
-
-  <div
-    class="morpheme-dialog-backdrop"
-    id="morphemeDialog"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="morphemeDialogTitle"
-    hidden
-  >
-    <div class="morpheme-dialog-panel">
-      <div class="morpheme-dialog-header">
-        <h2 id="morphemeDialogTitle">語源・形態素</h2>
-        <button
-          class="control-btn morpheme-dialog-close"
-          id="morphemeDialogCloseBtn"
-          type="button"
-          aria-label="語源・形態素ダイアログを閉じる"
-        >
-          ×
-        </button>
-      </div>
-      <div class="morpheme-dialog-body" id="morphemeDialogBody"></div>
-    </div>
-  </div>
-
-  <script type="module" src="bootstrap.js?v=20260813-3"></script>
+  <script type="module" src="bootstrap.js?v=20260814-1"></script>
 </body>
 </html>
 
