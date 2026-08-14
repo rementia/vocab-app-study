@@ -1301,6 +1301,8 @@ body.mode-morpheme-analysis .morpheme-analysis-panel {
   .multiple-choice-panel {
     width: min(100%, 430px);
     gap: 6px;
+    position: relative;
+    z-index: 3;
   }
 
   .multiple-choice-options {
