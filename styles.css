@@ -1147,7 +1147,7 @@ body.mode-morpheme-analysis .morpheme-analysis-panel {
 
   .login-btn {
     left: auto;
-    right: var(--login-right);
+    right: max(var(--login-right), env(safe-area-inset-right));
     top: 15px;
     bottom: auto;
   }
@@ -1364,15 +1364,6 @@ body.mode-morpheme-analysis .morpheme-analysis-panel {
   body.mode-morpheme-analysis .feature-control-list .control-btn:not(.morpheme-btn),
   body.mode-morpheme-analysis .time-adjustments {
     display: none;
-  }
-
-  body.mode-morpheme-analysis .feature-control-list .control-btn.random-btn,
-  body.mode-morpheme-analysis .feature-control-list .control-btn.speech-sync-btn,
-  body.mode-morpheme-analysis .feature-control-list .control-btn.frequency-btn,
-  body.mode-morpheme-analysis .feature-control-list .control-btn.challenge-btn,
-  body.mode-morpheme-analysis .feature-control-list .control-btn.translation-btn,
-  body.mode-morpheme-analysis .feature-control-list .control-btn.auto-play-btn {
-    display: inline-block;
   }
 
   body.mode-morpheme-analysis .morpheme-btn {
