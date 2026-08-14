@@ -1133,10 +1133,10 @@ body.mode-morpheme-analysis .morpheme-analysis-panel {
   }
 
   .feature-controls {
-    position: absolute;
+    position: fixed;
     left: var(--landscape-feature-left);
     right: auto;
-    top: var(--landscape-feature-top);
+    top: calc(var(--landscape-feature-top) - 10px);
     transform: none;
     z-index: 2;
   }
@@ -1164,18 +1164,18 @@ body.mode-morpheme-analysis .morpheme-analysis-panel {
   }
 
   .multiple-choice-btn {
-    top: calc(var(--landscape-feature-top) + 84px);
+    top: calc(var(--landscape-feature-top) + 74px);
     right: calc(var(--landscape-feature-button-width) + var(--landscape-feature-gap));
   }
 
   .morpheme-btn {
-    top: calc(var(--landscape-feature-top) + 84px);
+    top: calc(var(--landscape-feature-top) + 74px);
   }
 
   .time-adjustments {
     position: fixed;
     right: 0px;
-    top: var(--landscape-feature-top);
+    top: calc(var(--landscape-feature-top) - 10px);
     bottom: auto;
     flex-direction: column;
     pointer-events: auto;
@@ -1360,6 +1360,15 @@ body.mode-morpheme-analysis .morpheme-analysis-panel {
   body.mode-morpheme-analysis .feature-control-list .control-btn:not(.morpheme-btn),
   body.mode-morpheme-analysis .time-adjustments {
     display: none;
+  }
+
+  body.mode-morpheme-analysis .feature-control-list .control-btn.random-btn,
+  body.mode-morpheme-analysis .feature-control-list .control-btn.speech-sync-btn,
+  body.mode-morpheme-analysis .feature-control-list .control-btn.frequency-btn,
+  body.mode-morpheme-analysis .feature-control-list .control-btn.challenge-btn,
+  body.mode-morpheme-analysis .feature-control-list .control-btn.translation-btn,
+  body.mode-morpheme-analysis .feature-control-list .control-btn.auto-play-btn {
+    display: inline-block;
   }
 
   body.mode-morpheme-analysis .morpheme-btn {
