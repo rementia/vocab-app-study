@@ -499,7 +499,7 @@ const morphemePanelContext = {
 updateMorphemeAnalysisPanel(morphemePanelContext);
 assert.strictEqual(morphemePanel.hidden, false, "morpheme analysis panel should be visible while the mode is on");
 assert.deepStrictEqual(
-  morphemePanel.children[1].children
+  morphemePanel.children[0].children[1].children
     .filter((child, index) => index % 2 === 0)
     .map((term) => term.textContent),
   [
@@ -533,7 +533,7 @@ updateMorphemeAnalysisPanel({
 });
 assert.strictEqual(emptyMorphemePanel.hidden, false, "morpheme analysis panel should open even before morpheme info is registered");
 assert.deepStrictEqual(
-  emptyMorphemePanel.children[1].children.map((child) => child.textContent),
+  emptyMorphemePanel.children[0].children[1].children.map((child) => child.textContent),
   [
     "語源解析",
     "この単語には語源・形態素データがまだ登録されていません。"

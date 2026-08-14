@@ -307,4 +307,31 @@ assert.strictEqual(swipeCalls.prev, 1, "right swipe should move to the previous 
 Date.now = originalDateNow;
 globalThis.setTimeout = originalSetTimeout;
 
+touchStartHandler = null;
+touchMoveHandler = null;
+touchEndHandler = null;
+globalThis.document = {
+  addEventListener(type, handler) {
+    if (type === "touchstart") touchStartHandler = handler;
+    if (type === "touchmove") touchMoveHandler = handler;
+    if (type === "touchend") touchEndHandler = handler;
+  }
+};
+
+const defaultSwipeElement = new MockElement();
+const morphemeSwipeElement = new MockElement();
+bindTouchEvents({
+  prevWord: () => {},
+  nextWord: () => {},
+  isSwipeAllowedTarget: () => true,
+  swipeElement: defaultSwipeElement,
+  getSwipeElement: () => morphemeSwipeElement
+});
+
+dispatchTouch(touchStartHandler, 100, 100);
+dispatchTouch(touchMoveHandler, 140, 100);
+assert.strictEqual(defaultSwipeElement.style.transform, "", "default card should stay fixed when a custom swipe element is active");
+assert.strictEqual(morphemeSwipeElement.style.transform, "translate3d(40px, 0, 0)", "custom swipe element should receive the drag transform");
+dispatchTouch(touchEndHandler, 140, 100);
+
 console.log("All keyboard shortcut tests passed.");

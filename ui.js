@@ -545,8 +545,11 @@ export function updateMorphemeAnalysisPanel(context) {
   }
 
   panel.innerHTML = "";
-  panel.appendChild(createMorphemeWordHeading(current.word));
-  panel.appendChild(createMorphemeDescriptionList(current));
+  const content = document.createElement("div");
+  content.className = "morpheme-analysis-content";
+  content.appendChild(createMorphemeWordHeading(current.word));
+  content.appendChild(createMorphemeDescriptionList(current));
+  panel.appendChild(content);
   panel.hidden = false;
 }
 
