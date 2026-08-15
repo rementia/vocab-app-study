@@ -807,7 +807,10 @@ function loadSavedState() {
   displayTime = savedState.displayTime;
   translationMode = savedState.translationMode;
   multipleChoiceMode = savedState.multipleChoiceMode;
-  morphemeAnalysisMode = savedState.morphemeAnalysisMode;
+  morphemeAnalysisMode = false;
+  if (savedState.morphemeAnalysisMode) {
+    saveMorphemeAnalysisModeState(false);
+  }
   randomMode = savedState.randomMode;
   frequencyMode = savedState.frequencyMode;
 
