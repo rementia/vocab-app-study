@@ -870,11 +870,17 @@ function resetWordDataAfterSignIn() {
 async function loadCurrentModeAfterSignIn() {
   if (currentMode === "favorites") {
     await handleLoadFavoritesMode();
+    if (words.length === 0) {
+      await loadSheet(currentVol);
+    }
     return;
   }
 
   if (currentMode === "difficults") {
     await handleLoadDifficultsMode();
+    if (words.length === 0) {
+      await loadSheet(currentVol);
+    }
     return;
   }
 
