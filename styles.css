@@ -1152,6 +1152,10 @@ body.mode-morpheme-analysis .morpheme-analysis-panel {
     bottom: auto;
   }
 
+  body.mode-multiple-choice .main {
+    z-index: 41;
+  }
+
   .feature-control-list {
     grid-template-columns: repeat(2, var(--landscape-feature-button-width));
     gap: var(--landscape-feature-gap);

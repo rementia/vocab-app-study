@@ -963,7 +963,13 @@ function lockAppUi(message) {
   if (meaningEl) meaningEl.textContent = "";
   if (progressEl) progressEl.textContent = "";
   if (pronunciationEl) pronunciationEl.textContent = "";
-  document.body.classList.remove("mode-morpheme-analysis");
+  document.body.classList.remove("mode-multiple-choice", "mode-morpheme-analysis");
+  if (multipleChoicePanelEl) {
+    multipleChoicePanelEl.hidden = true;
+  }
+  if (multipleChoiceOptionsEl) multipleChoiceOptionsEl.innerHTML = "";
+  if (multipleChoiceQuestionEl) multipleChoiceQuestionEl.textContent = "";
+  if (multipleChoiceFeedbackEl) multipleChoiceFeedbackEl.textContent = "";
   if (morphemeAnalysisPanelEl) {
     morphemeAnalysisPanelEl.hidden = true;
     morphemeAnalysisPanelEl.innerHTML = "";
