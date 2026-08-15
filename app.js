@@ -806,7 +806,10 @@ function loadSavedState() {
   challengeTime = savedState.challengeTime;
   displayTime = savedState.displayTime;
   translationMode = savedState.translationMode;
-  multipleChoiceMode = savedState.multipleChoiceMode;
+  multipleChoiceMode = false;
+  if (savedState.multipleChoiceMode) {
+    saveMultipleChoiceModeState(false);
+  }
   morphemeAnalysisMode = false;
   if (savedState.morphemeAnalysisMode) {
     saveMorphemeAnalysisModeState(false);

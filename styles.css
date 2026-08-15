@@ -313,20 +313,45 @@ body.loading {
   text-align: center;
 }
 
-.multiple-choice-btn {
-  min-width: 108px;
+.random-btn {
   grid-column: 1;
-  grid-row: 4;
-}
-
-.morpheme-btn {
-  grid-column: 2;
-  grid-row: 4;
+  grid-row: 1;
 }
 
 .translation-btn {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.frequency-btn {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.multiple-choice-btn {
+  min-width: 108px;
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.speech-sync-btn {
   grid-column: 1;
   grid-row: 3;
+}
+
+.auto-play-btn {
+  grid-column: 2;
+  grid-row: 3;
+}
+
+.morpheme-btn {
+  grid-column: 1;
+  grid-row: 4;
+}
+
+.challenge-btn {
+  grid-column: 2;
+  grid-row: 4;
 }
 
 .multiple-choice-panel {
@@ -1171,6 +1196,36 @@ body.mode-morpheme-analysis .morpheme-analysis-panel {
   .feature-control-list {
     grid-template-columns: repeat(2, var(--landscape-feature-button-width));
     gap: var(--landscape-feature-gap);
+  }
+
+  .random-btn {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .translation-btn {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .frequency-btn {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .auto-play-btn {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .speech-sync-btn {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .challenge-btn {
+    grid-column: 2;
+    grid-row: 3;
   }
 
   .multiple-choice-btn,
