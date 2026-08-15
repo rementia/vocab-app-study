@@ -1048,27 +1048,27 @@ body.mode-morpheme-analysis .morpheme-analysis-panel {
 
   .translation-btn {
     grid-column: 1;
-    grid-row: 3;
+    grid-row: 6;
   }
 
   .multiple-choice-btn {
     grid-column: 1;
-    grid-row: 4;
+    grid-row: 7;
   }
 
   .speech-sync-btn {
     grid-column: 1;
-    grid-row: 5;
+    grid-row: 3;
   }
 
   .challenge-btn {
     grid-column: 1;
-    grid-row: 6;
+    grid-row: 5;
   }
 
   .auto-play-btn {
     grid-column: 1;
-    grid-row: 7;
+    grid-row: 4;
   }
 
   .morpheme-btn {
