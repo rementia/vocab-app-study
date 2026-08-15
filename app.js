@@ -360,7 +360,6 @@ async function init() {
 
   handleViewportResize();
 
-  setAppLocked(true, "Googleログイン必須");
   finishInitialLoading();
 }
 
@@ -849,11 +848,11 @@ function handleSignedOut() {
 async function handleSignedIn() {
   setAppLocked(false);
 
-  await loadUserMarksFromCloud();
-  subscribeUserMarksRealtime();
-
   resetWordDataAfterSignIn();
   await loadCurrentModeAfterSignIn();
+  await loadUserMarksFromCloud();
+  subscribeUserMarksRealtime();
+  refreshAfterUserMarksSync();
 }
 
 function resetWordDataAfterSignIn() {
@@ -1055,6 +1054,20 @@ function refreshUserMarkLists({ favoritesChanged, difficultsChanged }) {
     applyWordOrder(false);
     index = clampWordIndex(index);
   }
+}
+
+function refreshAfterUserMarksSync() {
+  if (currentMode !== "favorites" && currentMode !== "difficults") {
+    updateFavoriteToggleButton();
+    updateDifficultToggleButton();
+    return;
+  }
+
+  clearWordOrderCache();
+  applyWordOrder(false);
+  index = clampWordIndex(index);
+  requestListRebuild();
+  render();
 }
 
 async function loadUserMarksFromCloud() {
