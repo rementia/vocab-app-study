@@ -1244,6 +1244,11 @@ body.mode-morpheme-analysis .morpheme-analysis-panel {
     transform: translateY(6px);
   }
 
+  body.mode-multiple-choice .center-box {
+    position: relative;
+    z-index: 3;
+  }
+
   .current-meta-row {
     grid-column: 1;
     grid-row: 1;

@@ -174,8 +174,12 @@ export function renderCurrentWord(context) {
 function renderEmptyCurrentWord(context) {
   const state = getState(context);
   const dom = getDom(context);
+  const emptyWordText = getEmptyWordText(state.currentMode);
 
-  if (dom.wordEl) dom.wordEl.textContent = getEmptyWordText(state.currentMode);
+  if (dom.wordEl) {
+    dom.wordEl.textContent = emptyWordText;
+    dom.wordEl.classList?.toggle("status-message", emptyWordText === "単語がありません");
+  }
   if (dom.meaningEl) dom.meaningEl.textContent = getEmptyMeaningText(state.currentMode);
   if (dom.progressEl) dom.progressEl.textContent = "";
   if (dom.pronunciationEl) dom.pronunciationEl.textContent = "";
@@ -206,7 +210,10 @@ function getEmptyMeaningText(currentMode) {
 function renderWordText(context, current) {
   const state = getState(context);
   const dom = getDom(context);
-  if (dom.wordEl) dom.wordEl.textContent = state.translationMode ? current.meaning : current.word;
+  if (dom.wordEl) {
+    dom.wordEl.classList?.remove("status-message");
+    dom.wordEl.textContent = state.translationMode ? current.meaning : current.word;
+  }
   updateWordDetailMeta(context, current);
 }
 
