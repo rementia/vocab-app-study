@@ -1036,6 +1036,18 @@ body.mode-morpheme-analysis .morpheme-analysis-panel {
     grid-template-columns: 1fr;
   }
 
+  .random-btn,
+  .frequency-btn,
+  .speech-sync-btn,
+  .auto-play-btn,
+  .challenge-btn,
+  .translation-btn,
+  .multiple-choice-btn,
+  .morpheme-btn {
+    position: static;
+    z-index: auto;
+  }
+
   .random-btn {
     grid-column: 1;
     grid-row: 1;
