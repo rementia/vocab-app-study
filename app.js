@@ -607,10 +607,6 @@ function finishInitialLoading() {
 
   requestAnimationFrame(() => {
     document.body.classList.remove("loading");
-
-    requestAnimationFrame(() => {
-      render();
-    });
   });
 }
 
