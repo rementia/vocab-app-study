@@ -8,6 +8,7 @@ let getCurrentWordFn = null;
 const pronunciationMissCache = new Set();
 const PRONUNCIATION_CACHE_PREFIX = "vocab_app_study_pron";
 const LEGACY_PRONUNCIATION_CACHE_PREFIX = "portfolio_pron";
+const VERIFIED_PRONUNCIATION_STATUS = "verified";
 let audioUnlocked = false;
 let audioUnlockEventsBound = false;
 let audioUnlockAttempted = false;
@@ -58,7 +59,10 @@ export function safePlayPronunciation() {
     utterance.rate = 0.9;
     utterance.pitch = 1.0;
     window.speechSynthesis.speak(utterance);
-    return { ok: true };
+    return {
+      ok: true,
+      source: isVerifiedPronunciation(current) ? 'browser-tts-with-verified-metadata' : 'browser-tts'
+    };
   } catch (error) {
     console.warn("発音再生に失敗しました:", error);
     if (error?.name === "NotAllowedError") {
@@ -124,6 +128,12 @@ export async function loadPronunciation(word) {
   const key = makePronunciationCacheKey(normalizedWord);
   lastPronunciationRequest = normalizedWord;
 
+  const verifiedPhonetic = getVerifiedPhonetic(normalizedWord);
+  if (verifiedPhonetic) {
+    pronunciationEl.textContent = verifiedPhonetic;
+    return;
+  }
+
   const cached = getCachedPronunciation(normalizedWord);
   if (cached !== null) {
     pronunciationEl.textContent = cached || '発音記号なし';
@@ -162,6 +172,21 @@ export async function loadPronunciation(word) {
       }
     }
   }
+}
+
+function getVerifiedPhonetic(normalizedWord) {
+  const current = getCurrentWordFn ? getCurrentWordFn() : null;
+  if (!current || normalizeWordKey(current.word) !== normalizedWord) return '';
+  if (!isVerifiedPronunciation(current)) return '';
+  return normalizePhoneticText(current.phonetic);
+}
+
+function isVerifiedPronunciation(item) {
+  return String(item?.pronunciationStatus || '').trim().toLowerCase() === VERIFIED_PRONUNCIATION_STATUS;
+}
+
+function normalizePhoneticText(value) {
+  return String(value || '').trim().replace(/^[/[]+|[\/\]]+$/g, '');
 }
 
 async function fetchPronunciationData(word, signal) {
@@ -217,7 +242,7 @@ function extractPhonetic(data) {
 
   const entry = data[0];
   const phonetic = entry.phonetic || findPhoneticText(entry.phonetics);
-  return phonetic.replace(/^\/|\/$/g, '');
+  return normalizePhoneticText(phonetic);
 }
 
 function findPhoneticText(phonetics) {
