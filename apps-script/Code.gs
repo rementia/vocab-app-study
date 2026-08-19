@@ -41,7 +41,11 @@ const OPTIONAL_WORD_COLUMN_NAMES = [
   "morphemeMeaning",
   "semanticDevelopment",
   "partOfSpeech",
-  "semanticCategory"
+  "semanticCategory",
+  "phonetic",
+  "pronunciationAudioUrl",
+  "pronunciationSource",
+  "pronunciationStatus"
 ];
 const CLASSIFICATION_COLUMN_NAMES = ["partOfSpeech", "semanticCategory"];
 const GENERATED_ID_PREFIX = "w_";
@@ -604,7 +608,7 @@ function getAccessToken() {
   const response = UrlFetchApp.fetch("https://oauth2.googleapis.com/token", {
     method: "post",
     payload: {
-      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      grant_type: "urn:ietf:params:oauth-grant-type:jwt-bearer",
       assertion: jwt
     },
     muteHttpExceptions: true
