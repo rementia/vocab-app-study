@@ -3,12 +3,14 @@ import { safeGetItem, safeSetItem } from './storage.js';
 
 let pronunciationEl = null;
 let currentPronunciationController = null;
+let currentPronunciationAudio = null;
 let lastPronunciationRequest = "";
 let getCurrentWordFn = null;
 const pronunciationMissCache = new Set();
 const PRONUNCIATION_CACHE_PREFIX = "vocab_app_study_pron";
 const LEGACY_PRONUNCIATION_CACHE_PREFIX = "portfolio_pron";
 const VERIFIED_PRONUNCIATION_STATUS = "verified";
+const REVIEW_REQUIRED_STATUSES = new Set(["needs_review", "invalid_compound_entry"]);
 let audioUnlocked = false;
 let audioUnlockEventsBound = false;
 let audioUnlockAttempted = false;
@@ -24,7 +26,7 @@ export function initPronunciation({ el, getCurrentWord }) {
 }
 
 export function updateSpeechButtonAvailability(speakBtnEl) {
-  const supported = isSpeechSynthesisSupported();
+  const supported = isHtmlAudioSupported() || isSpeechSynthesisSupported();
   if (!speakBtnEl) return;
 
   speakBtnEl.disabled = !supported;
@@ -40,7 +42,39 @@ export function safePlayPronunciation() {
   if (!getCurrentWordFn) return;
   const current = getCurrentWordFn();
   if (!current) return;
-  if (!isSpeechSynthesisSupported()) return;
+
+  const verifiedAudioUrl = normalizeField(current.pronunciationAudioUrl);
+  if (verifiedAudioUrl && isHtmlAudioSupported()) {
+    return playVerifiedAudio(verifiedAudioUrl, current.word);
+  }
+
+  return playSpeechSynthesisFallback(current.word);
+}
+
+function playVerifiedAudio(url, fallbackWord) {
+  try {
+    stopCurrentPronunciationAudio();
+    window.speechSynthesis?.cancel?.();
+
+    const audio = new Audio(url);
+    currentPronunciationAudio = audio;
+    const playPromise = audio.play();
+    if (playPromise && typeof playPromise.catch === 'function') {
+      playPromise.catch((error) => {
+        console.warn("検証済み発音音声の再生に失敗しました。ブラウザTTSへフォールバックします:", error);
+        if (currentPronunciationAudio === audio) currentPronunciationAudio = null;
+        playSpeechSynthesisFallback(fallbackWord);
+      });
+    }
+    return { ok: true };
+  } catch (error) {
+    console.warn("検証済み発音音声の再生に失敗しました。ブラウザTTSへフォールバックします:", error);
+    return playSpeechSynthesisFallback(fallbackWord);
+  }
+}
+
+function playSpeechSynthesisFallback(word) {
+  if (!isSpeechSynthesisSupported()) return { ok: false, unsupported: true };
 
   if (!audioUnlocked && !hasUserActivation()) {
     console.warn("発音再生はユーザー操作後に有効化できます: NotAllowedError");
@@ -53,18 +87,16 @@ export function safePlayPronunciation() {
   unbindAudioUnlockEvents();
 
   try {
+    stopCurrentPronunciationAudio();
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(current.word);
+    const utterance = new SpeechSynthesisUtterance(word);
     utterance.lang = 'en-US';
     utterance.rate = 0.9;
     utterance.pitch = 1.0;
     window.speechSynthesis.speak(utterance);
-    return {
-      ok: true,
-      source: isVerifiedPronunciation(current) ? 'browser-tts-with-verified-metadata' : 'browser-tts'
-    };
+    return { ok: true };
   } catch (error) {
-    console.warn("発音再生に失敗しました:", error);
+    console.warn("ブラウザTTSによる発音再生に失敗しました:", error);
     if (error?.name === "NotAllowedError") {
       audioUnlocked = false;
       bindAudioUnlockEvents();
@@ -72,6 +104,17 @@ export function safePlayPronunciation() {
     }
     return { ok: false, blocked: false };
   }
+}
+
+function stopCurrentPronunciationAudio() {
+  if (!currentPronunciationAudio) return;
+  try {
+    currentPronunciationAudio.pause();
+    currentPronunciationAudio.currentTime = 0;
+  } catch (error) {
+    console.warn("発音音声の停止に失敗しました:", error);
+  }
+  currentPronunciationAudio = null;
 }
 
 export function unlockPronunciationAudioOnce() {
@@ -128,12 +171,22 @@ export async function loadPronunciation(word) {
   const key = makePronunciationCacheKey(normalizedWord);
   lastPronunciationRequest = normalizedWord;
 
-  const verifiedPhonetic = getVerifiedPhonetic(normalizedWord);
-  if (verifiedPhonetic) {
-    pronunciationEl.textContent = verifiedPhonetic;
-    return;
+  const current = getCurrentWordFor(normalizedWord);
+  if (current) {
+    const verifiedPhonetic = getVerifiedPhonetic(current);
+    if (verifiedPhonetic) {
+      pronunciationEl.textContent = verifiedPhonetic;
+      return;
+    }
+
+    if (requiresPronunciationReview(current)) {
+      pronunciationEl.textContent = '発音記号要確認';
+      return;
+    }
   }
 
+  // Legacy fallback only. Audited rows explicitly marked needs_review or
+  // invalid_compound_entry never accept an external API result as final data.
   const cached = getCachedPronunciation(normalizedWord);
   if (cached !== null) {
     pronunciationEl.textContent = cached || '発音記号なし';
@@ -174,15 +227,27 @@ export async function loadPronunciation(word) {
   }
 }
 
-function getVerifiedPhonetic(normalizedWord) {
+function getCurrentWordFor(normalizedWord) {
   const current = getCurrentWordFn ? getCurrentWordFn() : null;
-  if (!current || normalizeWordKey(current.word) !== normalizedWord) return '';
-  if (!isVerifiedPronunciation(current)) return '';
-  return normalizePhoneticText(current.phonetic);
+  if (!current || normalizeWordKey(current.word) !== normalizedWord) return null;
+  return current;
+}
+
+function getVerifiedPhonetic(item) {
+  if (!isVerifiedPronunciation(item)) return '';
+  return normalizePhoneticText(item.phonetic);
 }
 
 function isVerifiedPronunciation(item) {
-  return String(item?.pronunciationStatus || '').trim().toLowerCase() === VERIFIED_PRONUNCIATION_STATUS;
+  return normalizeField(item?.pronunciationStatus).toLowerCase() === VERIFIED_PRONUNCIATION_STATUS;
+}
+
+function requiresPronunciationReview(item) {
+  return REVIEW_REQUIRED_STATUSES.has(normalizeField(item?.pronunciationStatus).toLowerCase());
+}
+
+function normalizeField(value) {
+  return String(value ?? '').trim();
 }
 
 function normalizePhoneticText(value) {
@@ -200,6 +265,10 @@ async function fetchPronunciationData(word, signal) {
   }
 
   return response.json();
+}
+
+function isHtmlAudioSupported() {
+  return typeof Audio !== 'undefined';
 }
 
 function isSpeechSynthesisSupported() {
