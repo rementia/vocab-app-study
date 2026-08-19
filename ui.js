@@ -10,6 +10,10 @@ function getCallbacks(context) {
   return context.callbacks;
 }
 
+function isMultipleChoicePresentationActive(state) {
+  return Boolean(state.multipleChoiceMode && !state.morphemeAnalysisMode);
+}
+
 export function renderApp(context, options = {}) {
   renderList(context);
   if (!options.skipCurrentWord) renderCurrentWord(context);
@@ -164,7 +168,7 @@ export function renderCurrentWord(context) {
   updateMorphemeButton(context);
   updateMorphemeAnalysisPanel(context);
   updateCurrentStateMeta(context);
-  if (state.multipleChoiceMode && !state.morphemeAnalysisMode) {
+  if (isMultipleChoicePresentationActive(state)) {
     if (dom.pronunciationEl) dom.pronunciationEl.textContent = "";
   } else {
     callbacks.loadPronunciation(current.word);
@@ -225,7 +229,7 @@ function updateWordDetailMeta(context, current) {
 
   const partOfSpeech = normalizeMorphemeText(current?.partOfSpeech);
   const semanticCategory = normalizeMorphemeText(current?.semanticCategory);
-  const shouldShow = Boolean(current && !state.multipleChoiceMode && (partOfSpeech || semanticCategory));
+  const shouldShow = Boolean(current && !isMultipleChoicePresentationActive(state) && (partOfSpeech || semanticCategory));
 
   target.hidden = !shouldShow;
   target.textContent = shouldShow
@@ -426,7 +430,8 @@ export function updateTranslationButton(context) {
 }
 
 export function updateMultipleChoiceButton(context) {
-  updateToggleButton(context, getDom(context).multipleChoiceBtnEl, "四択問題", getState(context).multipleChoiceMode);
+  const state = getState(context);
+  updateToggleButton(context, getDom(context).multipleChoiceBtnEl, "四択問題", isMultipleChoicePresentationActive(state));
 }
 
 export function updateMorphemeButton(context) {
@@ -468,15 +473,16 @@ export function renderMultipleChoice(context) {
   const state = getState(context);
   const dom = getDom(context);
   const callbacks = getCallbacks(context);
+  const isPresentationActive = isMultipleChoicePresentationActive(state);
 
   if (!dom.multipleChoicePanelEl || !dom.multipleChoiceOptionsEl) return;
 
   if (typeof document !== "undefined") {
-    document.body.classList.toggle("mode-multiple-choice", state.multipleChoiceMode);
+    document.body.classList.toggle("mode-multiple-choice", isPresentationActive);
   }
 
-  dom.multipleChoicePanelEl.hidden = !state.multipleChoiceMode;
-  if (!state.multipleChoiceMode) {
+  dom.multipleChoicePanelEl.hidden = !isPresentationActive;
+  if (!isPresentationActive) {
     dom.multipleChoiceOptionsEl.innerHTML = "";
     if (dom.multipleChoiceQuestionEl) dom.multipleChoiceQuestionEl.textContent = "";
     if (dom.multipleChoiceFeedbackEl) dom.multipleChoiceFeedbackEl.textContent = "";
@@ -612,7 +618,7 @@ function updateMeaningDisplay(context, meaning) {
   if (!dom.meaningEl) return;
   callbacks.clearMeaningRevealTimer();
 
-  if (state.multipleChoiceMode) {
+  if (isMultipleChoicePresentationActive(state)) {
     dom.meaningEl.textContent = "";
     updateWordDetailMeta(context, null);
     return;
@@ -668,4 +674,3 @@ export function clearMeaningRevealTimer(context) {
   const callbacks = getCallbacks(context);
   callbacks.clearMeaningRevealTimer();
 }
-
