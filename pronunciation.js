@@ -1,6 +1,5 @@
 import { normalizeWordKey } from './wordIdentity.js';
 import { safeGetItem, safeSetItem } from './storage.js';
-import { SHEET_SYNC_WEB_APP_URL, SHEET_SYNC_TOKEN } from './syncConfig.js';
 
 let pronunciationEl = null;
 let currentPronunciationController = null;
@@ -8,14 +7,10 @@ let currentPronunciationAudio = null;
 let lastPronunciationRequest = "";
 let getCurrentWordFn = null;
 const pronunciationMissCache = new Set();
-const highQualityAudioCache = new Map();
-const highQualityAudioRequests = new Map();
 const PRONUNCIATION_CACHE_PREFIX = "vocab_app_study_pron";
 const LEGACY_PRONUNCIATION_CACHE_PREFIX = "portfolio_pron";
 const VERIFIED_PRONUNCIATION_STATUS = "verified";
 const REVIEW_REQUIRED_STATUSES = new Set(["needs_review", "invalid_compound_entry"]);
-const HIGH_QUALITY_TTS_ACTION = "pronunciationTts";
-const HIGH_QUALITY_AUDIO_CACHE_LIMIT = 40;
 let audioUnlocked = false;
 let audioUnlockEventsBound = false;
 let audioUnlockAttempted = false;
@@ -48,24 +43,13 @@ export function safePlayPronunciation() {
   const current = getCurrentWordFn();
   if (!current) return;
 
+  // A pronunciationAudioUrl is used only after the row itself has been
+  // pronunciation-audited. This allows freely licensed human recordings to
+  // override TTS without trusting an unaudited external URL.
   if (isVerifiedPronunciation(current)) {
     const verifiedAudioUrl = normalizeField(current.pronunciationAudioUrl);
     if (verifiedAudioUrl && isHtmlAudioSupported()) {
       return playVerifiedAudio(verifiedAudioUrl, current.word);
-    }
-
-    const verifiedPhonetic = getVerifiedPhonetic(current);
-    if (verifiedPhonetic && isHtmlAudioSupported()) {
-      const cacheKey = makeHighQualityAudioCacheKey(current.word, verifiedPhonetic);
-      const generatedAudioUrl = highQualityAudioCache.get(cacheKey);
-      if (generatedAudioUrl) {
-        return playVerifiedAudio(generatedAudioUrl, current.word);
-      }
-
-      // Start preparing the authoritative IPA-driven audio for the next playback.
-      // The current click still gets an immediate browser-TTS fallback rather than
-      // waiting for a network request and risking autoplay blocking.
-      prefetchHighQualityAudio(current);
     }
   }
 
@@ -82,14 +66,14 @@ function playVerifiedAudio(url, fallbackWord) {
     const playPromise = audio.play();
     if (playPromise && typeof playPromise.catch === 'function') {
       playPromise.catch((error) => {
-        console.warn("検証済み発音音声の再生に失敗しました。ブラウザTTSへフォールバックします:", error);
+        console.warn("検証済み発音音声の再生に失敗しました。端末内TTSへフォールバックします:", error);
         if (currentPronunciationAudio === audio) currentPronunciationAudio = null;
         playSpeechSynthesisFallback(fallbackWord);
       });
     }
     return { ok: true, source: 'verified-audio' };
   } catch (error) {
-    console.warn("検証済み発音音声の再生に失敗しました。ブラウザTTSへフォールバックします:", error);
+    console.warn("検証済み発音音声の再生に失敗しました。端末内TTSへフォールバックします:", error);
     return playSpeechSynthesisFallback(fallbackWord);
   }
 }
@@ -111,13 +95,24 @@ function playSpeechSynthesisFallback(word) {
     stopCurrentPronunciationAudio();
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(word);
-    utterance.lang = 'en-US';
+    const preferredVoice = selectPreferredAmericanEnglishVoice();
+    if (preferredVoice) {
+      utterance.voice = preferredVoice;
+      utterance.lang = preferredVoice.lang || 'en-US';
+    } else {
+      utterance.lang = 'en-US';
+    }
     utterance.rate = 0.9;
     utterance.pitch = 1.0;
     window.speechSynthesis.speak(utterance);
-    return { ok: true, source: 'browser-tts' };
+    return {
+      ok: true,
+      source: 'browser-tts',
+      voice: preferredVoice?.name || '',
+      localService: preferredVoice?.localService ?? null
+    };
   } catch (error) {
-    console.warn("ブラウザTTSによる発音再生に失敗しました:", error);
+    console.warn("端末内TTSによる発音再生に失敗しました:", error);
     if (error?.name === "NotAllowedError") {
       audioUnlocked = false;
       bindAudioUnlockEvents();
@@ -125,6 +120,52 @@ function playSpeechSynthesisFallback(word) {
     }
     return { ok: false, blocked: false };
   }
+}
+
+function selectPreferredAmericanEnglishVoice() {
+  if (!isSpeechSynthesisSupported() || typeof window.speechSynthesis.getVoices !== 'function') {
+    return null;
+  }
+
+  const voices = window.speechSynthesis.getVoices();
+  if (!Array.isArray(voices) || voices.length === 0) return null;
+
+  const scored = voices
+    .map((voice, index) => ({ voice, index, score: scoreVoice(voice) }))
+    .filter((item) => item.score > 0)
+    .sort((a, b) => (b.score - a.score) || (a.index - b.index));
+
+  return scored[0]?.voice || null;
+}
+
+function scoreVoice(voice) {
+  const lang = normalizeLanguageTag(voice?.lang);
+  const name = normalizeField(voice?.name).toLowerCase();
+  let score = 0;
+
+  // General American is the app's pronunciation baseline.
+  if (lang === 'en-us') score += 100;
+  else if (lang.startsWith('en-us-')) score += 95;
+  else if (lang === 'en-ca') score += 65;
+  else if (lang.startsWith('en-')) score += 40;
+  else if (lang === 'en') score += 35;
+  else return 0;
+
+  // Prefer local voices so playback remains completely free from metered API
+  // usage and does not depend on a paid cloud service owned by this app.
+  if (voice?.localService === true) score += 30;
+  if (voice?.default === true) score += 5;
+
+  // Common OS/browser voice labels that usually denote higher-quality voices.
+  // These are only tie-breakers; locale and local availability remain primary.
+  if (/natural|enhanced|premium/.test(name)) score += 8;
+  if (/microsoft|apple|google/.test(name)) score += 2;
+
+  return score;
+}
+
+function normalizeLanguageTag(value) {
+  return normalizeField(value).replace(/_/g, '-').toLowerCase();
 }
 
 function stopCurrentPronunciationAudio() {
@@ -197,7 +238,6 @@ export async function loadPronunciation(word) {
     const verifiedPhonetic = getVerifiedPhonetic(current);
     if (verifiedPhonetic) {
       pronunciationEl.textContent = verifiedPhonetic;
-      prefetchHighQualityAudio(current);
       return;
     }
 
@@ -207,8 +247,8 @@ export async function loadPronunciation(word) {
     }
   }
 
-  // Legacy fallback only. Audited rows explicitly marked needs_review or
-  // invalid_compound_entry never accept an external API result as final data.
+  // Legacy display fallback only. Audited rows explicitly marked needs_review
+  // or invalid_compound_entry never accept an external API result as final data.
   const cached = getCachedPronunciation(normalizedWord);
   if (cached !== null) {
     pronunciationEl.textContent = cached || '発音記号なし';
@@ -274,91 +314,6 @@ function normalizeField(value) {
 
 function normalizePhoneticText(value) {
   return String(value || '').trim().replace(/^[/[]+|[\/\]]+$/g, '');
-}
-
-function hasHighQualityTtsConfig() {
-  return (
-    typeof SHEET_SYNC_WEB_APP_URL === 'string' &&
-    SHEET_SYNC_WEB_APP_URL.trim() !== '' &&
-    typeof SHEET_SYNC_TOKEN === 'string' &&
-    SHEET_SYNC_TOKEN.trim() !== ''
-  );
-}
-
-function makeHighQualityAudioCacheKey(word, phonetic) {
-  return `${normalizeWordKey(word)}|${normalizePhoneticText(phonetic)}`;
-}
-
-function prefetchHighQualityAudio(item) {
-  if (!isVerifiedPronunciation(item)) return Promise.resolve(null);
-  if (normalizeField(item.pronunciationAudioUrl)) return Promise.resolve(null);
-  if (!hasHighQualityTtsConfig()) return Promise.resolve(null);
-  if (typeof fetch !== 'function') return Promise.resolve(null);
-
-  const phonetic = getVerifiedPhonetic(item);
-  if (!phonetic) return Promise.resolve(null);
-
-  const cacheKey = makeHighQualityAudioCacheKey(item.word, phonetic);
-  if (highQualityAudioCache.has(cacheKey)) {
-    return Promise.resolve(highQualityAudioCache.get(cacheKey));
-  }
-  if (highQualityAudioRequests.has(cacheKey)) {
-    return highQualityAudioRequests.get(cacheKey);
-  }
-
-  const request = fetchHighQualityAudio(item.word, phonetic)
-    .then((audioUrl) => {
-      if (!audioUrl) return null;
-      rememberHighQualityAudio(cacheKey, audioUrl);
-      return audioUrl;
-    })
-    .catch((error) => {
-      console.warn('検証済みIPAによる高品質音声の取得に失敗しました:', error);
-      return null;
-    })
-    .finally(() => {
-      highQualityAudioRequests.delete(cacheKey);
-    });
-
-  highQualityAudioRequests.set(cacheKey, request);
-  return request;
-}
-
-async function fetchHighQualityAudio(word, phonetic) {
-  const url = new URL(SHEET_SYNC_WEB_APP_URL);
-  url.searchParams.set('action', HIGH_QUALITY_TTS_ACTION);
-  url.searchParams.set('token', SHEET_SYNC_TOKEN);
-  url.searchParams.set('word', word);
-  url.searchParams.set('phonetic', phonetic);
-
-  const response = await fetch(url.toString(), {
-    method: 'GET',
-    cache: 'no-store'
-  });
-  if (!response.ok) {
-    throw new Error(`発音TTSエンドポイント応答エラー: ${response.status}`);
-  }
-
-  const data = await response.json();
-  if (!data?.ok || !data.audioContent) {
-    throw new Error(data?.error || '発音TTS音声を取得できませんでした');
-  }
-
-  const mimeType = normalizeField(data.mimeType) || 'audio/mpeg';
-  return `data:${mimeType};base64,${data.audioContent}`;
-}
-
-function rememberHighQualityAudio(cacheKey, audioUrl) {
-  if (highQualityAudioCache.has(cacheKey)) {
-    highQualityAudioCache.delete(cacheKey);
-  }
-  highQualityAudioCache.set(cacheKey, audioUrl);
-
-  while (highQualityAudioCache.size > HIGH_QUALITY_AUDIO_CACHE_LIMIT) {
-    const oldestKey = highQualityAudioCache.keys().next().value;
-    if (!oldestKey) break;
-    highQualityAudioCache.delete(oldestKey);
-  }
 }
 
 async function fetchPronunciationData(word, signal) {
