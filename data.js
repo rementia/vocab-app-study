@@ -10,6 +10,10 @@ const MORPHEME_MEANING_COLUMN_NAMES = ["morphememeaning", "morpheme_meaning", "m
 const SEMANTIC_DEVELOPMENT_COLUMN_NAMES = ["semanticdevelopment", "semantic_development", "semantic development"];
 const PART_OF_SPEECH_COLUMN_NAMES = ["partofspeech", "part_of_speech", "part of speech"];
 const SEMANTIC_CATEGORY_COLUMN_NAMES = ["semanticcategory", "semantic_category", "semantic category"];
+const PHONETIC_COLUMN_NAMES = ["phonetic", "ipa"];
+const PRONUNCIATION_AUDIO_URL_COLUMN_NAMES = ["pronunciationaudiourl", "pronunciation_audio_url", "pronunciation audio url"];
+const PRONUNCIATION_SOURCE_COLUMN_NAMES = ["pronunciationsource", "pronunciation_source", "pronunciation source"];
+const PRONUNCIATION_STATUS_COLUMN_NAMES = ["pronunciationstatus", "pronunciation_status", "pronunciation status"];
 const SYNC_TIME_FIELD_NAMES = ["syncedAt", "updatedAt", "lastSyncedAt"];
 
 function stripBom(text) {
@@ -92,6 +96,10 @@ function createColumnReader(rows) {
   const semanticDevelopmentIndex = hasHeader ? getHeaderIndex(headerRow, SEMANTIC_DEVELOPMENT_COLUMN_NAMES) : -1;
   const partOfSpeechIndex = hasHeader ? getHeaderIndex(headerRow, PART_OF_SPEECH_COLUMN_NAMES) : -1;
   const semanticCategoryIndex = hasHeader ? getHeaderIndex(headerRow, SEMANTIC_CATEGORY_COLUMN_NAMES) : -1;
+  const phoneticIndex = hasHeader ? getHeaderIndex(headerRow, PHONETIC_COLUMN_NAMES) : -1;
+  const pronunciationAudioUrlIndex = hasHeader ? getHeaderIndex(headerRow, PRONUNCIATION_AUDIO_URL_COLUMN_NAMES) : -1;
+  const pronunciationSourceIndex = hasHeader ? getHeaderIndex(headerRow, PRONUNCIATION_SOURCE_COLUMN_NAMES) : -1;
+  const pronunciationStatusIndex = hasHeader ? getHeaderIndex(headerRow, PRONUNCIATION_STATUS_COLUMN_NAMES) : -1;
 
   return {
     startIndex: hasHeader ? 1 : 0,
@@ -105,7 +113,11 @@ function createColumnReader(rows) {
     readMorphemeMeaning: (cols) => (morphemeMeaningIndex >= 0 ? cols[morphemeMeaningIndex] || "" : ""),
     readSemanticDevelopment: (cols) => (semanticDevelopmentIndex >= 0 ? cols[semanticDevelopmentIndex] || "" : ""),
     readPartOfSpeech: (cols) => (partOfSpeechIndex >= 0 ? cols[partOfSpeechIndex] || "" : ""),
-    readSemanticCategory: (cols) => (semanticCategoryIndex >= 0 ? cols[semanticCategoryIndex] || "" : "")
+    readSemanticCategory: (cols) => (semanticCategoryIndex >= 0 ? cols[semanticCategoryIndex] || "" : ""),
+    readPhonetic: (cols) => (phoneticIndex >= 0 ? cols[phoneticIndex] || "" : ""),
+    readPronunciationAudioUrl: (cols) => (pronunciationAudioUrlIndex >= 0 ? cols[pronunciationAudioUrlIndex] || "" : ""),
+    readPronunciationSource: (cols) => (pronunciationSourceIndex >= 0 ? cols[pronunciationSourceIndex] || "" : ""),
+    readPronunciationStatus: (cols) => (pronunciationStatusIndex >= 0 ? cols[pronunciationStatusIndex] || "" : "")
   };
 }
 
@@ -128,6 +140,10 @@ function createWordItem(cols, columnReader, volName) {
     semanticDevelopment: columnReader.readSemanticDevelopment(cols),
     partOfSpeech: columnReader.readPartOfSpeech(cols),
     semanticCategory: columnReader.readSemanticCategory(cols),
+    phonetic: columnReader.readPhonetic(cols),
+    pronunciationAudioUrl: columnReader.readPronunciationAudioUrl(cols),
+    pronunciationSource: columnReader.readPronunciationSource(cols),
+    pronunciationStatus: columnReader.readPronunciationStatus(cols),
     legacyWordKey: normalizeWordKey(word),
     sourceVol: volName
   };
