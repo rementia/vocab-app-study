@@ -608,7 +608,7 @@ function getAccessToken() {
   const response = UrlFetchApp.fetch("https://oauth2.googleapis.com/token", {
     method: "post",
     payload: {
-      grant_type: "urn:ietf:params:oauth-grant-type:jwt-bearer",
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
       assertion: jwt
     },
     muteHttpExceptions: true
