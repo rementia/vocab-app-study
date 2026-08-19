@@ -47,6 +47,39 @@ assert.strictEqual(values.get("vocab_app_study_pron_test"), "test", "new pronunc
 assert.strictEqual(values.has("portfolio_pron_test"), false, "new pronunciation cache should not write the legacy prefix");
 
 values = installMockStorage();
+let verifiedFetchCalls = 0;
+globalThis.fetch = async () => {
+  verifiedFetchCalls += 1;
+  throw new Error("verified pronunciation must not hit the external fallback");
+};
+initPronunciation({
+  el: pronunciationEl,
+  getCurrentWord: () => ({
+    word: "abandon",
+    phonetic: "/əˈbændən/",
+    pronunciationStatus: "verified",
+    pronunciationSource: "CMUdict"
+  })
+});
+await loadPronunciation("Abandon");
+assert.strictEqual(pronunciationEl.textContent, "əˈbændən", "verified IPA should be preferred over caches and API fallback");
+assert.strictEqual(verifiedFetchCalls, 0, "verified IPA should not call the external fallback API");
+
+values = installMockStorage();
+let reviewFetchCalls = 0;
+globalThis.fetch = async () => {
+  reviewFetchCalls += 1;
+  return { json: async () => [{ phonetic: "/unsafe/" }] };
+};
+initPronunciation({
+  el: pronunciationEl,
+  getCurrentWord: () => ({ word: "cupful", pronunciationStatus: "needs_review" })
+});
+await loadPronunciation("Cupful");
+assert.strictEqual(pronunciationEl.textContent, "発音記号要確認", "audited unresolved words should remain explicitly unresolved");
+assert.strictEqual(reviewFetchCalls, 0, "audited unresolved words must not accept API fallback as final pronunciation data");
+
+values = installMockStorage();
 let missingFetchCalls = 0;
 globalThis.fetch = async () => {
   missingFetchCalls += 1;
@@ -93,6 +126,7 @@ const originalWindow = globalThis.window;
 const originalNavigatorDescriptor = Object.getOwnPropertyDescriptor(globalThis, "navigator");
 const originalDocument = globalThis.document;
 const originalSpeechSynthesisUtterance = globalThis.SpeechSynthesisUtterance;
+const originalAudio = globalThis.Audio;
 const originalConsoleWarn = console.warn;
 
 let speakCalls = 0;
@@ -173,7 +207,35 @@ const allowedResult = safePlayPronunciation();
 assert.deepStrictEqual(allowedResult, { ok: true }, "speech should play after user activation");
 assert.strictEqual(speakCalls, 1, "allowed speech should call speechSynthesis.speak once");
 
-globalThis.window = originalWindow;
+let verifiedAudioPlayCalls = 0;
+let verifiedAudioUrl = "";
+globalThis.Audio = class {
+  constructor(url) {
+    verifiedAudioUrl = url;
+    this.currentTime = 0;
+  }
+  play() {
+    verifiedAudioPlayCalls += 1;
+    return Promise.resolve();
+  }
+  pause() {}
+};
+initPronunciation({
+  el: pronunciationEl,
+  getCurrentWord: () => ({
+    word: "verified-audio",
+    pronunciationAudioUrl: "https://example.invalid/verified.mp3",
+    pronunciationStatus: "verified"
+  })
+});
+const verifiedAudioResult = safePlayPronunciation();
+assert.deepStrictEqual(verifiedAudioResult, { ok: true }, "verified audio URL should be playable through HTMLAudioElement");
+assert.strictEqual(verifiedAudioPlayCalls, 1, "verified audio should be preferred over browser TTS when a URL is present");
+assert.strictEqual(verifiedAudioUrl, "https://example.invalid/verified.mp3");
+assert.strictEqual(speakCalls, 1, "verified audio should not invoke browser TTS when playback starts successfully");
+
+if (originalWindow === undefined) delete globalThis.window;
+else globalThis.window = originalWindow;
 if (originalNavigatorDescriptor) {
   Object.defineProperty(globalThis, "navigator", originalNavigatorDescriptor);
 } else {
@@ -181,6 +243,8 @@ if (originalNavigatorDescriptor) {
 }
 globalThis.document = originalDocument;
 globalThis.SpeechSynthesisUtterance = originalSpeechSynthesisUtterance;
+if (originalAudio === undefined) delete globalThis.Audio;
+else globalThis.Audio = originalAudio;
 console.warn = originalConsoleWarn;
 
 console.log("All pronunciation tests passed.");
