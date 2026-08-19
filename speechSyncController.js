@@ -24,6 +24,12 @@ export function createSpeechSyncController({
     return navigator.userActivation.hasBeenActive || navigator.userActivation.isActive;
   }
 
+  function isSpeechBlocked() {
+    const morphemePresentationActive = typeof document !== "undefined" &&
+      document.body?.classList?.contains("mode-morpheme-analysis");
+    return shouldBlockSpeech() && !morphemePresentationActive;
+  }
+
   function bindActivationEvents() {
     if (activationEventsBound || typeof document === "undefined") return;
     activationEventsBound = true;
@@ -49,7 +55,7 @@ export function createSpeechSyncController({
 
   function speakNow() {
     if (!speechSync) return;
-    if (shouldBlockSpeech()) return;
+    if (isSpeechBlocked()) return;
     waitingForUserActivation = false;
     unbindActivationEvents();
     clearTimer();
@@ -65,7 +71,7 @@ export function createSpeechSyncController({
 
   function schedule() {
     if (!speechSync) return;
-    if (shouldBlockSpeech()) {
+    if (isSpeechBlocked()) {
       clearTimer();
       return;
     }
