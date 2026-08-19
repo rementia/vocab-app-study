@@ -7,6 +7,13 @@ import {
   parseCsvToWords
 } from "../data.js";
 
+const EMPTY_PRONUNCIATION_FIELDS = {
+  phonetic: "",
+  pronunciationAudioUrl: "",
+  pronunciationSource: "",
+  pronunciationStatus: ""
+};
+
 const sampleCsv = `\ufeffword,meaning\r\nhello,こんにちは\r\n"good,bye","さようなら"\r\n"quote""test",テスト\r\n`;
 
 const expectedRows = [
@@ -30,6 +37,7 @@ assert.deepStrictEqual(parsedWords[0], {
   semanticDevelopment: "",
   partOfSpeech: "",
   semanticCategory: "",
+  ...EMPTY_PRONUNCIATION_FIELDS,
   legacyWordKey: "hello",
   sourceVol: "vol1"
 });
@@ -42,6 +50,7 @@ assert.deepStrictEqual(parsedWords[1], {
   semanticDevelopment: "",
   partOfSpeech: "",
   semanticCategory: "",
+  ...EMPTY_PRONUNCIATION_FIELDS,
   legacyWordKey: "good,bye",
   sourceVol: "vol1"
 });
@@ -54,6 +63,7 @@ assert.deepStrictEqual(parsedWords[2], {
   semanticDevelopment: "",
   partOfSpeech: "",
   semanticCategory: "",
+  ...EMPTY_PRONUNCIATION_FIELDS,
   legacyWordKey: "quote\"test",
   sourceVol: "vol1"
 });
@@ -70,6 +80,7 @@ assert.deepStrictEqual(parsedSheetWords, [
     semanticDevelopment: "",
     partOfSpeech: "",
     semanticCategory: "",
+    ...EMPTY_PRONUNCIATION_FIELDS,
     legacyWordKey: "create",
     sourceVol: "vol2"
   },
@@ -82,6 +93,7 @@ assert.deepStrictEqual(parsedSheetWords, [
     semanticDevelopment: "",
     partOfSpeech: "",
     semanticCategory: "",
+    ...EMPTY_PRONUNCIATION_FIELDS,
     legacyWordKey: "study",
     sourceVol: "vol2"
   }
@@ -99,6 +111,7 @@ assert.deepStrictEqual(stableIdWords, [
     semanticDevelopment: "",
     partOfSpeech: "",
     semanticCategory: "",
+    ...EMPTY_PRONUNCIATION_FIELDS,
     legacyWordKey: "create",
     sourceVol: "vol3"
   },
@@ -111,6 +124,7 @@ assert.deepStrictEqual(stableIdWords, [
     semanticDevelopment: "",
     partOfSpeech: "",
     semanticCategory: "",
+    ...EMPTY_PRONUNCIATION_FIELDS,
     legacyWordKey: "study",
     sourceVol: "vol3"
   }
@@ -127,6 +141,7 @@ assert.deepStrictEqual(morphemeWords[0], {
   semanticDevelopment: "carry across a distance",
   partOfSpeech: "",
   semanticCategory: "",
+  ...EMPTY_PRONUNCIATION_FIELDS,
   legacyWordKey: "transport",
   sourceVol: "vol4"
 }, "parseCsvToWords should read optional morpheme columns when present");
@@ -136,6 +151,27 @@ const classificationCsv = "word,meaning,partOfSpeech,semanticCategory\nabandon,�
 const classificationWords = parseCsvToWords(classificationCsv, "vol4");
 assert.strictEqual(classificationWords[0].partOfSpeech, "verb", "partOfSpeech should be read when present");
 assert.strictEqual(classificationWords[0].semanticCategory, "action_activity", "semanticCategory should be read when present");
+
+const pronunciationCsv = [
+  "word,meaning,phonetic,pronunciationAudioUrl,pronunciationSource,pronunciationStatus",
+  "abandon,捨てる,əˈbændən,https://example.invalid/abandon.mp3,CMUdict,verified"
+].join("\n");
+const pronunciationWords = parseCsvToWords(pronunciationCsv, "vol4");
+assert.deepStrictEqual(
+  {
+    phonetic: pronunciationWords[0].phonetic,
+    pronunciationAudioUrl: pronunciationWords[0].pronunciationAudioUrl,
+    pronunciationSource: pronunciationWords[0].pronunciationSource,
+    pronunciationStatus: pronunciationWords[0].pronunciationStatus
+  },
+  {
+    phonetic: "əˈbændən",
+    pronunciationAudioUrl: "https://example.invalid/abandon.mp3",
+    pronunciationSource: "CMUdict",
+    pronunciationStatus: "verified"
+  },
+  "verified pronunciation fields should survive CSV parsing"
+);
 
 assert.strictEqual(
   formatFirestoreSyncValue(new Date("2026-06-20T00:00:00.000Z")),
