@@ -436,8 +436,9 @@ export function updateMultipleChoiceButton(context) {
 
 export function updateMorphemeButton(context) {
   const state = getState(context);
-  const button = getDom(context).morphemeBtnEl;
-  updateToggleButton(context, button, "語源解析", state.morphemeAnalysisMode);
+  const dom = getDom(context);
+  updateToggleButton(context, dom.morphemeBtnEl, "語源解析", state.morphemeAnalysisMode);
+  updateToggleButton(context, dom.multipleChoiceBtnEl, "四択問題", isMultipleChoicePresentationActive(state));
 
   if (typeof document !== "undefined") {
     document.body.classList.toggle("mode-morpheme-analysis", state.morphemeAnalysisMode);
