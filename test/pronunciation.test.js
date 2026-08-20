@@ -204,7 +204,11 @@ initPronunciation({
   getCurrentWord: () => ({ word: "allowed" })
 });
 const allowedResult = safePlayPronunciation();
-assert.deepStrictEqual(allowedResult, { ok: true }, "speech should play after user activation");
+assert.deepStrictEqual(
+  allowedResult,
+  { ok: true, source: "browser-tts", voice: "", localService: null },
+  "speech should report the current browser-TTS result contract after user activation"
+);
 assert.strictEqual(speakCalls, 1, "allowed speech should call speechSynthesis.speak once");
 
 let verifiedAudioPlayCalls = 0;
@@ -229,7 +233,11 @@ initPronunciation({
   })
 });
 const verifiedAudioResult = safePlayPronunciation();
-assert.deepStrictEqual(verifiedAudioResult, { ok: true }, "verified audio URL should be playable through HTMLAudioElement");
+assert.deepStrictEqual(
+  verifiedAudioResult,
+  { ok: true, source: "verified-audio" },
+  "verified audio URL should report the verified-audio result contract"
+);
 assert.strictEqual(verifiedAudioPlayCalls, 1, "verified audio should be preferred over browser TTS when a URL is present");
 assert.strictEqual(verifiedAudioUrl, "https://example.invalid/verified.mp3");
 assert.strictEqual(speakCalls, 1, "verified audio should not invoke browser TTS when playback starts successfully");
