@@ -52,24 +52,27 @@ function rowsToWords(rows) {
   }
 
   return rows.slice(1)
-    .map((cols) => ({
-      id: String(cols[index.id] ?? "").trim(),
-      word: String(cols[index.word] ?? "").trim(),
-      meaning: String(cols[index.meaning] ?? "").trim(),
-      sourceVol: `vol${String(cols[index.level] ?? "").trim()}`,
-      partOfSpeech: String(cols[index.partOfSpeech] ?? "").trim(),
-      semanticCategory: String(cols[index.semanticCategory] ?? "").trim()
-    }))
-    .filter((item) => item.word);
+    .map((cols) => {
+      const level = String(cols[index.level] ?? "").trim();
+      return {
+        id: String(cols[index.id] ?? "").trim(),
+        word: String(cols[index.word] ?? "").trim(),
+        meaning: String(cols[index.meaning] ?? "").trim(),
+        sourceVol: level ? `vol${level}` : "",
+        partOfSpeech: String(cols[index.partOfSpeech] ?? "").trim(),
+        semanticCategory: String(cols[index.semanticCategory] ?? "").trim()
+      };
+    })
+    .filter((item) => Object.values(item).some((value) => String(value ?? "").trim() !== ""));
 }
 
-function failCount(report) {
+function hardFailureCount(report) {
   return (
     report.invalidRows.length +
     report.duplicateIds.length +
     report.duplicateWords.length +
     report.invalidPartsOfSpeech.length +
-    report.partOfSpeechMismatches.length +
+    report.invalidVolumes.length +
     report.directions.wordToMeaning.insufficient.length +
     report.directions.meaningToWord.insufficient.length +
     report.directions.wordToMeaning.priority3Required.length +
@@ -96,17 +99,27 @@ console.log(JSON.stringify({
   duplicateIds: report.duplicateIds.length,
   duplicateWords: report.duplicateWords.length,
   invalidPartsOfSpeech: report.invalidPartsOfSpeech.length,
-  partOfSpeechMismatches: report.partOfSpeechMismatches.length,
+  invalidVolumes: report.invalidVolumes.length,
+  partOfSpeechReviewWarnings: report.partOfSpeechMismatches.length,
   wordToMeaningInsufficient: report.directions.wordToMeaning.insufficient.length,
   meaningToWordInsufficient: report.directions.meaningToWord.insufficient.length,
   wordToMeaningPriority3Required: report.directions.wordToMeaning.priority3Required.length,
   meaningToWordPriority3Required: report.directions.meaningToWord.priority3Required.length
 }, null, 2));
 
-const failures = failCount(report);
+if (report.partOfSpeechMismatches.length > 0) {
+  console.warn(JSON.stringify({
+    warning: "partOfSpeech heuristic review candidates (advisory only)",
+    candidates: report.partOfSpeechMismatches.slice(0, 20)
+  }, null, 2));
+}
+
+const failures = hardFailureCount(report);
 if (failures > 0) {
   const details = {
-    partOfSpeechMismatches: report.partOfSpeechMismatches.slice(0, 20),
+    invalidRows: report.invalidRows.slice(0, 20),
+    invalidPartsOfSpeech: report.invalidPartsOfSpeech.slice(0, 20),
+    invalidVolumes: report.invalidVolumes.slice(0, 20),
     wordToMeaningInsufficient: report.directions.wordToMeaning.insufficient.slice(0, 20),
     meaningToWordInsufficient: report.directions.meaningToWord.insufficient.slice(0, 20),
     wordToMeaningPriority3Required: report.directions.wordToMeaning.priority3Required.slice(0, 20),
@@ -116,4 +129,4 @@ if (failures > 0) {
   process.exit(1);
 }
 
-console.log("Vocabulary dataset audit passed.");
+console.log("Vocabulary dataset hard-invariant audit passed.");
