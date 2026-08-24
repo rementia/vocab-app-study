@@ -57,6 +57,8 @@ function normalizeMeaningFragment(value) {
     .normalize("NFKC")
     .replace(/[～〜]/g, "")
     .replace(/\s+/g, "")
+    .replace(/（(?:英|米|主に英|主に米|口語|俗|文語)）$/g, "")
+    .replace(/^(?:を|に|が|は)/, "")
     .trim();
 }
 
