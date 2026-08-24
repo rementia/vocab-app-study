@@ -1,0 +1,6 @@
+/* Keep landscape feature controls tappable when multiple-choice mode raises .main. */
+@media (max-width: 768px) and (orientation: landscape), (max-height: 520px) and (orientation: landscape) {
+  .feature-controls {
+    z-index: 46;
+  }
+}
