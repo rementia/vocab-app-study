@@ -25,7 +25,13 @@ const GROUPS_BY_WORD_ID = new Map([
   ["w_ivrkx0x7l66d", ["attest_vouch"]], // vouch
 
   ["w_hodgua1s6lt6", ["rebuke_revile"]], // rebuke
-  ["w_s9e182umfuyn", ["rebuke_revile"]] // revile
+  ["w_s9e182umfuyn", ["rebuke_revile"]], // revile
+
+  ["w_vud2loff4i96", ["discerning_sagacious"]], // discerning
+  ["w_oqtntbb6uniw", ["discerning_sagacious"]], // sagacious
+
+  ["w_2yqev8sqd1ub", ["abbey_monastery"]], // abbey
+  ["w_ypu3y3uliazc", ["abbey_monastery"]] // monastery
 ]);
 
 function getGroups(item) {
