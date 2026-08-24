@@ -64,7 +64,7 @@ function normalizeMeaningFragment(value) {
     .trim();
 }
 
-function getMeaningFragments(value) {
+export function getMeaningFragments(value) {
   return String(value ?? "")
     .split(/[、,;；]/)
     .map(normalizeMeaningFragment)
@@ -77,7 +77,7 @@ function hasMeaningOverlap(leftItem, rightItem) {
   return left.some((fragment) => right.has(fragment));
 }
 
-function getDistractorPriority(current, item) {
+export function getDistractorPriority(current, item) {
   const currentPartOfSpeech = normalizeMetadata(current?.partOfSpeech);
   const candidatePartOfSpeech = normalizeMetadata(item?.partOfSpeech);
   const currentSemanticCategory = normalizeMetadata(current?.semanticCategory);
