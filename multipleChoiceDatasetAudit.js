@@ -12,6 +12,7 @@ const ALLOWED_PARTS_OF_SPEECH = new Set([
   "interjection",
   "determiner"
 ]);
+const ALLOWED_VOLUMES = new Set(["vol1", "vol2", "vol3", "vol4"]);
 
 function normalizePartOfSpeech(value) {
   return String(value ?? "")
@@ -63,6 +64,8 @@ function isLikelyStandaloneNounGloss(fragment) {
   return true;
 }
 
+// Heuristic only: this intentionally over-selects review candidates.
+// It must never be treated as an automatic correction or a hard CI failure.
 export function hasStrongPartOfSpeechMismatch(item) {
   const parts = normalizePartOfSpeech(item?.partOfSpeech);
   if (parts.length !== 1) return false;
@@ -115,6 +118,7 @@ export function auditMultipleChoiceDataset(words) {
   const duplicateIds = [];
   const duplicateWords = [];
   const invalidPartsOfSpeech = [];
+  const invalidVolumes = [];
   const partOfSpeechMismatches = [];
   const seenIds = new Set();
   const seenWords = new Set();
@@ -125,19 +129,23 @@ export function auditMultipleChoiceDataset(words) {
     const word = String(item?.word ?? "").trim();
     const meaning = String(item?.meaning ?? "").trim();
     const sourceVol = String(item?.sourceVol ?? "").trim();
+    const semanticCategory = String(item?.semanticCategory ?? "").trim();
     const parts = normalizePartOfSpeech(item?.partOfSpeech);
 
-    if (!id || !word || !meaning || !sourceVol || parts.length === 0) {
+    if (!id || !word || !meaning || !sourceVol || !semanticCategory || parts.length === 0) {
       invalidRows.push({ rowNumber, id, word });
     }
     if (id && seenIds.has(id)) duplicateIds.push({ rowNumber, id, word });
     if (word && seenWords.has(word.toLowerCase())) duplicateWords.push({ rowNumber, id, word });
-    seenIds.add(id);
-    seenWords.add(word.toLowerCase());
+    if (id) seenIds.add(id);
+    if (word) seenWords.add(word.toLowerCase());
 
     const invalidParts = parts.filter((part) => !ALLOWED_PARTS_OF_SPEECH.has(part));
     if (invalidParts.length > 0) {
       invalidPartsOfSpeech.push({ rowNumber, id, word, invalidParts });
+    }
+    if (sourceVol && !ALLOWED_VOLUMES.has(sourceVol)) {
+      invalidVolumes.push({ rowNumber, id, word, sourceVol });
     }
     if (hasStrongPartOfSpeechMismatch(item)) {
       partOfSpeechMismatches.push({ rowNumber, id, word, meaning, partOfSpeech: item.partOfSpeech });
@@ -149,6 +157,7 @@ export function auditMultipleChoiceDataset(words) {
       word,
       meaning,
       sourceVol,
+      semanticCategory,
       meaningFragments: getMeaningFragments(meaning)
     };
   });
@@ -205,6 +214,7 @@ export function auditMultipleChoiceDataset(words) {
     duplicateIds,
     duplicateWords,
     invalidPartsOfSpeech,
+    invalidVolumes,
     partOfSpeechMismatches,
     directions: directionStats
   };
