@@ -52,6 +52,27 @@ function hasMetadataOverlap(leftValue, rightValue) {
   return left.some((item) => right.has(item));
 }
 
+function normalizeMeaningFragment(value) {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .replace(/[～〜]/g, "")
+    .replace(/\s+/g, "")
+    .trim();
+}
+
+function getMeaningFragments(value) {
+  return String(value ?? "")
+    .split(/[、,;；]/)
+    .map(normalizeMeaningFragment)
+    .filter(Boolean);
+}
+
+function hasMeaningOverlap(leftItem, rightItem) {
+  const left = getMeaningFragments(leftItem?.meaning);
+  const right = new Set(getMeaningFragments(rightItem?.meaning));
+  return left.some((fragment) => right.has(fragment));
+}
+
 function getDistractorPriority(current, item) {
   const currentPartOfSpeech = normalizeMetadata(current?.partOfSpeech);
   const candidatePartOfSpeech = normalizeMetadata(item?.partOfSpeech);
@@ -115,10 +136,15 @@ export function collectMultipleChoiceDistractors({
 }) {
   const options = { translationMode };
   const correctText = getMultipleChoiceAnswerText(current, options);
+  const isEligibleDistractor = (item) => (
+    !sameWord(item, current) &&
+    hasChoiceText(item, options) &&
+    !hasMeaningOverlap(current, item)
+  );
   const sameVolCandidates = (allWordsByVol[current.sourceVol] || [])
-    .filter((item) => !sameWord(item, current) && hasChoiceText(item, options));
+    .filter(isEligibleDistractor);
   const allCandidates = getAllLoadedWords(allWordsByVol, volOrder)
-    .filter((item) => !sameWord(item, current) && hasChoiceText(item, options));
+    .filter(isEligibleDistractor);
 
   return sortCandidatesByMetadataPriority(
     current,
