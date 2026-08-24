@@ -128,7 +128,9 @@ function sortCandidatesByMetadataPriority(current, candidates) {
 function shuffleWithinMetadataPriority(current, candidates, shuffle) {
   return [0, 1, 2, 3].flatMap((priority) => {
     const bucket = candidates.filter((item) => getDistractorPriority(current, item) === priority);
-    return shuffle(bucket);
+    const sameVol = bucket.filter((item) => item.sourceVol === current.sourceVol);
+    const otherVols = bucket.filter((item) => item.sourceVol !== current.sourceVol);
+    return [...shuffle(sameVol), ...shuffle(otherVols)];
   });
 }
 
