@@ -550,12 +550,11 @@ assert.strictEqual(emptyMorphemePanel.hidden, false, "morpheme analysis panel sh
 assert.deepStrictEqual(
   emptyMorphemePanel.children[0].children[1].children.map((child) => child.textContent),
   [
-    "語源解析",
-    "この単語には語源・形態素データがまだ登録されていません。"
+    "meaning：意味",
+    "普通の"
   ],
-  "morpheme analysis panel should explain when no morpheme info is registered"
+  "morpheme analysis panel should show meaning even when no etymology or morpheme data is registered"
 );
 
 console.log("All UI tests passed.");
-
 
