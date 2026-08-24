@@ -13,7 +13,10 @@ const GROUPS_BY_WORD_ID = new Map([
   ["w_yoke6faq1g5l", ["persistent_harassment"]], // pester
 
   ["w_fazlm6rlae6r", ["flawless_impeccable"]], // flawless
-  ["w_jzbmzotulqbi", ["flawless_impeccable"]] // impeccable
+  ["w_jzbmzotulqbi", ["flawless_impeccable"]], // impeccable
+
+  ["w_jmj12btnrupa", ["appalling_gruesome"]], // appalling
+  ["w_kup1omsw3ltd", ["appalling_gruesome"]] // gruesome
 ]);
 
 function getGroups(item) {
