@@ -47,7 +47,8 @@ const healthyWords = [
       meaning: "長、責任者；主要な、最も重要な",
       partOfSpeech: "noun"
     }),
-    true
+    false,
+    "precision-first advisory heuristic should not infer noun-to-adjective mismatch from Japanese gloss shape alone"
   );
   assert.strictEqual(
     hasStrongPartOfSpeechMismatch({
