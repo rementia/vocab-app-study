@@ -12,6 +12,7 @@ const tests = [
   "./speechSyncController.test.js",
   "./multipleChoice.test.js",
   "./distractorExclusions.test.js",
+  "./multipleChoiceVolumePriority.test.js",
   "./navigation.test.js",
   "./searchController.test.js",
   "./storage.test.js",
