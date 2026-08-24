@@ -19,7 +19,13 @@ const GROUPS_BY_WORD_ID = new Map([
   ["w_kup1omsw3ltd", ["appalling_gruesome"]], // gruesome
 
   ["w_zzwyvvi8wrgh", ["furor_outrage"]], // furor
-  ["w_bxrl4xjwsh1l", ["furor_outrage"]] // outrage
+  ["w_bxrl4xjwsh1l", ["furor_outrage"]], // outrage
+
+  ["w_ofkkgpl0gvji", ["attest_vouch"]], // attest
+  ["w_ivrkx0x7l66d", ["attest_vouch"]], // vouch
+
+  ["w_hodgua1s6lt6", ["rebuke_revile"]], // rebuke
+  ["w_s9e182umfuyn", ["rebuke_revile"]] // revile
 ]);
 
 function getGroups(item) {
