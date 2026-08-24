@@ -27,6 +27,16 @@ import { collectMultipleChoiceDistractors } from "../multipleChoice.js";
 }
 
 {
+  const discerning = { id: "w_vud2loff4i96" };
+  const sagacious = { id: "w_oqtntbb6uniw" };
+  const abbey = { id: "w_2yqev8sqd1ub" };
+  const monastery = { id: "w_ypu3y3uliazc" };
+  assert.strictEqual(shareDistractorExclusionGroup(discerning, sagacious), true);
+  assert.strictEqual(shareDistractorExclusionGroup(abbey, monastery), true);
+  assert.strictEqual(shareDistractorExclusionGroup(discerning, abbey), false);
+}
+
+{
   const words = {
     vol1: [
       { id: "expressway", word: "expressway", meaning: "高速道路", sourceVol: "vol1", partOfSpeech: "noun", semanticCategory: "place" },
