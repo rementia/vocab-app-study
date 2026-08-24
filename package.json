@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node test/run-tests.js"
+    "test": "node test/run-tests.js",
+    "audit:vocab": "node scripts/audit-vocab-dataset.mjs"
   },
   "engines": {
     "node": ">=18"
