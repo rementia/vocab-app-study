@@ -131,4 +131,56 @@ const keepOrder = (items) => items;
   );
 }
 
+{
+  const multiPartOfSpeechWordsByVol = {
+    vol1: [
+      {
+        id: "affix",
+        word: "affix",
+        meaning: "～を貼り付ける、添付する；接辞",
+        sourceVol: "vol1",
+        partOfSpeech: "verb,noun",
+        semanticCategory: "action_activity"
+      },
+      {
+        id: "perform",
+        word: "perform",
+        meaning: "実行する",
+        sourceVol: "vol1",
+        partOfSpeech: "verb",
+        semanticCategory: "action_activity"
+      },
+      {
+        id: "object",
+        word: "object",
+        meaning: "物体",
+        sourceVol: "vol1",
+        partOfSpeech: "noun",
+        semanticCategory: "object"
+      },
+      {
+        id: "rapid",
+        word: "rapid",
+        meaning: "急速な",
+        sourceVol: "vol1",
+        partOfSpeech: "adjective",
+        semanticCategory: "state_quality"
+      }
+    ]
+  };
+
+  const distractors = collectMultipleChoiceDistractors({
+    current: multiPartOfSpeechWordsByVol.vol1[0],
+    allWordsByVol: multiPartOfSpeechWordsByVol,
+    volOrder: ["vol1"],
+    translationMode: false
+  });
+
+  assert.deepStrictEqual(
+    distractors.map((item) => item.word),
+    ["perform", "object", "rapid"],
+    "multi-valued partOfSpeech should match candidates sharing any listed part of speech"
+  );
+}
+
 console.log("All multiple choice tests passed.");
