@@ -17,6 +17,16 @@ import { collectMultipleChoiceDistractors } from "../multipleChoice.js";
 }
 
 {
+  const attest = { id: "w_ofkkgpl0gvji" };
+  const vouch = { id: "w_ivrkx0x7l66d" };
+  const rebuke = { id: "w_hodgua1s6lt6" };
+  const revile = { id: "w_s9e182umfuyn" };
+  assert.strictEqual(shareDistractorExclusionGroup(attest, vouch), true);
+  assert.strictEqual(shareDistractorExclusionGroup(rebuke, revile), true);
+  assert.strictEqual(shareDistractorExclusionGroup(attest, rebuke), false);
+}
+
+{
   const words = {
     vol1: [
       { id: "expressway", word: "expressway", meaning: "高速道路", sourceVol: "vol1", partOfSpeech: "noun", semanticCategory: "place" },
