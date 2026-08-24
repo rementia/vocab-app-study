@@ -99,6 +99,33 @@ export function getDistractorPriority(current, item) {
   return 3;
 }
 
+function getMeaningSenseCount(value) {
+  const text = String(value ?? "").trim();
+  return text ? text.split(/[;；]/).length : 0;
+}
+
+function getMeaningLengthBand(value) {
+  const length = String(value ?? "").replace(/\s+/g, "").length;
+  if (length <= 5) return 0;
+  if (length <= 8) return 1;
+  if (length <= 12) return 2;
+  if (length <= 18) return 3;
+  return 4;
+}
+
+function getMeaningFormatPriority(current, item) {
+  const currentMeaning = String(current?.meaning ?? "");
+  const candidateMeaning = String(item?.meaning ?? "");
+  const samePlaceholder = /[~～〜]/.test(currentMeaning) === /[~～〜]/.test(candidateMeaning);
+  const sameSenseCount = getMeaningSenseCount(currentMeaning) === getMeaningSenseCount(candidateMeaning);
+  const sameLengthBand = getMeaningLengthBand(currentMeaning) === getMeaningLengthBand(candidateMeaning);
+
+  if (samePlaceholder && sameSenseCount && sameLengthBand) return 0;
+  if (samePlaceholder && sameSenseCount) return 1;
+  if (samePlaceholder) return 2;
+  return 3;
+}
+
 function uniqueByChoiceText(candidates, correctText, options) {
   return candidates.reduce((unique, item) => {
     const choiceText = getMultipleChoiceAnswerText(item, options);
@@ -125,12 +152,22 @@ function sortCandidatesByMetadataPriority(current, candidates) {
     .map(({ item }) => item);
 }
 
-function shuffleWithinMetadataPriority(current, candidates, shuffle) {
+function shuffleByMeaningFormat(current, candidates, options, shuffle) {
+  if (options.translationMode) return shuffle(candidates);
+  return [0, 1, 2, 3].flatMap((formatPriority) => (
+    shuffle(candidates.filter((item) => getMeaningFormatPriority(current, item) === formatPriority))
+  ));
+}
+
+function shuffleWithinMetadataPriority(current, candidates, options, shuffle) {
   return [0, 1, 2, 3].flatMap((priority) => {
     const bucket = candidates.filter((item) => getDistractorPriority(current, item) === priority);
     const sameVol = bucket.filter((item) => item.sourceVol === current.sourceVol);
     const otherVols = bucket.filter((item) => item.sourceVol !== current.sourceVol);
-    return [...shuffle(sameVol), ...shuffle(otherVols)];
+    return [
+      ...shuffleByMeaningFormat(current, sameVol, options, shuffle),
+      ...shuffleByMeaningFormat(current, otherVols, options, shuffle)
+    ];
   });
 }
 
@@ -178,6 +215,7 @@ export function buildMultipleChoiceQuestion({
       volOrder,
       translationMode
     }),
+    options,
     shuffle
   ).slice(0, 3);
   const choices = shuffle([
