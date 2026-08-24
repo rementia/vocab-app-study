@@ -16,6 +16,7 @@ const healthyWords = [
   assert.strictEqual(report.invalidRows.length, 0);
   assert.strictEqual(report.duplicateIds.length, 0);
   assert.strictEqual(report.duplicateWords.length, 0);
+  assert.strictEqual(report.invalidVolumes.length, 0);
   assert.strictEqual(report.partOfSpeechMismatches.length, 0);
   assert.strictEqual(report.directions.wordToMeaning.insufficient.length, 0);
   assert.strictEqual(report.directions.meaningToWord.insufficient.length, 0);
@@ -72,6 +73,13 @@ const healthyWords = [
     }),
     false
   );
+}
+
+{
+  const invalidVolumeWords = healthyWords.map((item) => ({ ...item }));
+  invalidVolumeWords[0].sourceVol = "vol5";
+  const report = auditMultipleChoiceDataset(invalidVolumeWords);
+  assert.deepStrictEqual(report.invalidVolumes.map((item) => item.word), ["alpha"]);
 }
 
 {
