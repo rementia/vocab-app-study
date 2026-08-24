@@ -16,7 +16,10 @@ const GROUPS_BY_WORD_ID = new Map([
   ["w_jzbmzotulqbi", ["flawless_impeccable"]], // impeccable
 
   ["w_jmj12btnrupa", ["appalling_gruesome"]], // appalling
-  ["w_kup1omsw3ltd", ["appalling_gruesome"]] // gruesome
+  ["w_kup1omsw3ltd", ["appalling_gruesome"]], // gruesome
+
+  ["w_zzwyvvi8wrgh", ["furor_outrage"]], // furor
+  ["w_bxrl4xjwsh1l", ["furor_outrage"]] // outrage
 ]);
 
 function getGroups(item) {
