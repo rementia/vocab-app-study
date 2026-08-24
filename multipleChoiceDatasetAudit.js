@@ -51,21 +51,18 @@ function isLikelyAdjectiveGloss(fragment) {
   return /(?:の|な|的な|用の|向けの|性の|状の|型の|製の|式の|中の|上の|間の|可能な|不能な|された|している)$/.test(value);
 }
 
-function isLikelyAdverbGloss(fragment) {
+function isStrongStandaloneNounGloss(fragment) {
   const value = String(fragment ?? "").trim();
-  if (!value || /[～〜~]/.test(value)) return false;
-  return /(?:に|して|的に)$/.test(value);
+  if (!value || /[～〜~]/.test(value) || isLikelyVerbGloss(value) || isLikelyAdjectiveGloss(value)) {
+    return false;
+  }
+
+  return /(?:者|人|物|もの|こと|剤|地|法|語|文|説|役|官|員|家|種|類|体|形|式|品|料|金|税|権|券|軍|隊|国|島|川|山|船|車|機|器|線|面|点|数|率|値|量|度|産業|主義|状態|制度|方法|行為|場所|地域|時期|期間|条件|用語|分野|学|術|名|称|職|職業|団体|組織|会社|企業|政府|社会|関係|原因|結果|問題|危機|苦境|困惑|怒り|喜び|悲しみ|不安|恐怖|希望|愛|憎しみ|香り|音|色|光|熱|力|速度|距離|面積|体積|重量|価格|費用|収入|支出|利益|損失|証拠|記録|文書|冊子|本|衣服|食器|容器|道路|建物|部屋|席|棚|穴|谷|沼|海|湖|空|星|鳥|虫|魚|植物|病気|症状|器官|筋肉|骨|皮膚|血|尿)$/.test(value);
 }
 
-function isLikelyStandaloneNounGloss(fragment) {
-  const value = String(fragment ?? "").trim();
-  if (!value || /[～〜~]/.test(value)) return false;
-  if (isLikelyVerbGloss(value) || isLikelyAdjectiveGloss(value) || isLikelyAdverbGloss(value)) return false;
-  return true;
-}
-
-// Heuristic only: this intentionally over-selects review candidates.
-// It must never be treated as an automatic correction or a hard CI failure.
+// Advisory heuristic only. It intentionally favors precision over recall because
+// a warning is useful only when it is materially more likely to indicate a real
+// meaning/partOfSpeech mismatch than an ordinary polysemous translation.
 export function hasStrongPartOfSpeechMismatch(item) {
   const parts = normalizePartOfSpeech(item?.partOfSpeech);
   if (parts.length !== 1) return false;
@@ -79,8 +76,7 @@ export function hasStrongPartOfSpeechMismatch(item) {
   const part = parts[0];
   if (part === "noun") {
     return senses.some((sense) => (
-      (/[～〜~]/.test(sense) && !isIntentionalNounModifierGloss(sense)) ||
-      isLikelyAdjectiveGloss(sense)
+      /[～〜~]/.test(sense) && !isIntentionalNounModifierGloss(sense)
     ));
   }
 
@@ -95,12 +91,12 @@ export function hasStrongPartOfSpeechMismatch(item) {
   if (part === "adjective") {
     return senses.some((sense) => (
       (/[～〜~]/.test(sense) && /(?:する|させる|隠す)$/.test(sense)) ||
-      isLikelyStandaloneNounGloss(sense)
+      isStrongStandaloneNounGloss(sense)
     ));
   }
 
   if (part === "adverb") {
-    return senses.some((sense) => isLikelyAdjectiveGloss(sense) || isLikelyStandaloneNounGloss(sense));
+    return senses.some((sense) => isLikelyAdjectiveGloss(sense) || isStrongStandaloneNounGloss(sense));
   }
 
   if (part === "preposition") {
