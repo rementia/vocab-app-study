@@ -44,6 +44,25 @@ function isIntentionalNounModifierGloss(fragment) {
   return /^(?:副[～〜~]|[～〜~](?:団|年生|への道|への手段))$/.test(fragment);
 }
 
+function isLikelyAdjectiveGloss(fragment) {
+  const value = String(fragment ?? "").trim();
+  if (!value || /[～〜~]/.test(value)) return false;
+  return /(?:の|な|的な|用の|向けの|性の|状の|型の|製の|式の|中の|上の|間の|可能な|不能な|された|している)$/.test(value);
+}
+
+function isLikelyAdverbGloss(fragment) {
+  const value = String(fragment ?? "").trim();
+  if (!value || /[～〜~]/.test(value)) return false;
+  return /(?:に|して|的に)$/.test(value);
+}
+
+function isLikelyStandaloneNounGloss(fragment) {
+  const value = String(fragment ?? "").trim();
+  if (!value || /[～〜~]/.test(value)) return false;
+  if (isLikelyVerbGloss(value) || isLikelyAdjectiveGloss(value) || isLikelyAdverbGloss(value)) return false;
+  return true;
+}
+
 export function hasStrongPartOfSpeechMismatch(item) {
   const parts = normalizePartOfSpeech(item?.partOfSpeech);
   if (parts.length !== 1) return false;
@@ -57,7 +76,8 @@ export function hasStrongPartOfSpeechMismatch(item) {
   const part = parts[0];
   if (part === "noun") {
     return senses.some((sense) => (
-      /[～〜~]/.test(sense) && !isIntentionalNounModifierGloss(sense)
+      (/[～〜~]/.test(sense) && !isIntentionalNounModifierGloss(sense)) ||
+      isLikelyAdjectiveGloss(sense)
     ));
   }
 
@@ -71,8 +91,13 @@ export function hasStrongPartOfSpeechMismatch(item) {
 
   if (part === "adjective") {
     return senses.some((sense) => (
-      /[～〜~]/.test(sense) && /(?:する|させる|隠す)$/.test(sense)
+      (/[～〜~]/.test(sense) && /(?:する|させる|隠す)$/.test(sense)) ||
+      isLikelyStandaloneNounGloss(sense)
     ));
+  }
+
+  if (part === "adverb") {
+    return senses.some((sense) => isLikelyAdjectiveGloss(sense) || isLikelyStandaloneNounGloss(sense));
   }
 
   if (part === "preposition") {
