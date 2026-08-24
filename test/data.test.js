@@ -173,6 +173,45 @@ assert.deepStrictEqual(
   "verified pronunciation fields should survive CSV parsing"
 );
 
+const fullContractCsv = [
+  "id,word,meaning,morpheme,morphemeMeaning,semanticDevelopment,partOfSpeech,semanticCategory,phonetic,pronunciationAudioUrl,pronunciationSource,pronunciationStatus",
+  "w_contract,contract,契約；～を契約する,con+tract,together+draw,draw together into an agreement,\"noun,verb\",communication,/ˈkɑːntrækt/,https://example.invalid/contract.mp3,Audited source,verified"
+].join("\n");
+const fullContractWord = parseCsvToWords(fullContractCsv, "vol3")[0];
+assert.deepStrictEqual(
+  {
+    id: fullContractWord.id,
+    word: fullContractWord.word,
+    meaning: fullContractWord.meaning,
+    morpheme: fullContractWord.morpheme,
+    morphemeMeaning: fullContractWord.morphemeMeaning,
+    semanticDevelopment: fullContractWord.semanticDevelopment,
+    partOfSpeech: fullContractWord.partOfSpeech,
+    semanticCategory: fullContractWord.semanticCategory,
+    phonetic: fullContractWord.phonetic,
+    pronunciationAudioUrl: fullContractWord.pronunciationAudioUrl,
+    pronunciationSource: fullContractWord.pronunciationSource,
+    pronunciationStatus: fullContractWord.pronunciationStatus,
+    sourceVol: fullContractWord.sourceVol
+  },
+  {
+    id: "w_contract",
+    word: "contract",
+    meaning: "契約；～を契約する",
+    morpheme: "con+tract",
+    morphemeMeaning: "together+draw",
+    semanticDevelopment: "draw together into an agreement",
+    partOfSpeech: "noun,verb",
+    semanticCategory: "communication",
+    phonetic: "/ˈkɑːntrækt/",
+    pronunciationAudioUrl: "https://example.invalid/contract.mp3",
+    pronunciationSource: "Audited source",
+    pronunciationStatus: "verified",
+    sourceVol: "vol3"
+  },
+  "all spreadsheet-derived learning fields must survive the Firestore CSV -> app parser contract"
+);
+
 assert.strictEqual(
   formatFirestoreSyncValue(new Date("2026-06-20T00:00:00.000Z")),
   "2026-06-20T00:00:00.000Z",
