@@ -13,6 +13,7 @@ const tests = [
   "./multipleChoice.test.js",
   "./distractorExclusions.test.js",
   "./multipleChoiceVolumePriority.test.js",
+  "./multipleChoiceDatasetAudit.test.js",
   "./navigation.test.js",
   "./searchController.test.js",
   "./storage.test.js",
