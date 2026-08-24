@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "test": "node test/run-tests.js",
-    "audit:vocab": "node scripts/audit-vocab-dataset.mjs"
+    "audit:vocab": "node scripts/audit-vocab-dataset.mjs",
+    "audit:quality": "node scripts/audit-vocab-quality.mjs"
   },
   "engines": {
     "node": ">=18"
