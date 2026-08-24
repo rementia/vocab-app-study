@@ -1,3 +1,5 @@
+import { shareDistractorExclusionGroup } from "./distractorExclusions.js";
+
 function shuffleArray(array) {
   const copied = [...array];
   for (let i = copied.length - 1; i > 0; i -= 1) {
@@ -141,7 +143,8 @@ export function collectMultipleChoiceDistractors({
   const isEligibleDistractor = (item) => (
     !sameWord(item, current) &&
     hasChoiceText(item, options) &&
-    !hasMeaningOverlap(current, item)
+    !hasMeaningOverlap(current, item) &&
+    !shareDistractorExclusionGroup(current, item)
   );
   const sameVolCandidates = (allWordsByVol[current.sourceVol] || [])
     .filter(isEligibleDistractor);
