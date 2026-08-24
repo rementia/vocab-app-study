@@ -34,6 +34,38 @@ const healthyWords = [
   );
   assert.strictEqual(
     hasStrongPartOfSpeechMismatch({
+      word: "adhesive",
+      meaning: "接着性の；接着剤",
+      partOfSpeech: "adjective"
+    }),
+    true
+  );
+  assert.strictEqual(
+    hasStrongPartOfSpeechMismatch({
+      word: "chief",
+      meaning: "長、責任者；主要な、最も重要な",
+      partOfSpeech: "noun"
+    }),
+    true
+  );
+  assert.strictEqual(
+    hasStrongPartOfSpeechMismatch({
+      word: "overhead",
+      meaning: "頭上に、頭上の；間接費、諸経費",
+      partOfSpeech: "adverb"
+    }),
+    true
+  );
+  assert.strictEqual(
+    hasStrongPartOfSpeechMismatch({
+      word: "cloak",
+      meaning: "マント；覆い、隠れみの",
+      partOfSpeech: "noun"
+    }),
+    false
+  );
+  assert.strictEqual(
+    hasStrongPartOfSpeechMismatch({
       word: "corps",
       meaning: "軍団、部隊；～団",
       partOfSpeech: "noun"
