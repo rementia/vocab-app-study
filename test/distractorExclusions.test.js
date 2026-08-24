@@ -11,6 +11,12 @@ import { collectMultipleChoiceDistractors } from "../multipleChoice.js";
 }
 
 {
+  const furor = { id: "w_zzwyvvi8wrgh" };
+  const outrage = { id: "w_bxrl4xjwsh1l" };
+  assert.strictEqual(shareDistractorExclusionGroup(furor, outrage), true);
+}
+
+{
   const words = {
     vol1: [
       { id: "expressway", word: "expressway", meaning: "高速道路", sourceVol: "vol1", partOfSpeech: "noun", semanticCategory: "place" },
