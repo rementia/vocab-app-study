@@ -39,6 +39,19 @@ function normalizeMetadata(value) {
   return String(value ?? "").trim().toLowerCase();
 }
 
+function normalizeMetadataSet(value) {
+  return normalizeMetadata(value)
+    .split(/[,;|/]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function hasMetadataOverlap(leftValue, rightValue) {
+  const left = normalizeMetadataSet(leftValue);
+  const right = new Set(normalizeMetadataSet(rightValue));
+  return left.some((item) => right.has(item));
+}
+
 function getDistractorPriority(current, item) {
   const currentPartOfSpeech = normalizeMetadata(current?.partOfSpeech);
   const candidatePartOfSpeech = normalizeMetadata(item?.partOfSpeech);
@@ -47,7 +60,7 @@ function getDistractorPriority(current, item) {
   const hasSamePartOfSpeech = Boolean(
     currentPartOfSpeech &&
     candidatePartOfSpeech &&
-    currentPartOfSpeech === candidatePartOfSpeech
+    hasMetadataOverlap(currentPartOfSpeech, candidatePartOfSpeech)
   );
   const hasSameSemanticCategory = Boolean(
     currentSemanticCategory &&
