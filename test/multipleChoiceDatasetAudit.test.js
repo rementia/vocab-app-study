@@ -45,6 +45,7 @@ const healthyWords = [
 {
   const fallbackWords = [
     { id: "target", word: "target", meaning: "対象", sourceVol: "vol1", partOfSpeech: "verb", semanticCategory: "emotion" },
+    { id: "w", word: "wword", meaning: "物W", sourceVol: "vol1", partOfSpeech: "noun", semanticCategory: "object" },
     { id: "x", word: "xword", meaning: "物X", sourceVol: "vol1", partOfSpeech: "noun", semanticCategory: "object" },
     { id: "y", word: "yword", meaning: "物Y", sourceVol: "vol1", partOfSpeech: "noun", semanticCategory: "object" },
     { id: "z", word: "zword", meaning: "物Z", sourceVol: "vol1", partOfSpeech: "noun", semanticCategory: "object" }
@@ -52,6 +53,10 @@ const healthyWords = [
   const report = auditMultipleChoiceDataset(fallbackWords);
   assert.deepStrictEqual(
     report.directions.wordToMeaning.priority3Required.map((item) => item.word),
+    ["target"]
+  );
+  assert.deepStrictEqual(
+    report.directions.meaningToWord.priority3Required.map((item) => item.word),
     ["target"]
   );
 }
