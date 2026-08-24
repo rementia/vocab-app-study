@@ -145,7 +145,7 @@ function normalizeSearchText(value) {
 }
 
 function getListRenderVersion(state) {
-  return `${state.currentMode}|${state.currentVol}|${state.randomMode ? 1 : 0}|${state.frequencyMode ? 1 : 0}|${state.listVersion}|${state.favoritesVersion}|${state.difficultsVersion}|${state.reviewScoresVersion}|${state.searchQuery}`;
+  return `${state.currentMode}|${state.currentVol}|${state.randomMode ? 1 : 0}|${state.frequencyMode ? 1 : 0}|${state.listVersion}|${state.favoritesVersion}|${state.difficultsVersion}|${state.searchQuery}`;
 }
 
 export function renderCurrentWord(context) {
