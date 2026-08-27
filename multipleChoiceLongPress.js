@@ -119,19 +119,16 @@ function openAnalysisForChoice(button) {
   renderAnalysisItem(item);
 }
 
-function suppressNativeSelection(button) {
-  button.style.userSelect = 'none';
-  button.style.webkitUserSelect = 'none';
-  button.style.webkitTouchCallout = 'none';
-}
-
 function handlePointerDown(event, optionsEl) {
   if (!event.isPrimary || !isAnswered(optionsEl)) return;
 
   const button = getOptionButton(event.target);
   if (!(button instanceof HTMLElement) || !getAnalysisItem(button)) return;
 
-  suppressNativeSelection(button);
+  button.style.userSelect = 'none';
+  button.style.webkitUserSelect = 'none';
+  button.style.webkitTouchCallout = 'none';
+
   clearActivePress();
   activePointerId = event.pointerId;
   startX = event.clientX;
