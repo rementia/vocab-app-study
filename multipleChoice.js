@@ -1,5 +1,7 @@
 import { shareDistractorExclusionGroup } from "./distractorExclusions.js";
 
+let lastBuiltMultipleChoiceQuestion = null;
+
 function shuffleArray(array) {
   const copied = [...array];
   for (let i = copied.length - 1; i > 0; i -= 1) {
@@ -23,6 +25,10 @@ export function getMultipleChoiceAnswerText(item, { translationMode }) {
 
 export function getMultipleChoiceSecondaryText(item, { translationMode }) {
   return translationMode ? item.meaning : item.word;
+}
+
+export function getLastBuiltMultipleChoiceQuestion() {
+  return lastBuiltMultipleChoiceQuestion;
 }
 
 function sameWord(a, b) {
@@ -205,7 +211,10 @@ export function buildMultipleChoiceQuestion({
 }) {
   const options = { translationMode };
   const correctText = getMultipleChoiceAnswerText(current, options);
-  if (!current || !correctText) return null;
+  if (!current || !correctText) {
+    lastBuiltMultipleChoiceQuestion = null;
+    return null;
+  }
 
   const distractors = shuffleWithinMetadataPriority(
     current,
@@ -219,19 +228,27 @@ export function buildMultipleChoiceQuestion({
     shuffle
   ).slice(0, 3);
   const choices = shuffle([
-    { text: correctText, secondaryText: getMultipleChoiceSecondaryText(current, options), isCorrect: true },
+    {
+      text: correctText,
+      secondaryText: getMultipleChoiceSecondaryText(current, options),
+      isCorrect: true,
+      analysisItem: current
+    },
     ...distractors.map((item) => ({
       text: getMultipleChoiceAnswerText(item, options),
       secondaryText: getMultipleChoiceSecondaryText(item, options),
-      isCorrect: false
+      isCorrect: false,
+      analysisItem: item
     }))
   ]);
 
-  return {
+  const question = {
     wordId: current.id,
     direction: getMultipleChoiceDirection(options),
     prompt: getMultipleChoicePrompt(current, options),
     correctText,
     options: choices
   };
+  lastBuiltMultipleChoiceQuestion = question;
+  return question;
 }
