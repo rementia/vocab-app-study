@@ -1,5 +1,6 @@
 import { init, finishInitialLoading } from './app.js?v=20260815-9';
 import { initMultipleChoiceLongPressEtymology } from './multipleChoiceLongPress.js?v=20260827-1';
+import { initMorphemeDoubleTapClose } from './morphemeDoubleTapClose.js?v=20260827-1';
 
 function loadSidebarLayoutStyles() {
   const href = './sidebarLayout.css?v=20260824-1';
@@ -20,6 +21,7 @@ function loadSidebarLayoutStyles() {
     await loadSidebarLayoutStyles();
     await init();
     initMultipleChoiceLongPressEtymology();
+    initMorphemeDoubleTapClose();
   } catch (error) {
     console.error('初期化失敗:', error);
     finishInitialLoading();
