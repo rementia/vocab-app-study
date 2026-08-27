@@ -1,4 +1,5 @@
 import { init, finishInitialLoading } from './app.js?v=20260815-9';
+import { initMultipleChoiceLongPressEtymology } from './multipleChoiceLongPress.js?v=20260827-1';
 
 function loadSidebarLayoutStyles() {
   const href = './sidebarLayout.css?v=20260824-1';
@@ -18,6 +19,7 @@ function loadSidebarLayoutStyles() {
   try {
     await loadSidebarLayoutStyles();
     await init();
+    initMultipleChoiceLongPressEtymology();
   } catch (error) {
     console.error('初期化失敗:', error);
     finishInitialLoading();
