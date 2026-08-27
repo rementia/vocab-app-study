@@ -119,12 +119,19 @@ function openAnalysisForChoice(button) {
   renderAnalysisItem(item);
 }
 
+function suppressNativeSelection(button) {
+  button.style.userSelect = 'none';
+  button.style.webkitUserSelect = 'none';
+  button.style.webkitTouchCallout = 'none';
+}
+
 function handlePointerDown(event, optionsEl) {
   if (!event.isPrimary || !isAnswered(optionsEl)) return;
 
   const button = getOptionButton(event.target);
   if (!(button instanceof HTMLElement) || !getAnalysisItem(button)) return;
 
+  suppressNativeSelection(button);
   clearActivePress();
   activePointerId = event.pointerId;
   startX = event.clientX;
@@ -169,6 +176,12 @@ function handleContextMenu(event, optionsEl) {
   event.preventDefault();
 }
 
+function handleSelectStart(event, optionsEl) {
+  const button = getOptionButton(event.target);
+  if (!button || !isAnswered(optionsEl)) return;
+  event.preventDefault();
+}
+
 export function initMultipleChoiceLongPressEtymology() {
   const optionsEl = document.getElementById('multipleChoiceOptions');
   if (!optionsEl || optionsEl.dataset.longPressEtymologyBound === 'true') return;
@@ -180,4 +193,5 @@ export function initMultipleChoiceLongPressEtymology() {
   optionsEl.addEventListener('pointercancel', handlePointerEnd);
   optionsEl.addEventListener('click', handleClickCapture, true);
   optionsEl.addEventListener('contextmenu', (event) => handleContextMenu(event, optionsEl));
+  optionsEl.addEventListener('selectstart', (event) => handleSelectStart(event, optionsEl));
 }
