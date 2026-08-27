@@ -6,7 +6,6 @@ const CLICK_SUPPRESSION_MS = 1000;
 
 let pressTimer = null;
 let activePointerId = null;
-let activeButton = null;
 let startX = 0;
 let startY = 0;
 let suppressClickButton = null;
@@ -42,7 +41,6 @@ function clearPressTimer() {
 function clearActivePress() {
   clearPressTimer();
   activePointerId = null;
-  activeButton = null;
 }
 
 function scheduleClickSuppressionReset() {
@@ -86,14 +84,17 @@ function renderAnalysisItem(item) {
 
   const list = document.createElement('dl');
   list.className = 'morpheme-analysis-list';
-  const hasDetails = [
+  let hasDetails = false;
+  [
     ['meaning：意味', item.meaning],
     ['morpheme：形態素', item.morpheme],
     ['morphemeMeaning：形態素の意味', item.morphemeMeaning],
     ['semanticDevelopment：意味の展開', item.semanticDevelopment],
     ['partOfSpeech：品詞', item.partOfSpeech],
     ['semanticCategory：意味カテゴリ', item.semanticCategory]
-  ].some(([label, value]) => appendAnalysisRow(list, label, value));
+  ].forEach(([label, value]) => {
+    hasDetails = appendAnalysisRow(list, label, value) || hasDetails;
+  });
 
   if (!hasDetails) {
     appendAnalysisRow(list, '語源解析', 'この単語には語源・形態素データがまだ登録されていません。');
@@ -126,7 +127,6 @@ function handlePointerDown(event, optionsEl) {
 
   clearActivePress();
   activePointerId = event.pointerId;
-  activeButton = button;
   startX = event.clientX;
   startY = event.clientY;
   pressTimer = window.setTimeout(() => {
