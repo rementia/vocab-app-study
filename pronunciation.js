@@ -6,6 +6,7 @@ let currentPronunciationController = null;
 let currentPronunciationAudio = null;
 let lastPronunciationRequest = "";
 let getCurrentWordFn = null;
+let pronunciationTargetOverride = null;
 const pronunciationMissCache = new Set();
 const PRONUNCIATION_CACHE_PREFIX = "vocab_app_study_pron";
 const LEGACY_PRONUNCIATION_CACHE_PREFIX = "portfolio_pron";
@@ -19,10 +20,38 @@ let audioUnlockInProgress = false;
 export function initPronunciation({ el, getCurrentWord }) {
   pronunciationEl = el;
   getCurrentWordFn = getCurrentWord;
+  pronunciationTargetOverride = null;
   audioUnlocked = hasUserActivation();
   audioUnlockAttempted = false;
   audioUnlockInProgress = false;
   bindAudioUnlockEvents();
+}
+
+export function setPronunciationTargetOverride(item) {
+  pronunciationTargetOverride = item && normalizeField(item.word) ? item : null;
+}
+
+export function clearPronunciationTargetOverride() {
+  pronunciationTargetOverride = null;
+}
+
+function getEffectivePronunciationTarget() {
+  if (pronunciationTargetOverride) {
+    const panel = typeof document !== 'undefined'
+      ? document.getElementById('morphemeAnalysisPanel')
+      : null;
+    const heading = panel?.querySelector('.morpheme-analysis-word');
+    const displayedWord = normalizeWordKey(heading?.textContent || '');
+    const overrideWord = normalizeWordKey(pronunciationTargetOverride.word);
+
+    if (panel instanceof HTMLElement && !panel.hidden && displayedWord === overrideWord) {
+      return pronunciationTargetOverride;
+    }
+
+    pronunciationTargetOverride = null;
+  }
+
+  return getCurrentWordFn ? getCurrentWordFn() : null;
 }
 
 export function updateSpeechButtonAvailability(speakBtnEl) {
@@ -39,8 +68,7 @@ export function speakWord() {
 }
 
 export function safePlayPronunciation() {
-  if (!getCurrentWordFn) return;
-  const current = getCurrentWordFn();
+  const current = getEffectivePronunciationTarget();
   if (!current) return;
 
   // A pronunciationAudioUrl is used only after the row itself has been
