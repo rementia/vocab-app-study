@@ -1,5 +1,6 @@
 import { getWordRecordKey, makeWordKey, migrateLegacyWordRecords } from "./wordIdentity.js";
 import { buildMarkedWordEntries, clampIndex } from "./wordList.js";
+import { getMorphemeAnalysisTarget } from "./morphemeAnalysisTarget.js";
 
 function makeDifficultKey(item) {
   return makeWordKey(item);
@@ -79,10 +80,11 @@ function finishDifficultToggle(state, callbacks, updated) {
 }
 
 export function toggleDifficultCurrentWord(state, callbacks) {
-  const current = callbacks.getCurrentWord();
-  if (!current) return null;
+  const displayedCurrent = callbacks.getCurrentWord();
+  const target = getMorphemeAnalysisTarget() || displayedCurrent;
+  if (!target) return null;
 
-  const key = getDifficultRecordKey(state.difficults, current);
+  const key = getDifficultRecordKey(state.difficults, target);
   toggleDifficultRecord(state.difficults, key);
 
   const updated = touchDifficultsChanged(
@@ -100,7 +102,7 @@ export function toggleDifficultCurrentWord(state, callbacks) {
   }
 
   if (state.currentMode === "difficults") {
-    saveCurrentDifficultIndex(state, callbacks, current.id);
+    saveCurrentDifficultIndex(state, callbacks, displayedCurrent?.id || target.id);
   }
 
   return finishDifficultToggle(state, callbacks, updated);

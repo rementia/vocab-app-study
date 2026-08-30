@@ -1,5 +1,6 @@
 import { getLastBuiltMultipleChoiceQuestion } from './multipleChoice.js';
 import { setPronunciationTargetOverride } from './pronunciation.js';
+import { setMorphemeAnalysisTarget } from './morphemeAnalysisTarget.js';
 
 const LONG_PRESS_MS = 550;
 const MOVE_TOLERANCE_PX = 12;
@@ -116,9 +117,10 @@ function openAnalysisForChoice(button) {
   const morphemeButton = document.getElementById('morphemeBtn');
   if (!(morphemeButton instanceof HTMLButtonElement) || morphemeButton.disabled) return;
 
+  setMorphemeAnalysisTarget(item);
+  setPronunciationTargetOverride(item);
   morphemeButton.click();
   renderAnalysisItem(item);
-  setPronunciationTargetOverride(item);
 }
 
 function handlePointerDown(event, optionsEl) {

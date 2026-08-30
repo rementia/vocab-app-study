@@ -1,5 +1,6 @@
 import { getWordRecordKey, makeWordKey, migrateLegacyWordRecords } from "./wordIdentity.js";
 import { buildMarkedWordEntries, clampIndex } from "./wordList.js";
+import { getMorphemeAnalysisTarget } from "./morphemeAnalysisTarget.js";
 
 function makeFavoriteKey(item) {
   return makeWordKey(item);
@@ -79,10 +80,11 @@ function finishFavoriteToggle(state, callbacks, updated) {
 }
 
 export function toggleFavoriteCurrentWord(state, callbacks) {
-  const current = callbacks.getCurrentWord();
-  if (!current) return null;
+  const displayedCurrent = callbacks.getCurrentWord();
+  const target = getMorphemeAnalysisTarget() || displayedCurrent;
+  if (!target) return null;
 
-  const key = getFavoriteRecordKey(state.favorites, current);
+  const key = getFavoriteRecordKey(state.favorites, target);
   toggleFavoriteRecord(state.favorites, key);
 
   const updated = touchFavoritesChanged(
@@ -100,7 +102,7 @@ export function toggleFavoriteCurrentWord(state, callbacks) {
   }
 
   if (state.currentMode === "favorites") {
-    saveCurrentFavoriteIndex(state, callbacks, current.id);
+    saveCurrentFavoriteIndex(state, callbacks, displayedCurrent?.id || target.id);
   }
 
   return finishFavoriteToggle(state, callbacks, updated);
