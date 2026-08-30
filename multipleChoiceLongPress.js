@@ -117,10 +117,10 @@ function openAnalysisForChoice(button) {
   const morphemeButton = document.getElementById('morphemeBtn');
   if (!(morphemeButton instanceof HTMLButtonElement) || morphemeButton.disabled) return;
 
-  morphemeButton.click();
-  renderAnalysisItem(item);
   setMorphemeAnalysisTarget(item);
   setPronunciationTargetOverride(item);
+  morphemeButton.click();
+  renderAnalysisItem(item);
 }
 
 function handlePointerDown(event, optionsEl) {
