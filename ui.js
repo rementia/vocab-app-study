@@ -1,3 +1,5 @@
+import { getMorphemeAnalysisTarget } from "./morphemeAnalysisTarget.js";
+
 function getState(context) {
   return context.getState();
 }
@@ -292,11 +294,15 @@ function updateToggleButton(context, button, label, isActive) {
   button.setAttribute("aria-pressed", isActive ? "true" : "false");
 }
 
+function getMarkTarget(callbacks) {
+  return getMorphemeAnalysisTarget() || callbacks.getCurrentWord();
+}
+
 export function updateFavoriteToggleButton(context) {
   const dom = getDom(context);
   const callbacks = getCallbacks(context);
   const state = context.getState();
-  const current = callbacks.getCurrentWord();
+  const current = getMarkTarget(callbacks);
 
   updateWordMarkToggleButton({
     button: dom.favoriteToggleBtnEl,
@@ -314,7 +320,7 @@ export function updateDifficultToggleButton(context) {
   const dom = getDom(context);
   const callbacks = getCallbacks(context);
   const state = context.getState();
-  const current = callbacks.getCurrentWord();
+  const current = getMarkTarget(callbacks);
 
   updateWordMarkToggleButton({
     button: dom.difficultToggleBtnEl,
@@ -551,7 +557,7 @@ export function updateMorphemeAnalysisPanel(context) {
   const panel = dom.morphemeAnalysisPanelEl;
   if (!panel) return;
 
-  const current = getCallbacks(context).getCurrentWord?.();
+  const current = getMorphemeAnalysisTarget() || getCallbacks(context).getCurrentWord?.();
   if (!state.morphemeAnalysisMode || !current) {
     panel.hidden = true;
     panel.innerHTML = "";
