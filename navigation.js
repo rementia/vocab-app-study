@@ -1,3 +1,6 @@
+import { clearMorphemeAnalysisTarget } from './morphemeAnalysisTarget.js';
+import { clearPronunciationTargetOverride } from './pronunciation.js';
+
 let historyBackStack = [];
 let historyForwardStack = [];
 
@@ -38,9 +41,15 @@ function popValidHistoryIndex(stack, max) {
   return null;
 }
 
+function clearTransientWordTargets() {
+  clearMorphemeAnalysisTarget();
+  clearPronunciationTargetOverride();
+}
+
 export function clearNavigationHistory() {
   historyBackStack = [];
   historyForwardStack = [];
+  clearTransientWordTargets();
 }
 
 export function moveToIndex(nextIndex, { pushHistory = false } = {}) {
@@ -56,6 +65,7 @@ export function moveToIndex(nextIndex, { pushHistory = false } = {}) {
     historyForwardStack = [];
   }
 
+  clearTransientWordTargets();
   setIndexFn(nextIndex);
   if (typeof renderFn === 'function') renderFn();
   if (typeof scheduleSpeechSyncFn === 'function') scheduleSpeechSyncFn();
@@ -67,6 +77,7 @@ export function getRandomPrevIndexFromHistory() {
   if (prev === null) return null;
 
   pushStack(historyForwardStack, getIndexFn());
+  clearTransientWordTargets();
   return prev;
 }
 
@@ -76,6 +87,7 @@ export function getRandomNextIndexFromHistory() {
   if (next === null) return null;
 
   pushStack(historyBackStack, getIndexFn());
+  clearTransientWordTargets();
   return next;
 }
 
