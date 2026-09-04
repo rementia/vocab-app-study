@@ -1,7 +1,10 @@
 import assert from "assert";
+import { gzipSync } from "node:zlib";
 import {
+  decodeGzipBase64Csv,
   fetchWordsForVol,
   formatFirestoreSyncValue,
+  getFirestoreCsv,
   getWordDocSyncLabel,
   parseCsv,
   parseCsvToWords
@@ -210,6 +213,23 @@ assert.deepStrictEqual(
     sourceVol: "vol3"
   },
   "all spreadsheet-derived learning fields must survive the Firestore CSV -> app parser contract"
+);
+
+const compressedCsv = Buffer.from(gzipSync(Buffer.from(fullContractCsv, "utf8"))).toString("base64");
+assert.strictEqual(
+  await decodeGzipBase64Csv(compressedCsv),
+  fullContractCsv,
+  "gzip+base64 vocabulary payloads should decode back to the original UTF-8 CSV"
+);
+assert.strictEqual(
+  await getFirestoreCsv({ csv: fullContractCsv, csvGzipBase64: compressedCsv }),
+  fullContractCsv,
+  "plain CSV should remain the preferred backward-compatible Firestore format"
+);
+assert.strictEqual(
+  await getFirestoreCsv({ csvGzipBase64: compressedCsv, csvEncoding: "gzip-base64" }),
+  fullContractCsv,
+  "compressed Firestore vocabulary payloads should be decoded when plain CSV is absent"
 );
 
 assert.strictEqual(

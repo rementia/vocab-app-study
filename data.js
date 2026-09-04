@@ -158,6 +158,39 @@ export function parseCsvToWords(text, volName) {
     .filter((item) => item.word);
 }
 
+export async function decodeGzipBase64Csv(base64Text) {
+  if (typeof base64Text !== "string" || !base64Text) return "";
+  if (typeof DecompressionStream !== "function") {
+    throw new Error("このブラウザは圧縮済み単語データの展開に対応していません。");
+  }
+
+  const binary = atob(base64Text);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+
+  const stream = new Blob([bytes])
+    .stream()
+    .pipeThrough(new DecompressionStream("gzip"));
+
+  return new Response(stream).text();
+}
+
+export async function getFirestoreCsv(data) {
+  if (!data || typeof data !== "object") return "";
+
+  if (typeof data.csv === "string" && data.csv) {
+    return data.csv;
+  }
+
+  if (typeof data.csvGzipBase64 === "string" && data.csvGzipBase64) {
+    return decodeGzipBase64Csv(data.csvGzipBase64);
+  }
+
+  return "";
+}
+
 export function formatFirestoreSyncValue(value) {
   if (!value) return "";
   if (typeof value === "string") return value;
@@ -216,7 +249,7 @@ export async function fetchWordsForVolWithMeta(volName) {
   }
 
   const data = snap.data();
-  const csv = typeof data.csv === "string" ? data.csv : "";
+  const csv = await getFirestoreCsv(data);
   const words = parseCsvToWords(csv, volName);
 
   return {

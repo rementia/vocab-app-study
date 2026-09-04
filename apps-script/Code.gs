@@ -7,6 +7,10 @@
  *   csv: "word,meaning,..."
  *   syncedAt: "2026-06-20T12:34:56.000Z"
  *
+ * Oversized CSV payloads are stored as gzip+base64 in csvGzipBase64 so each
+ * volume still uses a single Firestore document/read without exceeding the
+ * Firestore string/document size limit.
+ *
  * Do not paste service account private keys directly into this file.
  * Store CLIENT_EMAIL, PRIVATE_KEY, and SYNC_TOKEN in Apps Script Properties.
  */
@@ -51,6 +55,8 @@ const CLASSIFICATION_COLUMN_NAMES = ["partOfSpeech", "semanticCategory"];
 const GENERATED_ID_PREFIX = "w_";
 const GENERATED_ID_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789";
 const GENERATED_ID_LENGTH = 12;
+const FIRESTORE_SAFE_STRING_BYTES = 900000;
+
 function diagnoseClassificationSource() {
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   const diagnostics = spreadsheet.getSheets().map(inspectSheetForSync);
@@ -71,7 +77,10 @@ function dryRun() {
 
   CONFIG.volumes.forEach(({ docId }) => {
     const wordCount = Math.max((groupedRows[docId] || []).length - 1, 0);
-    Logger.log(`${docId}: ${wordCount} words`);
+    const csv = rowsToCsv(groupedRows[docId] || []);
+    const rawBytes = getUtf8ByteLength(csv);
+    const storageMode = rawBytes <= FIRESTORE_SAFE_STRING_BYTES ? "plain" : "gzip-base64";
+    Logger.log(`${docId}: ${wordCount} words / ${rawBytes} bytes / ${storageMode}`);
   });
 
   Logger.log("dryRun完了: Firestoreには保存していません。");
@@ -115,10 +124,12 @@ function syncAllVolumesToFirestore() {
 
   CONFIG.volumes.forEach(({ docId }) => {
     const rows = groupedRows[docId] || [];
-    uploadCsvToFirestore(docId, rowsToCsv(rows), syncedAt, rows);
+    const storage = uploadCsvToFirestore(docId, rowsToCsv(rows), syncedAt, rows);
     volumes.push({
       docId,
-      rowCount: getWordCount(rows)
+      rowCount: getWordCount(rows),
+      storageMode: storage.storageMode,
+      storedBytes: storage.storedBytes
     });
   });
 
@@ -153,13 +164,20 @@ function syncOneVolume(docId) {
   }
 
   const syncedAt = new Date().toISOString();
-  uploadCsvToFirestore(docId, rowsToCsv(groupedRows[docId]), syncedAt, groupedRows[docId]);
+  const storage = uploadCsvToFirestore(
+    docId,
+    rowsToCsv(groupedRows[docId]),
+    syncedAt,
+    groupedRows[docId]
+  );
   Logger.log(`${docId} の同期が完了しました。`);
   return {
     syncedAt,
     volumes: [{
       docId,
-      rowCount: getWordCount(groupedRows[docId])
+      rowCount: getWordCount(groupedRows[docId]),
+      storageMode: storage.storageMode,
+      storedBytes: storage.storedBytes
     }]
   };
 }
@@ -249,7 +267,6 @@ function buildGroupedRowsFromSingleSheet() {
 
   return groupedRows;
 }
-
 
 function getColumnIndexByNames(headers, names) {
   return headers.findIndex((header) => names.includes(header));
@@ -516,32 +533,80 @@ function escapeCsvCell(value) {
   return text;
 }
 
+function getUtf8ByteLength(text) {
+  return Utilities.newBlob(String(text ?? ""), "text/plain").getBytes().length;
+}
+
+function gzipCsvToBase64(csv) {
+  const sourceBlob = Utilities.newBlob(csv, "text/csv", "words.csv");
+  const gzipBlob = Utilities.gzip(sourceBlob, "words.csv.gz");
+  return Utilities.base64Encode(gzipBlob.getBytes());
+}
+
 function uploadCsvToFirestore(docId, csv, syncedAt, rows) {
   const accessToken = getAccessToken();
+  const rawBytes = getUtf8ByteLength(csv);
+  const useCompression = rawBytes > FIRESTORE_SAFE_STRING_BYTES;
+  const compressedBase64 = useCompression ? gzipCsvToBase64(csv) : "";
+  const storedBytes = useCompression ? getUtf8ByteLength(compressedBase64) : rawBytes;
+
+  if (storedBytes > FIRESTORE_SAFE_STRING_BYTES) {
+    throw new Error(
+      `${docId}: 圧縮後のCSVもFirestore安全上限を超えています。` +
+      ` raw=${rawBytes} bytes, stored=${storedBytes} bytes`
+    );
+  }
 
   const documentPath =
     `projects/${CONFIG.firebaseProjectId}` +
     `/databases/(default)/documents/${CONFIG.collectionName}/${docId}`;
 
-  const url =
-    `https://firestore.googleapis.com/v1/${documentPath}` +
-    "?updateMask.fieldPaths=csv&updateMask.fieldPaths=syncedAt";
+  const updateFields = [
+    "csv",
+    "csvGzipBase64",
+    "csvEncoding",
+    "uncompressedBytes",
+    "storedBytes",
+    "syncedAt"
+  ];
+  const updateMask = updateFields
+    .map((fieldName) => `updateMask.fieldPaths=${encodeURIComponent(fieldName)}`)
+    .join("&");
+  const url = `https://firestore.googleapis.com/v1/${documentPath}?${updateMask}`;
 
-  const payload = {
-    fields: {
-      csv: {
-        stringValue: csv
-      },
-      syncedAt: {
-        timestampValue: syncedAt
-      }
+  const fields = {
+    csvEncoding: {
+      stringValue: useCompression ? "gzip-base64" : "plain"
+    },
+    uncompressedBytes: {
+      integerValue: String(rawBytes)
+    },
+    storedBytes: {
+      integerValue: String(storedBytes)
+    },
+    syncedAt: {
+      timestampValue: syncedAt
     }
   };
+
+  if (useCompression) {
+    fields.csvGzipBase64 = {
+      stringValue: compressedBase64
+    };
+  } else {
+    fields.csv = {
+      stringValue: csv
+    };
+  }
+
+  const payload = { fields };
 
   const csvRowCount = Math.max((rows || []).length - 1, 0);
   Logger.log(`同期開始: ${docId}`);
   Logger.log(`CSV行数: ${csvRowCount}`);
-  Logger.log(`Firestore保存先: ${CONFIG.collectionName}/${docId}.csv`);
+  Logger.log(`Firestore保存先: ${CONFIG.collectionName}/${docId}`);
+  Logger.log(`保存形式: ${useCompression ? "gzip-base64" : "plain"}`);
+  Logger.log(`CSVサイズ: ${rawBytes} bytes -> ${storedBytes} bytes`);
   Logger.log(`syncedAt: ${syncedAt}`);
 
   const response = UrlFetchApp.fetch(url, {
@@ -566,6 +631,11 @@ function uploadCsvToFirestore(docId, csv, syncedAt, rows) {
   }
 
   Logger.log(`Firestore保存成功: ${CONFIG.collectionName}/${docId}`);
+  return {
+    storageMode: useCompression ? "gzip-base64" : "plain",
+    rawBytes,
+    storedBytes
+  };
 }
 
 function getAccessToken() {
