@@ -44,7 +44,12 @@ function getEffectivePronunciationTarget() {
     const displayedWord = normalizeWordKey(heading?.textContent || '');
     const overrideWord = normalizeWordKey(pronunciationTargetOverride.word);
 
-    if (panel instanceof HTMLElement && !panel.hidden && displayedWord === overrideWord) {
+    if (
+      typeof HTMLElement !== 'undefined' &&
+      panel instanceof HTMLElement &&
+      !panel.hidden &&
+      displayedWord === overrideWord
+    ) {
       return pronunciationTargetOverride;
     }
 
@@ -257,11 +262,13 @@ export function getPronunciationAudioUnlockState() {
 export async function loadPronunciation(word) {
   if (!pronunciationEl) return;
 
-  const normalizedWord = normalizeWordKey(word);
+  const target = getEffectivePronunciationTarget();
+  const targetWord = normalizeField(target?.word) || normalizeField(word);
+  const normalizedWord = normalizeWordKey(targetWord);
   const key = makePronunciationCacheKey(normalizedWord);
   lastPronunciationRequest = normalizedWord;
 
-  const current = getCurrentWordFor(normalizedWord);
+  const current = getPronunciationItemFor(normalizedWord);
   if (current) {
     const verifiedPhonetic = getVerifiedPhonetic(current);
     if (verifiedPhonetic) {
@@ -296,7 +303,7 @@ export async function loadPronunciation(word) {
   pronunciationEl.textContent = '…';
 
   try {
-    const data = await fetchPronunciationData(word, currentPronunciationController.signal);
+    const data = await fetchPronunciationData(targetWord, currentPronunciationController.signal);
     const phonetic = extractPhonetic(data);
     if (phonetic) {
       safeSetItem(key, phonetic);
@@ -317,8 +324,8 @@ export async function loadPronunciation(word) {
   }
 }
 
-function getCurrentWordFor(normalizedWord) {
-  const current = getCurrentWordFn ? getCurrentWordFn() : null;
+function getPronunciationItemFor(normalizedWord) {
+  const current = getEffectivePronunciationTarget();
   if (!current || normalizeWordKey(current.word) !== normalizedWord) return null;
   return current;
 }
@@ -412,7 +419,7 @@ function findPhoneticText(phonetics) {
 }
 
 function isCurrentPronunciationRequest(normalizedWord) {
-  const current = getCurrentWordFn ? getCurrentWordFn() : null;
+  const current = getEffectivePronunciationTarget();
   const currentWord = current ? normalizeWordKey(current.word) : '';
   return lastPronunciationRequest === normalizedWord && currentWord === normalizedWord;
 }
