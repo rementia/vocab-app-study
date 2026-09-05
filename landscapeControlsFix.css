@@ -3,4 +3,21 @@
   .feature-controls {
     z-index: 46;
   }
+
+  /*
+   * Keep vertical scrolling on the panel while the inner content is translated
+   * horizontally for swipe navigation. This avoids transforming the same
+   * overflow-y:auto element that mobile browsers are actively scrolling.
+   */
+  .morpheme-analysis-panel {
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .morpheme-analysis-content {
+    height: auto;
+    min-height: 100%;
+    overflow: visible;
+  }
 }
