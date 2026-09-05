@@ -65,6 +65,8 @@ body {
   font-family: sans-serif;
   background: var(--app-bg);
   color: var(--app-text);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 button,
@@ -1505,4 +1507,3 @@ body.mode-morpheme-analysis .morpheme-analysis-panel {
     display: block;
   }
 }
-
