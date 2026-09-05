@@ -37,123 +37,222 @@
           <button class="vol-btn" data-vol="vol2">vol.2</button>
           <button class="vol-btn" data-vol="vol3">vol.3</button>
           <button class="vol-btn" data-vol="vol4">vol.4</button>
-        </div>
-        <div class="time-controls" aria-label="時間設定">
-          <div class="recall-time-control" id="recallTimeControl">
-            <label for="timeSlider">想起時間 <span id="timeValue">1.5</span>秒</label>
-            <input id="timeSlider" type="range" min="0.5" max="10" step="0.5" value="1.5" />
-          </div>
-          <div class="display-time-control" id="displayTimeControl">
-            <label for="displayTimeSlider">表示時間 <span id="displayTimeValue">2.0</span>秒</label>
-            <input id="displayTimeSlider" type="range" min="0.5" max="10" step="0.5" value="2.0" />
-          </div>
+          <button
+            class="favorite-list-btn"
+            id="favoriteListBtn"
+            aria-label="お気に入り一覧"
+          >
+            ☆
+          </button>
+          <button
+            class="difficult-list-btn"
+            id="difficultListBtn"
+            aria-label="苦手単語一覧"
+          >
+            △
+          </button>
         </div>
       </div>
 
       <div class="feature-controls">
-        <div class="feature-control-list" aria-label="学習機能">
-          <button class="control-btn random-btn" id="randomBtn" type="button">乱数配列</button>
-          <button class="control-btn translation-btn" id="translationBtn" type="button">訳語切替</button>
-          <button class="control-btn frequency-btn" id="frequencyBtn" type="button">頻度配列</button>
-          <button class="control-btn multiple-choice-btn" id="multipleChoiceBtn" type="button">四択問題</button>
-          <button class="control-btn speech-sync-btn" id="speechSyncBtn" type="button">発音同期</button>
-          <button class="control-btn auto-play-btn" id="autoPlayBtn" type="button">自動再生</button>
-          <button class="control-btn morpheme-btn" id="morphemeBtn" type="button">語源解析</button>
-          <button class="control-btn challenge-btn" id="challengeBtn" type="button">想起学習</button>
+        <div class="feature-control-list" aria-label="学習設定">
+          <button
+            class="control-btn random-btn"
+            id="randomBtn"
+            aria-label="乱数配列"
+            aria-pressed="false"
+          >
+            乱数配列
+          </button>
+
+          <button
+            class="control-btn speech-sync-btn"
+            id="speechSyncBtn"
+            aria-label="発音同期"
+            aria-pressed="false"
+          >
+            発音同期
+          </button>
+
+          <button
+            class="control-btn frequency-btn"
+            id="frequencyBtn"
+            aria-label="頻度配列"
+            aria-pressed="false"
+          >
+            頻度配列
+          </button>
+
+          <button
+            class="control-btn challenge-btn"
+            id="challengeBtn"
+            aria-label="想起学習"
+            aria-pressed="false"
+          >
+            想起学習
+          </button>
+
+          <button
+            class="control-btn translation-btn"
+            id="translationBtn"
+            aria-label="訳語切替"
+            aria-pressed="false"
+          >
+            訳語切替
+          </button>
+
+          <button
+            class="control-btn auto-play-btn"
+            id="autoPlayBtn"
+            aria-label="自動再生"
+            aria-pressed="false"
+          >
+            自動再生
+          </button>
+
+          <button
+            class="control-btn morpheme-btn"
+            id="morphemeBtn"
+            aria-label="語源解析"
+            aria-pressed="false"
+          >
+            語源解析
+          </button>
+
+          <button
+            class="control-btn multiple-choice-btn"
+            id="multipleChoiceBtn"
+            aria-label="四択問題"
+            aria-pressed="false"
+          >
+            四択問題
+          </button>
+
         </div>
       </div>
     </header>
 
-    <aside class="sidebar" id="sidebar">
+    <button class="login-btn" id="loginBtn">Google でログイン</button>
+    <button class="login-btn" id="logoutBtn" hidden>ログアウト</button>
+
+    <aside class="sidebar" id="sidebar" aria-label="単語一覧">
       <div class="sidebar-search">
-        <input id="searchInput" type="search" placeholder="検索" autocomplete="off" />
+        <input
+          id="searchInput"
+          type="search"
+          placeholder="検索"
+          aria-label="単語や意味を検索"
+        />
       </div>
       <div class="sidebar-tools">
-        <button class="control-btn favorite-list-btn" id="favoriteListBtn" type="button">☆</button>
-        <button class="control-btn difficult-list-btn" id="difficultListBtn" type="button">△</button>
-        <button class="control-btn reload-words-btn" id="reloadWordsBtn" type="button">単語更新</button>
-        <div class="reload-words-status" id="reloadWordsStatus" aria-live="polite"></div>
+        <button
+          class="control-btn reload-words-btn"
+          id="reloadWordsBtn"
+          type="button"
+        >
+          単語更新
+        </button>
+        <div
+          class="reload-words-status"
+          id="reloadWordsStatus"
+          aria-live="polite"
+        ></div>
       </div>
-      <div id="wordList"></div>
+      <div id="list"></div>
     </aside>
+
+    <div class="time-adjustments">
+      <div class="time-controls">
+        <div class="display-time-control">
+          <label for="displayTimeSlider">
+            表示時間:
+            <span id="displayTimeValue">1.5</span>s
+          </label>
+
+          <input type="range" id="displayTimeSlider" min="1" max="5" step="0.5" value="1.5">
+        </div>
+
+        <div class="recall-time-control">
+          <label for="timeSlider">
+            想起時間:
+            <span id="timeValue">1.5</span>s
+          </label>
+
+          <input type="range" id="timeSlider" min="1" max="5" step="0.5" value="1.5">
+        </div>
+      </div>
+    </div>
 
     <main class="main">
       <div class="main-layout">
         <div class="center-box">
+
           <div class="current-meta-row">
-            <span class="current-vol" id="currentVol"></span>
-            <span id="progress"></span>
+            <div class="current-vol" id="current" aria-live="polite">vol.1</div>
+            <div id="progress"></div>
           </div>
 
           <div class="current-action-row">
-            <div class="word-mark-actions">
+            <div class="word-mark-actions" aria-label="単語マーク">
               <button
                 class="control-btn favorite-toggle-btn inline-favorite"
                 id="favoriteToggleBtn"
-                type="button"
-                aria-label="お気に入り登録"
-                title="お気に入り登録"
-              >☆</button>
+                aria-pressed="false"
+              >
+                ☆
+              </button>
               <button
                 class="control-btn difficult-toggle-btn inline-difficult"
                 id="difficultToggleBtn"
-                type="button"
-                aria-label="苦手に追加"
-                title="苦手に追加"
-              >△</button>
+                aria-pressed="false"
+              >
+                △
+              </button>
             </div>
+
           </div>
 
-          <div class="word-slide-card" id="wordSlideCard">
-            <div id="word"></div>
-            <div id="meaning"></div>
-            <div class="word-detail-meta" id="wordDetailMeta"></div>
-            <div id="pronunciation"></div>
-            <button class="main-btn speak-btn" id="speakWordBtn" type="button">発音</button>
-            <div class="multiple-choice-panel" id="multipleChoicePanel" hidden>
-              <div class="multiple-choice-question" id="multipleChoiceQuestion"></div>
-              <div class="multiple-choice-options" id="multipleChoiceOptions"></div>
-              <div class="multiple-choice-feedback" id="multipleChoiceFeedback"></div>
-            </div>
-            <section class="morpheme-analysis-panel" id="morphemeAnalysisPanel" hidden></section>
+          <div class="word-slide-card">
+            <div id="word" aria-live="polite">読み込み中...</div>
+            <div id="meaning" aria-live="polite"></div>
+            <div class="word-detail-meta" id="wordDetailMeta" hidden></div>
+            <section
+              class="morpheme-analysis-panel"
+              id="morphemeAnalysisPanel"
+              aria-live="polite"
+              hidden
+            ></section>
+          </div>
+
+          <div class="multiple-choice-panel" id="multipleChoicePanel" hidden>
+            <div class="multiple-choice-question" id="multipleChoiceQuestion"></div>
+            <div class="multiple-choice-options" id="multipleChoiceOptions" aria-label="四択問題の選択肢"></div>
+            <div class="multiple-choice-feedback" id="multipleChoiceFeedback" aria-live="polite"></div>
           </div>
 
           <div class="button-row">
             <div class="nav-box">
-              <div class="nav-hint" id="prevHint"></div>
-              <button class="main-btn" id="prevWordBtn" type="button">前へ</button>
+              <button class="main-btn" id="prevWordBtn">戻る</button>
             </div>
+
             <div class="nav-box">
-              <div class="help-line">← / → で移動</div>
+              <div id="pronunciation" aria-live="polite"></div>
+              <button class="main-btn speak-btn" id="speakWordBtn">発音</button>
             </div>
+
             <div class="nav-box">
-              <div class="nav-hint" id="nextHint"></div>
-              <button class="main-btn" id="nextWordBtn" type="button">次へ</button>
+              <button class="main-btn" id="nextWordBtn">進む</button>
             </div>
           </div>
-        </div>
 
-        <div class="time-adjustments">
-          <div class="time-controls" aria-label="時間設定">
-            <div class="recall-time-control">
-              <label for="timeSlider">想起時間 <span id="timeValueClone"></span></label>
-            </div>
-            <div class="display-time-control">
-              <label for="displayTimeSlider">表示時間 <span id="displayTimeValueClone"></span></label>
-            </div>
+          <div class="help-line">
+            ← → : 前後移動　｜　Space : 発音　｜　F : ☆　｜　D : △　｜　/ : 検索　｜　Enter : 検索巡回　｜　L : 一覧　｜　R : 乱数配列　｜　Esc : 解除
           </div>
-        </div>
-
-        <div class="review-adjustments">
-          <div class="review-panel" aria-label="復習状態"></div>
         </div>
       </div>
     </main>
-
-    <button class="login-btn" id="loginBtn" type="button">Googleログイン</button>
-    <button class="login-btn" id="logoutBtn" type="button" hidden>ログアウト</button>
   </div>
 
-  <script type="module" src="app.js"></script>
+  <script type="module" src="bootstrap.js?v=20260815-9"></script>
 </body>
 </html>
