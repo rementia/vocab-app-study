@@ -1,3 +1,9 @@
+/* Restore the normal word-area position for status messages such as
+ * "Googleログイン必須" and "単語がありません". */
+#word.status-message {
+  transform: none;
+}
+
 /* Keep landscape feature controls tappable when multiple-choice mode raises .main. */
 @media (max-width: 768px) and (orientation: landscape), (max-height: 520px) and (orientation: landscape) {
   .feature-controls {
