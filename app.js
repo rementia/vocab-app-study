@@ -801,14 +801,8 @@ function loadSavedState() {
   challengeTime = savedState.challengeTime;
   displayTime = savedState.displayTime;
   translationMode = savedState.translationMode;
-  multipleChoiceMode = false;
-  if (savedState.multipleChoiceMode) {
-    saveMultipleChoiceModeState(false);
-  }
-  morphemeAnalysisMode = false;
-  if (savedState.morphemeAnalysisMode) {
-    saveMorphemeAnalysisModeState(false);
-  }
+  multipleChoiceMode = savedState.multipleChoiceMode;
+  morphemeAnalysisMode = savedState.morphemeAnalysisMode;
   randomMode = savedState.randomMode;
   frequencyMode = savedState.frequencyMode;
 
