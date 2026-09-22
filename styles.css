@@ -1222,8 +1222,15 @@ body.mode-morpheme-analysis .morpheme-analysis-panel {
     left: var(--landscape-feature-left);
     right: auto;
     top: calc(var(--landscape-feature-top) - 10px);
+    width: 0;
+    height: 0;
+    overflow: visible;
     transform: none;
     z-index: 46;
+    pointer-events: auto;
+  }
+
+  .feature-control-list {
     pointer-events: none;
   }
 
