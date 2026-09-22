@@ -498,16 +498,14 @@ function alignUnknownChoiceButton(dom) {
   if (!displaySlider || !panel) return;
 
   const sliderRect = displaySlider.getBoundingClientRect();
-  const panelRect = panel.getBoundingClientRect();
   const buttonRect = button.getBoundingClientRect();
 
   const centerX = sliderRect.left + sliderRect.width / 2;
-  const centerY = panelRect.top + panelRect.height / 2;
 
   button.style.left = `${Math.round(centerX - buttonRect.width / 2)}px`;
   button.style.right = "auto";
-  button.style.top = `${Math.round(centerY - buttonRect.height / 2)}px`;
-  button.style.bottom = "auto";
+  button.style.top = "";
+  button.style.bottom = "";
   button.style.transform = "none";
 }
 
