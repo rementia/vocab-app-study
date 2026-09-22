@@ -144,6 +144,7 @@ const {
   multipleChoiceQuestionEl,
   multipleChoiceOptionsEl,
   multipleChoiceFeedbackEl,
+  unknownChoiceBtnEl,
   autoPlayBtnEl,
   randomBtnEl,
   frequencyBtnEl,
@@ -273,6 +274,7 @@ const uiContext = {
     multipleChoiceQuestionEl,
     multipleChoiceOptionsEl,
     multipleChoiceFeedbackEl,
+    unknownChoiceBtnEl,
     autoPlayBtnEl,
     randomBtnEl,
     frequencyBtnEl,
@@ -600,6 +602,24 @@ function handleMultipleChoiceOptionClick(event) {
   finishReviewStatsChange();
   scheduleSpeechSync();
 }
+function handleMultipleChoiceUnknownClick() {
+  const question = getMultipleChoiceQuestion();
+  const current = getCurrentWord();
+  if (!question || !current || multipleChoiceAnswer) return;
+
+  multipleChoiceAnswer = {
+    wordId: current.id,
+    selectedText: null,
+    correctText: question.correctText,
+    isCorrect: false,
+    answerType: "unknown"
+  };
+
+  recordReviewAnswer(reviewScores, current, false);
+  finishReviewStatsChange();
+  scheduleSpeechSync();
+}
+
 function finishInitialLoading() {
   if (hasFinishedInitialLoading) return;
   hasFinishedInitialLoading = true;
@@ -645,6 +665,7 @@ function bindWordActionButtons() {
   nextWordBtnEl?.addEventListener("click", nextWord);
   speakWordBtnEl?.addEventListener("click", handleSpeakCurrentWord);
   multipleChoiceOptionsEl?.addEventListener("click", handleMultipleChoiceOptionClick);
+  unknownChoiceBtnEl?.addEventListener("click", handleMultipleChoiceUnknownClick);
   document.addEventListener("click", handleMorphemeAnalysisBackgroundClick);
   document.querySelector(".center-box")?.addEventListener("click", handleAutoPlaySkipRequest);
 }
