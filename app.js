@@ -1807,14 +1807,14 @@ function toggleMultipleChoiceMode() {
     stopAutoPlay();
   }
 
-  renderCurrentWord();
+  runAfterNextPaint(renderCurrentWord);
 }
 
 function toggleMorphemeAnalysisMode() {
   morphemeAnalysisMode = !morphemeAnalysisMode;
   saveMorphemeAnalysisModeState(morphemeAnalysisMode);
   updateMorphemeButton();
-  renderCurrentWord();
+  runAfterNextPaint(renderCurrentWord);
 }
 
 function closeMorphemeAnalysisMode() {
