@@ -476,6 +476,41 @@ export function updateAuthUI(context) {
   dom.logoutBtnEl.hidden = !state.currentUser;
 }
 
+function alignUnknownChoiceButton(dom) {
+  const button = dom.unknownChoiceBtnEl;
+  if (!button || button.hidden || typeof window === "undefined") return;
+
+  const isPortraitPhone = window.matchMedia?.(
+    "(max-width: 768px) and (orientation: portrait)"
+  )?.matches;
+
+  if (isPortraitPhone) {
+    button.style.left = "";
+    button.style.right = "";
+    button.style.top = "";
+    button.style.bottom = "";
+    button.style.transform = "";
+    return;
+  }
+
+  const displaySlider = document.querySelector(".display-time-control input");
+  const panel = dom.multipleChoicePanelEl;
+  if (!displaySlider || !panel) return;
+
+  const sliderRect = displaySlider.getBoundingClientRect();
+  const panelRect = panel.getBoundingClientRect();
+  const buttonRect = button.getBoundingClientRect();
+
+  const centerX = sliderRect.left + sliderRect.width / 2;
+  const centerY = panelRect.top + panelRect.height / 2;
+
+  button.style.left = `${Math.round(centerX - buttonRect.width / 2)}px`;
+  button.style.right = "auto";
+  button.style.top = `${Math.round(centerY - buttonRect.height / 2)}px`;
+  button.style.bottom = "auto";
+  button.style.transform = "none";
+}
+
 export function renderMultipleChoice(context) {
   const state = getState(context);
   const dom = getDom(context);
@@ -544,6 +579,8 @@ export function renderMultipleChoice(context) {
   if (dom.multipleChoiceFeedbackEl) {
     dom.multipleChoiceFeedbackEl.textContent = "";
   }
+
+  requestAnimationFrame(() => alignUnknownChoiceButton(dom));
 }
 
 export function hasMorphemeInfo(item) {
