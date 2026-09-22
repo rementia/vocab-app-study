@@ -1232,6 +1232,8 @@ body.mode-morpheme-analysis .morpheme-analysis-panel {
   }
 
   .feature-controls .control-btn {
+    padding: 7px 10px;
+    font-size: 12px;
     touch-action: manipulation;
     pointer-events: auto;
   }
