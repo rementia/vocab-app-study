@@ -1,6 +1,6 @@
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-auth.js";
 import { auth, db, provider } from './firebaseClient.js';
-import { availableVolumes, fetchWordsForVol, fetchWordsForVolWithMeta } from './data.js?v=20260812-3';
+import { availableVolumes, fetchWordsForVol, fetchWordsForVolWithMeta } from './data.js?v=20260922-1';
 import { getDomElements } from './dom.js?v=20260922-2';
 import {
   USER_MARKS_COLLECTION,
@@ -98,7 +98,7 @@ import {
 import {
   buildMultipleChoiceQuestion,
   getMultipleChoiceDirection
-} from './multipleChoice.js';
+} from './multipleChoice.js?v=20260922-1';
 import { createSpeechSyncController } from './speechSyncController.js';
 import { getNextSearchResultIndex } from './searchController.js';
 import { formatReloadSuccessMessage, getPreserveWordId, getReloadedIndex } from './wordReloadService.js';
