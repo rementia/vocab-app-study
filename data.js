@@ -1,5 +1,6 @@
 import { volOrder } from "./state.js";
 import { normalizeWordKey } from "./wordIdentity.js";
+import { getAffixMetadata } from "./affixMetadata.js?v=20260922-1";
 
 export const availableVolumes = Object.fromEntries(volOrder.map((vol) => [vol, true]));
 const ID_COLUMN_NAMES = ["id", "wordid", "word_id", "word id", "単語id"];
@@ -137,8 +138,10 @@ function createWordItem(cols, columnReader, volName) {
   const stableId = columnReader.readId(cols);
   const word = columnReader.readWord(cols);
   const meaning = columnReader.readMeaning(cols);
+  const normalizedId = normalizeWordKey(stableId || word);
+  const affixMetadata = getAffixMetadata(stableId || normalizedId);
   return {
-    id: normalizeWordKey(stableId || word),
+    id: normalizedId,
     word,
     meaning,
     morpheme: columnReader.readMorpheme(cols),
@@ -150,8 +153,8 @@ function createWordItem(cols, columnReader, volName) {
     pronunciationAudioUrl: columnReader.readPronunciationAudioUrl(cols),
     pronunciationSource: columnReader.readPronunciationSource(cols),
     pronunciationStatus: columnReader.readPronunciationStatus(cols),
-    prefix: columnReader.readPrefix(cols),
-    suffix: columnReader.readSuffix(cols),
+    prefix: columnReader.readPrefix(cols) || affixMetadata?.prefix || "",
+    suffix: columnReader.readSuffix(cols) || affixMetadata?.suffix || "",
     legacyWordKey: normalizeWordKey(word),
     sourceVol: volName
   };
