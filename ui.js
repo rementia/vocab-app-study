@@ -493,12 +493,15 @@ function alignUnknownChoiceButton(dom) {
     return;
   }
 
-  const displaySlider = document.querySelector(".display-time-control input");
-  const panel = dom.multipleChoicePanelEl;
-  if (!displaySlider || !panel) return;
+  const multipleChoiceControl = document.querySelector(".multiple-choice-btn");
+  const morphemeControl = document.querySelector(".morpheme-btn");
+  if (!multipleChoiceControl || !morphemeControl) return;
 
-  const sliderRect = displaySlider.getBoundingClientRect();
-  const centerX = sliderRect.left + sliderRect.width / 2;
+  const multipleChoiceRect = multipleChoiceControl.getBoundingClientRect();
+  const morphemeRect = morphemeControl.getBoundingClientRect();
+  const multipleChoiceCenterX = multipleChoiceRect.left + multipleChoiceRect.width / 2;
+  const morphemeCenterX = morphemeRect.left + morphemeRect.width / 2;
+  const centerX = (multipleChoiceCenterX + morphemeCenterX) / 2;
 
   button.style.left = `${centerX}px`;
   button.style.right = "auto";
