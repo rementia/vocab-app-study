@@ -830,9 +830,9 @@ body.mode-morpheme-analysis .morpheme-analysis-panel {
   transform: translateY(-15px);
 }
 
-.unknown-choice-btn {
+.main-btn.unknown-choice-btn {
   position: fixed;
-  right: 82px;
+  right: 30px;
   bottom: max(72px, calc(env(safe-area-inset-bottom) + 56px));
   z-index: 44;
   min-width: 112px;
@@ -849,12 +849,12 @@ body.mode-morpheme-analysis .morpheme-analysis-panel {
   box-shadow: none;
 }
 
-.unknown-choice-btn:hover {
+.main-btn.unknown-choice-btn:hover {
   background: var(--hover-bg);
   opacity: 1;
 }
 
-.unknown-choice-btn:disabled {
+.main-btn.unknown-choice-btn:disabled {
   cursor: default;
   opacity: 0.45;
 }
