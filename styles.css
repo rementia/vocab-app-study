@@ -833,7 +833,7 @@ body.mode-morpheme-analysis .morpheme-analysis-panel {
 .main-btn.unknown-choice-btn {
   position: fixed;
   right: 30px;
-  top: 45%;
+  top: 40%;
   bottom: auto;
   z-index: 44;
   min-width: 112px;
