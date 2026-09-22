@@ -489,6 +489,9 @@ export function renderMultipleChoice(context) {
   }
 
   dom.multipleChoicePanelEl.hidden = !isPresentationActive;
+  if (dom.unknownChoiceBtnEl) {
+    dom.unknownChoiceBtnEl.hidden = !isPresentationActive;
+  }
   if (!isPresentationActive) {
     dom.multipleChoiceOptionsEl.innerHTML = "";
     if (dom.multipleChoiceQuestionEl) dom.multipleChoiceQuestionEl.textContent = "";
@@ -497,14 +500,16 @@ export function renderMultipleChoice(context) {
   }
 
   const question = callbacks.getMultipleChoiceQuestion?.();
+  const latestState = getState(context);
+  if (dom.unknownChoiceBtnEl) {
+    dom.unknownChoiceBtnEl.disabled = !question || Boolean(latestState.multipleChoiceAnswer);
+  }
   if (!question) {
     dom.multipleChoiceOptionsEl.innerHTML = "";
     if (dom.multipleChoiceQuestionEl) dom.multipleChoiceQuestionEl.textContent = "選択肢を作成できません";
     if (dom.multipleChoiceFeedbackEl) dom.multipleChoiceFeedbackEl.textContent = "";
     return;
   }
-  const latestState = getState(context);
-
   if (dom.multipleChoiceQuestionEl) {
     dom.multipleChoiceQuestionEl.textContent = "";
   }
