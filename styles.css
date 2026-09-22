@@ -1223,7 +1223,7 @@ body.mode-morpheme-analysis .morpheme-analysis-panel {
     right: auto;
     top: calc(var(--landscape-feature-top) - 10px);
     transform: none;
-    z-index: 2;
+    z-index: 46;
   }
 
   .login-btn {
