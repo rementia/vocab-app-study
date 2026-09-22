@@ -13,7 +13,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <link rel="stylesheet" href="styles.css?v=20260905-1" />
+  <link rel="stylesheet" href="styles.css?v=20260922-1" />
   <link rel="stylesheet" href="landscapeControlsFix.css?v=20260905-2" />
 </head>
 <body class="loading">
@@ -229,6 +229,15 @@
             <div class="multiple-choice-options" id="multipleChoiceOptions" aria-label="四択問題の選択肢"></div>
             <div class="multiple-choice-feedback" id="multipleChoiceFeedback" aria-live="polite"></div>
           </div>
+
+          <button
+            class="main-btn unknown-choice-btn"
+            id="unknownChoiceBtn"
+            type="button"
+            hidden
+          >
+            わからない
+          </button>
 
           <div class="button-row">
             <div class="nav-box">
