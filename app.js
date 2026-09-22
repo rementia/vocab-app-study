@@ -1,7 +1,7 @@
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-auth.js";
 import { auth, db, provider } from './firebaseClient.js';
 import { availableVolumes, fetchWordsForVol, fetchWordsForVolWithMeta } from './data.js?v=20260812-3';
-import { getDomElements } from './dom.js?v=20260814-1';
+import { getDomElements } from './dom.js?v=20260922-2';
 import {
   USER_MARKS_COLLECTION,
   volOrder,
@@ -50,7 +50,7 @@ import {
   applySidebarState as uiApplySidebarState,
   updateAuthUI as uiUpdateAuthUI,
   updateMorphemeButton as uiUpdateMorphemeButton
-} from './ui.js?v=20260815-1';
+} from './ui.js?v=20260922-2';
 import {
   buildFavoriteEntries,
   isFavorite,
