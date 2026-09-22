@@ -60,6 +60,15 @@ function hasMetadataOverlap(leftValue, rightValue) {
   return left.some((item) => right.has(item));
 }
 
+function getAffixMatchPriority(current, item) {
+  const hasSamePrefix = hasMetadataOverlap(current?.prefix, item?.prefix);
+  const hasSameSuffix = hasMetadataOverlap(current?.suffix, item?.suffix);
+
+  if (hasSamePrefix && hasSameSuffix) return 0;
+  if (hasSamePrefix || hasSameSuffix) return 1;
+  return 2;
+}
+
 function normalizeMeaningFragment(value) {
   return String(value ?? "")
     .normalize("NFKC")
@@ -166,15 +175,23 @@ function shuffleByMeaningFormat(current, candidates, options, shuffle) {
 }
 
 function shuffleWithinMetadataPriority(current, candidates, options, shuffle) {
-  return [0, 1, 2, 3].flatMap((priority) => {
-    const bucket = candidates.filter((item) => getDistractorPriority(current, item) === priority);
-    const sameVol = bucket.filter((item) => item.sourceVol === current.sourceVol);
-    const otherVols = bucket.filter((item) => item.sourceVol !== current.sourceVol);
-    return [
+  const buckets = Array.from({ length: 3 }, () => (
+    Array.from({ length: 4 }, () => ({ sameVol: [], otherVols: [] }))
+  ));
+
+  candidates.forEach((item) => {
+    const affixPriority = getAffixMatchPriority(current, item);
+    const metadataPriority = getDistractorPriority(current, item);
+    const volBucket = item.sourceVol === current.sourceVol ? "sameVol" : "otherVols";
+    buckets[affixPriority][metadataPriority][volBucket].push(item);
+  });
+
+  return buckets.flatMap((metadataBuckets) => (
+    metadataBuckets.flatMap(({ sameVol, otherVols }) => ([
       ...shuffleByMeaningFormat(current, sameVol, options, shuffle),
       ...shuffleByMeaningFormat(current, otherVols, options, shuffle)
-    ];
-  });
+    ]))
+  ));
 }
 
 export function collectMultipleChoiceDistractors({
