@@ -498,15 +498,13 @@ function alignUnknownChoiceButton(dom) {
   if (!displaySlider || !panel) return;
 
   const sliderRect = displaySlider.getBoundingClientRect();
-  const buttonRect = button.getBoundingClientRect();
-
   const centerX = sliderRect.left + sliderRect.width / 2;
 
-  button.style.left = `${Math.round(centerX - buttonRect.width / 2)}px`;
+  button.style.left = `${centerX}px`;
   button.style.right = "auto";
   button.style.top = "";
   button.style.bottom = "";
-  button.style.transform = "none";
+  button.style.transform = "translateX(-50%)";
 }
 
 export function renderMultipleChoice(context) {
