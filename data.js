@@ -14,6 +14,8 @@ const PHONETIC_COLUMN_NAMES = ["phonetic", "ipa"];
 const PRONUNCIATION_AUDIO_URL_COLUMN_NAMES = ["pronunciationaudiourl", "pronunciation_audio_url", "pronunciation audio url"];
 const PRONUNCIATION_SOURCE_COLUMN_NAMES = ["pronunciationsource", "pronunciation_source", "pronunciation source"];
 const PRONUNCIATION_STATUS_COLUMN_NAMES = ["pronunciationstatus", "pronunciation_status", "pronunciation status"];
+const PREFIX_COLUMN_NAMES = ["prefix", "接頭辞"];
+const SUFFIX_COLUMN_NAMES = ["suffix", "接尾辞"];
 const SYNC_TIME_FIELD_NAMES = ["syncedAt", "updatedAt", "lastSyncedAt"];
 
 function stripBom(text) {
@@ -100,6 +102,8 @@ function createColumnReader(rows) {
   const pronunciationAudioUrlIndex = hasHeader ? getHeaderIndex(headerRow, PRONUNCIATION_AUDIO_URL_COLUMN_NAMES) : -1;
   const pronunciationSourceIndex = hasHeader ? getHeaderIndex(headerRow, PRONUNCIATION_SOURCE_COLUMN_NAMES) : -1;
   const pronunciationStatusIndex = hasHeader ? getHeaderIndex(headerRow, PRONUNCIATION_STATUS_COLUMN_NAMES) : -1;
+  const prefixIndex = hasHeader ? getHeaderIndex(headerRow, PREFIX_COLUMN_NAMES) : -1;
+  const suffixIndex = hasHeader ? getHeaderIndex(headerRow, SUFFIX_COLUMN_NAMES) : -1;
 
   return {
     startIndex: hasHeader ? 1 : 0,
@@ -117,7 +121,9 @@ function createColumnReader(rows) {
     readPhonetic: (cols) => (phoneticIndex >= 0 ? cols[phoneticIndex] || "" : ""),
     readPronunciationAudioUrl: (cols) => (pronunciationAudioUrlIndex >= 0 ? cols[pronunciationAudioUrlIndex] || "" : ""),
     readPronunciationSource: (cols) => (pronunciationSourceIndex >= 0 ? cols[pronunciationSourceIndex] || "" : ""),
-    readPronunciationStatus: (cols) => (pronunciationStatusIndex >= 0 ? cols[pronunciationStatusIndex] || "" : "")
+    readPronunciationStatus: (cols) => (pronunciationStatusIndex >= 0 ? cols[pronunciationStatusIndex] || "" : ""),
+    readPrefix: (cols) => (prefixIndex >= 0 ? cols[prefixIndex] || "" : ""),
+    readSuffix: (cols) => (suffixIndex >= 0 ? cols[suffixIndex] || "" : "")
   };
 }
 
@@ -144,6 +150,8 @@ function createWordItem(cols, columnReader, volName) {
     pronunciationAudioUrl: columnReader.readPronunciationAudioUrl(cols),
     pronunciationSource: columnReader.readPronunciationSource(cols),
     pronunciationStatus: columnReader.readPronunciationStatus(cols),
+    prefix: columnReader.readPrefix(cols),
+    suffix: columnReader.readSuffix(cols),
     legacyWordKey: normalizeWordKey(word),
     sourceVol: volName
   };
