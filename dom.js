@@ -34,6 +34,7 @@ export function getDomElements() {
     multipleChoiceQuestionEl: document.getElementById("multipleChoiceQuestion"),
     multipleChoiceOptionsEl: document.getElementById("multipleChoiceOptions"),
     multipleChoiceFeedbackEl: document.getElementById("multipleChoiceFeedback"),
+    unknownChoiceBtnEl: document.getElementById("unknownChoiceBtn"),
     autoPlayBtnEl: document.getElementById("autoPlayBtn"),
     randomBtnEl: document.getElementById("randomBtn"),
     frequencyBtnEl: document.getElementById("frequencyBtn"),
