@@ -75,6 +75,28 @@ Prioritize the following:
 6. Explaining internal behavior
 7. Avoiding accidental damage to Firebase, Firestore, localStorage, or GitHub Pages compatibility
 
+### Mandatory target verification before edits
+
+Before modifying code, configuration, deployment assets, or data, first identify the actual runtime target. Do not infer the target from a similarly named repository, remembered context, or a previous task.
+
+Verify, as applicable:
+- the repository or workspace actually used by the owner
+- the branch or revision actually being edited
+- the deployed/hosted environment actually used on the device
+- the entry file and assets actually loaded by that environment
+- whether a similarly named public, portfolio, demo, study, experimental, local, or legacy version exists
+
+If multiple related repositories or deployments exist, explicitly distinguish their roles before editing. A successful edit to the wrong repository is a failed task.
+
+When a reported behavior does not change after an edit, do not keep stacking fixes on the same target by default. Re-verify the repository, deployment source, cache/versioned asset URLs, and runtime-loaded files before changing implementation details again.
+
+Completion claims must be scoped to what was actually verified:
+- "source updated" means only the source was changed
+- "deployed" requires evidence that the deployment contains the change
+- "fixed on device" requires runtime evidence from the device or equivalent environment
+
+Treat target identification as a prerequisite to debugging, not as an optional follow-up check.
+
 Because this is a study repository, experimental changes are allowed.
 
 However, before making broad or risky changes, explain:
