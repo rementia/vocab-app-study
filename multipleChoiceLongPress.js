@@ -1,4 +1,4 @@
-import { getLastBuiltMultipleChoiceQuestion } from './multipleChoice.js';
+import { getLastBuiltMultipleChoiceQuestion } from './multipleChoice.js?v=20260922-1';
 import { setPronunciationTargetOverride } from './pronunciation.js';
 import { setMorphemeAnalysisTarget } from './morphemeAnalysisTarget.js';
 
