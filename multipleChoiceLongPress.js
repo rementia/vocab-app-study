@@ -1,6 +1,4 @@
 import { getLastBuiltMultipleChoiceQuestion } from './multipleChoice.js?v=20260922-1';
-import { setPronunciationTargetOverride } from './pronunciation.js';
-import { setMorphemeAnalysisTarget } from './morphemeAnalysisTarget.js';
 
 const LONG_PRESS_MS = 550;
 const MOVE_TOLERANCE_PX = 12;
@@ -120,13 +118,13 @@ function openAnalysisForChoice(button) {
   suppressClickButton = button;
   scheduleClickSuppressionReset();
 
-  const morphemeButton = document.getElementById('morphemeBtn');
-  if (!(morphemeButton instanceof HTMLButtonElement) || morphemeButton.disabled) return false;
+  const optionsEl = button.closest('#multipleChoiceOptions');
+  if (!(optionsEl instanceof HTMLElement)) return false;
 
-  setMorphemeAnalysisTarget(item);
-  setPronunciationTargetOverride(item);
-  morphemeButton.click();
-  renderAnalysisItem(item);
+  optionsEl.dispatchEvent(new CustomEvent('multiple-choice-etymology-open', {
+    bubbles: false,
+    detail: { item }
+  }));
   return true;
 }
 
