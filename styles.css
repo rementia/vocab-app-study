@@ -873,7 +873,7 @@ body.mode-morpheme-analysis .morpheme-analysis-panel {
 
 .main-btn.unknown-choice-btn:disabled {
   cursor: default;
-  opacity: 0.45;
+  opacity: 1;
 }
 
 .button-row {
