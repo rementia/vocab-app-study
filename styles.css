@@ -448,6 +448,8 @@ body.mode-multiple-choice .multiple-choice-panel {
   color: var(--app-text);
   padding: 18px 20px 22px;
   text-align: left;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .morpheme-analysis-content {
