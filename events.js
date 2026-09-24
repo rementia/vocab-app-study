@@ -157,7 +157,6 @@ export function bindTouchEvents({ prevWord, nextWord, isSwipeAllowedTarget, swip
   let touchStartY = 0;
   let touchEndX = 0;
   let touchEndY = 0;
-  let lastTouchEnd = 0;
   let swipeEnabled = false;
   let isHorizontalSwipe = false;
   let isDraggingCard = false;
@@ -330,11 +329,6 @@ export function bindTouchEvents({ prevWord, nextWord, isSwipeAllowedTarget, swip
         }
       }
 
-      const now = Date.now();
-      if (now - lastTouchEnd <= 300) {
-        event.preventDefault();
-      }
-      lastTouchEnd = now;
       resetSwipeState();
     },
     { passive: false }
