@@ -2,7 +2,7 @@ import { getLastBuiltMultipleChoiceQuestion } from './multipleChoice.js?v=202609
 import { setPronunciationTargetOverride } from './pronunciation.js';
 import { setMorphemeAnalysisTarget } from './morphemeAnalysisTarget.js';
 
-const LONG_PRESS_MS = 550;
+const LONG_PRESS_MS = 500;
 const MOVE_TOLERANCE_PX = 12;
 const CLICK_SUPPRESSION_MS = 1000;
 
