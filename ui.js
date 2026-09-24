@@ -537,6 +537,10 @@ export function renderMultipleChoice(context) {
   const latestState = getState(context);
   if (dom.unknownChoiceBtnEl) {
     dom.unknownChoiceBtnEl.disabled = !question || Boolean(latestState.multipleChoiceAnswer);
+    dom.unknownChoiceBtnEl.classList.toggle(
+      "is-wrong",
+      latestState.multipleChoiceAnswer?.answerType === "unknown"
+    );
   }
   if (!question) {
     dom.multipleChoiceOptionsEl.innerHTML = "";
