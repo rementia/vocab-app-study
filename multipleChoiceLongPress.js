@@ -1,6 +1,6 @@
 import { getLastBuiltMultipleChoiceQuestion } from './multipleChoice.js?v=20260922-1';
 
-const LONG_PRESS_MS = 480;
+const LONG_PRESS_MS = 600;
 const MOVE_TOLERANCE_PX = 28;
 const CLICK_SUPPRESSION_MS = 1000;
 
