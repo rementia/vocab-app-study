@@ -1,5 +1,5 @@
-import { init, finishInitialLoading } from './app.js?v=20260924-3';
-import { initMultipleChoiceLongPressEtymology } from './multipleChoiceLongPress.js?v=20260924-6';
+import { init, finishInitialLoading } from './app.js?v=20260924-7';
+import { initMultipleChoiceLongPressEtymology } from './multipleChoiceLongPress.js?v=20260924-7';
 import { initMorphemeDoubleTapToggle } from './morphemeDoubleTapToggle.js?v=20260827-1';
 
 function loadSidebarLayoutStyles() {
