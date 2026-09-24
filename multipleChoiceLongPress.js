@@ -8,6 +8,7 @@ const CLICK_SUPPRESSION_MS = 1000;
 
 let pressTimer = null;
 let activePointerId = null;
+let activeButton = null;
 let startX = 0;
 let startY = 0;
 let suppressClickButton = null;
@@ -43,6 +44,23 @@ function clearPressTimer() {
 function clearActivePress() {
   clearPressTimer();
   activePointerId = null;
+  activeButton = null;
+}
+
+function isPointInsideButton(event, button) {
+  if (!(button instanceof HTMLElement)) return false;
+
+  const rect = button.getBoundingClientRect();
+  return (
+    event.clientX >= rect.left &&
+    event.clientX <= rect.right &&
+    event.clientY >= rect.top &&
+    event.clientY <= rect.bottom
+  );
+}
+
+function suppressNextClickForButton(button) {
+  suppressNextClickForButton(button);
 }
 
 function scheduleClickSuppressionReset() {
@@ -124,36 +142,59 @@ function openAnalysisForChoice(button) {
 }
 
 function handlePointerDown(event, optionsEl) {
-  if (!event.isPrimary || !isAnswered(optionsEl)) return;
+  if (!event.isPrimary) return;
 
   const button = getOptionButton(event.target);
-  if (!(button instanceof HTMLElement) || !getAnalysisItem(button)) return;
+  if (!(button instanceof HTMLElement)) return;
+
+  clearActivePress();
+  activePointerId = event.pointerId;
+  activeButton = button;
+  startX = event.clientX;
+  startY = event.clientY;
+
+  if (!isAnswered(optionsEl) || !getAnalysisItem(button)) return;
 
   button.style.userSelect = 'none';
   button.style.webkitUserSelect = 'none';
   button.style.webkitTouchCallout = 'none';
 
-  clearActivePress();
-  activePointerId = event.pointerId;
-  startX = event.clientX;
-  startY = event.clientY;
   pressTimer = window.setTimeout(() => {
     pressTimer = null;
+    if (!isPointInsideButton(event, button)) return;
     openAnalysisForChoice(button);
   }, LONG_PRESS_MS);
 }
 
 function handlePointerMove(event) {
-  if (event.pointerId !== activePointerId || pressTimer === null) return;
+  if (event.pointerId !== activePointerId || !(activeButton instanceof HTMLElement)) return;
+
+  if (!isPointInsideButton(event, activeButton)) {
+    clearPressTimer();
+    return;
+  }
+
+  if (pressTimer === null) return;
 
   const movedX = Math.abs(event.clientX - startX);
   const movedY = Math.abs(event.clientY - startY);
   if (movedX > MOVE_TOLERANCE_PX || movedY > MOVE_TOLERANCE_PX) {
-    clearActivePress();
+    clearPressTimer();
   }
 }
 
 function handlePointerEnd(event) {
+  if (event.pointerId !== activePointerId) return;
+
+  const button = activeButton;
+  if (button instanceof HTMLElement && !isPointInsideButton(event, button)) {
+    suppressNextClickForButton(button);
+  }
+
+  clearActivePress();
+}
+
+function handlePointerCancel(event) {
   if (event.pointerId !== activePointerId) return;
   clearActivePress();
 }
@@ -191,7 +232,7 @@ export function initMultipleChoiceLongPressEtymology() {
   optionsEl.addEventListener('pointerdown', (event) => handlePointerDown(event, optionsEl));
   optionsEl.addEventListener('pointermove', handlePointerMove);
   optionsEl.addEventListener('pointerup', handlePointerEnd);
-  optionsEl.addEventListener('pointercancel', handlePointerEnd);
+  optionsEl.addEventListener('pointercancel', handlePointerCancel);
   optionsEl.addEventListener('click', handleClickCapture, true);
   optionsEl.addEventListener('contextmenu', (event) => handleContextMenu(event, optionsEl));
   optionsEl.addEventListener('selectstart', (event) => handleSelectStart(event, optionsEl));
