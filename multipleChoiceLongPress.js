@@ -7,6 +7,7 @@ const CLICK_SUPPRESSION_MS = 1000;
 let pressTimer = null;
 let activePress = null;
 let suppressClickButton = null;
+let suppressAnyClickUntil = 0;
 let suppressClickResetTimer = null;
 
 function getOptionButton(target) {
@@ -48,6 +49,7 @@ function scheduleClickSuppressionReset() {
 
   suppressClickResetTimer = window.setTimeout(() => {
     suppressClickButton = null;
+    suppressAnyClickUntil = 0;
     suppressClickResetTimer = null;
   }, CLICK_SUPPRESSION_MS);
 }
@@ -57,6 +59,7 @@ function openAnalysisForChoice(button) {
   if (!item) return false;
 
   suppressClickButton = button;
+  suppressAnyClickUntil = performance.now() + CLICK_SUPPRESSION_MS;
   scheduleClickSuppressionReset();
 
   const optionsEl = button.closest('#multipleChoiceOptions');
@@ -183,11 +186,18 @@ function handlePointerCancel(event) {
 
 function handleClickCapture(event) {
   const button = getOptionButton(event.target);
-  if (!button || button !== suppressClickButton) return;
+  const withinSuppressionWindow = performance.now() <= suppressAnyClickUntil;
+  const isOriginalButtonClick = Boolean(button && button === suppressClickButton);
+
+  // 長押し成立後は四択DOMが消えるため、click の target が元ボタンでなくなる場合がある。
+  // そのため元ボタン一致だけでなく、長押し直後の compatibility click 自体を document capture で止める。
+  if (!withinSuppressionWindow && !isOriginalButtonClick) return;
 
   event.preventDefault();
   event.stopImmediatePropagation();
+
   suppressClickButton = null;
+  suppressAnyClickUntil = 0;
 
   if (suppressClickResetTimer !== null) {
     window.clearTimeout(suppressClickResetTimer);
@@ -212,7 +222,7 @@ export function initMultipleChoiceLongPressEtymology() {
   optionsEl.addEventListener('pointerup', handlePointerUp);
   optionsEl.addEventListener('pointercancel', handlePointerCancel);
 
-  optionsEl.addEventListener('click', handleClickCapture, true);
+  document.addEventListener('click', handleClickCapture, true);
 
   optionsEl.addEventListener('contextmenu', preventNativeChoiceInteraction);
   optionsEl.addEventListener('selectstart', preventNativeChoiceInteraction);
