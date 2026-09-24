@@ -1,13 +1,16 @@
 import { getLastBuiltMultipleChoiceQuestion } from './multipleChoice.js?v=20260922-1';
+import { setPronunciationTargetOverride } from './pronunciation.js';
+import { setMorphemeAnalysisTarget } from './morphemeAnalysisTarget.js';
 
-const LONG_PRESS_MS = 600;
-const MOVE_TOLERANCE_PX = 28;
+const LONG_PRESS_MS = 550;
+const MOVE_TOLERANCE_PX = 12;
 const CLICK_SUPPRESSION_MS = 1000;
 
 let pressTimer = null;
-let activePress = null;
+let activePointerId = null;
+let startX = 0;
+let startY = 0;
 let suppressClickButton = null;
-let suppressAnyClickUntil = 0;
 let suppressClickResetTimer = null;
 
 function getOptionButton(target) {
@@ -39,7 +42,7 @@ function clearPressTimer() {
 
 function clearActivePress() {
   clearPressTimer();
-  activePress = null;
+  activePointerId = null;
 }
 
 function scheduleClickSuppressionReset() {
@@ -49,163 +52,134 @@ function scheduleClickSuppressionReset() {
 
   suppressClickResetTimer = window.setTimeout(() => {
     suppressClickButton = null;
-    suppressAnyClickUntil = 0;
     suppressClickResetTimer = null;
   }, CLICK_SUPPRESSION_MS);
 }
 
-function openAnalysisForChoice(button) {
-  const item = getAnalysisItem(button);
-  if (!item) return false;
+function normalizeText(value) {
+  return String(value ?? '').trim();
+}
 
-  suppressClickButton = button;
-  suppressAnyClickUntil = performance.now() + CLICK_SUPPRESSION_MS;
-  scheduleClickSuppressionReset();
+function appendAnalysisRow(list, label, value) {
+  const text = normalizeText(value);
+  if (!text) return false;
 
-  const optionsEl = button.closest('#multipleChoiceOptions');
-  if (!(optionsEl instanceof HTMLElement)) return false;
-
-  optionsEl.dispatchEvent(new CustomEvent('multiple-choice-etymology-open', {
-    bubbles: false,
-    detail: { item }
-  }));
+  const term = document.createElement('dt');
+  term.textContent = label;
+  const detail = document.createElement('dd');
+  detail.textContent = text;
+  list.append(term, detail);
   return true;
 }
 
-function scheduleLongPress(button) {
-  clearPressTimer();
-  pressTimer = window.setTimeout(() => {
-    pressTimer = null;
-    if (openAnalysisForChoice(button) && activePress) {
-      activePress.fired = true;
-    }
-  }, LONG_PRESS_MS);
+function renderAnalysisItem(item) {
+  const panel = document.getElementById('morphemeAnalysisPanel');
+  if (!panel || !item) return;
+
+  const content = document.createElement('div');
+  content.className = 'morpheme-analysis-content';
+
+  const heading = document.createElement('p');
+  heading.className = 'morpheme-analysis-word';
+  heading.textContent = normalizeText(item.word);
+  content.appendChild(heading);
+
+  const list = document.createElement('dl');
+  list.className = 'morpheme-analysis-list';
+  let hasDetails = false;
+  [
+    ['meaning：意味', item.meaning],
+    ['morpheme：形態素', item.morpheme],
+    ['morphemeMeaning：形態素の意味', item.morphemeMeaning],
+    ['semanticDevelopment：意味の展開', item.semanticDevelopment],
+    ['partOfSpeech：品詞', item.partOfSpeech],
+    ['semanticCategory：意味カテゴリ', item.semanticCategory]
+  ].forEach(([label, value]) => {
+    hasDetails = appendAnalysisRow(list, label, value) || hasDetails;
+  });
+
+  if (!hasDetails) {
+    appendAnalysisRow(list, '語源解析', 'この単語には語源・形態素データがまだ登録されていません。');
+  }
+
+  content.appendChild(list);
+  panel.replaceChildren(content);
+  panel.hidden = false;
 }
 
-function isPointInsideButton(clientX, clientY, button) {
-  if (!(button instanceof HTMLElement)) return false;
-  const rect = button.getBoundingClientRect();
-  return (
-    clientX >= rect.left &&
-    clientX <= rect.right &&
-    clientY >= rect.top &&
-    clientY <= rect.bottom
-  );
+function openAnalysisForChoice(button) {
+  const item = getAnalysisItem(button);
+  if (!item) return;
+
+  suppressClickButton = button;
+  scheduleClickSuppressionReset();
+
+  const morphemeButton = document.getElementById('morphemeBtn');
+  if (!(morphemeButton instanceof HTMLButtonElement) || morphemeButton.disabled) return;
+
+  setMorphemeAnalysisTarget(item);
+  setPronunciationTargetOverride(item);
+  morphemeButton.click();
+  renderAnalysisItem(item);
 }
 
 function handlePointerDown(event, optionsEl) {
-  if (!event.isPrimary || event.button > 0) return;
+  if (!event.isPrimary || !isAnswered(optionsEl)) return;
 
   const button = getOptionButton(event.target);
-  if (!(button instanceof HTMLElement)) return;
+  if (!(button instanceof HTMLElement) || !getAnalysisItem(button)) return;
 
-  event.preventDefault();
+  button.style.userSelect = 'none';
+  button.style.webkitUserSelect = 'none';
+  button.style.webkitTouchCallout = 'none';
+
   clearActivePress();
-
-  const answered = isAnswered(optionsEl);
-
-  activePress = {
-    pointerId: event.pointerId,
-    button,
-    answered,
-    startX: event.clientX,
-    startY: event.clientY,
-    moved: false,
-    fired: false
-  };
-
-  try {
-    button.setPointerCapture?.(event.pointerId);
-  } catch (_) {
-    // Pointer capture is an optimization; the delegated listeners still provide fallback handling.
-  }
-
-  if (answered && getAnalysisItem(button)) {
-    scheduleLongPress(button);
-  }
+  activePointerId = event.pointerId;
+  startX = event.clientX;
+  startY = event.clientY;
+  pressTimer = window.setTimeout(() => {
+    pressTimer = null;
+    openAnalysisForChoice(button);
+  }, LONG_PRESS_MS);
 }
 
 function handlePointerMove(event) {
-  const state = activePress;
-  if (!state || event.pointerId !== state.pointerId) return;
+  if (event.pointerId !== activePointerId || pressTimer === null) return;
 
-  const distance = Math.hypot(
-    event.clientX - state.startX,
-    event.clientY - state.startY
-  );
-  const stillInside = isPointInsideButton(event.clientX, event.clientY, state.button);
-
-  if (!stillInside && distance > MOVE_TOLERANCE_PX) {
-    state.moved = true;
-    clearPressTimer();
+  const movedX = Math.abs(event.clientX - startX);
+  const movedY = Math.abs(event.clientY - startY);
+  if (movedX > MOVE_TOLERANCE_PX || movedY > MOVE_TOLERANCE_PX) {
+    clearActivePress();
   }
 }
 
-function releasePointerCaptureSafely(state) {
-  try {
-    if (state?.button?.hasPointerCapture?.(state.pointerId)) {
-      state.button.releasePointerCapture(state.pointerId);
-    }
-  } catch (_) {
-    // Ignore capture-release failures after DOM updates.
-  }
-}
-
-function handlePointerUp(event) {
-  const state = activePress;
-  if (!state || event.pointerId !== state.pointerId) return;
-
-  event.preventDefault();
-  clearPressTimer();
-
-  const endedInsideSameButton = isPointInsideButton(
-    event.clientX,
-    event.clientY,
-    state.button
-  );
-
-  releasePointerCaptureSafely(state);
-  activePress = null;
-
-  if (state.fired) return;
-
-  // 解答前後とも、押し始めた同じ選択肢の枠内で離した場合だけ通常 click を成立させる。
-  // 長押し用の移動判定は、短押しを不必要に失敗させない。
-  if (endedInsideSameButton) {
-    state.button.click();
-  }
-}
-
-function handlePointerCancel(event) {
-  const state = activePress;
-  if (!state || event.pointerId !== state.pointerId) return;
-
-  releasePointerCaptureSafely(state);
+function handlePointerEnd(event) {
+  if (event.pointerId !== activePointerId) return;
   clearActivePress();
 }
 
 function handleClickCapture(event) {
-  const withinSuppressionWindow = performance.now() <= suppressAnyClickUntil;
-
-  // 長押し後にブラウザが自動生成する trusted click だけを止める。
-  // 短押し時に pointerup から明示的に発火する button.click() は isTrusted=false なので通す。
-  if (!event.isTrusted || !withinSuppressionWindow) return;
+  const button = getOptionButton(event.target);
+  if (!button || button !== suppressClickButton) return;
 
   event.preventDefault();
   event.stopImmediatePropagation();
-
   suppressClickButton = null;
-  suppressAnyClickUntil = 0;
-
   if (suppressClickResetTimer !== null) {
     window.clearTimeout(suppressClickResetTimer);
     suppressClickResetTimer = null;
   }
 }
 
-function preventNativeChoiceInteraction(event) {
+function handleContextMenu(event, optionsEl) {
   const button = getOptionButton(event.target);
-  if (!button) return;
+  if (!button || !isAnswered(optionsEl)) return;
+  event.preventDefault();
+}
+
+function handleSelectStart(event, optionsEl) {
+  const button = getOptionButton(event.target);
+  if (!button || !isAnswered(optionsEl)) return;
   event.preventDefault();
 }
 
@@ -214,15 +188,11 @@ export function initMultipleChoiceLongPressEtymology() {
   if (!optionsEl || optionsEl.dataset.longPressEtymologyBound === 'true') return;
 
   optionsEl.dataset.longPressEtymologyBound = 'true';
-
   optionsEl.addEventListener('pointerdown', (event) => handlePointerDown(event, optionsEl));
   optionsEl.addEventListener('pointermove', handlePointerMove);
-  optionsEl.addEventListener('pointerup', handlePointerUp);
-  optionsEl.addEventListener('pointercancel', handlePointerCancel);
-
-  document.addEventListener('click', handleClickCapture, true);
-
-  optionsEl.addEventListener('contextmenu', preventNativeChoiceInteraction);
-  optionsEl.addEventListener('selectstart', preventNativeChoiceInteraction);
-  optionsEl.addEventListener('dragstart', preventNativeChoiceInteraction);
+  optionsEl.addEventListener('pointerup', handlePointerEnd);
+  optionsEl.addEventListener('pointercancel', handlePointerEnd);
+  optionsEl.addEventListener('click', handleClickCapture, true);
+  optionsEl.addEventListener('contextmenu', (event) => handleContextMenu(event, optionsEl));
+  optionsEl.addEventListener('selectstart', (event) => handleSelectStart(event, optionsEl));
 }
