@@ -595,6 +595,13 @@ function handleMultipleChoicePointerDown(event) {
   multipleChoiceActivePointerId = event.pointerId;
   multipleChoicePointerDownButton = button;
   multipleChoiceSuppressClickButton = null;
+
+  // 枠外で指を離しても pointerup / pointercancel を取りこぼさない。
+  if (typeof button.setPointerCapture === "function") {
+    try {
+      button.setPointerCapture(event.pointerId);
+    } catch {}
+  }
 }
 
 function handleMultipleChoicePointerUp(event) {
@@ -606,6 +613,16 @@ function handleMultipleChoicePointerUp(event) {
 
   if (!(button instanceof HTMLElement)) return;
 
+  if (
+    typeof button.hasPointerCapture === "function" &&
+    button.hasPointerCapture(event.pointerId) &&
+    typeof button.releasePointerCapture === "function"
+  ) {
+    try {
+      button.releasePointerCapture(event.pointerId);
+    } catch {}
+  }
+
   if (!isPointInsideElement(button, event.clientX, event.clientY)) {
     multipleChoiceSuppressClickButton = button;
   }
@@ -614,9 +631,21 @@ function handleMultipleChoicePointerUp(event) {
 function handleMultipleChoicePointerCancel(event) {
   if (event.pointerId !== multipleChoiceActivePointerId) return;
 
-  multipleChoiceSuppressClickButton = multipleChoicePointerDownButton;
+  const button = multipleChoicePointerDownButton;
+  multipleChoiceSuppressClickButton = button;
   multipleChoiceActivePointerId = null;
   multipleChoicePointerDownButton = null;
+
+  if (
+    button instanceof HTMLElement &&
+    typeof button.hasPointerCapture === "function" &&
+    button.hasPointerCapture(event.pointerId) &&
+    typeof button.releasePointerCapture === "function"
+  ) {
+    try {
+      button.releasePointerCapture(event.pointerId);
+    } catch {}
+  }
 }
 
 function handleMultipleChoiceOptionClick(event) {
