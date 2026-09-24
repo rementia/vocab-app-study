@@ -185,13 +185,11 @@ function handlePointerCancel(event) {
 }
 
 function handleClickCapture(event) {
-  const button = getOptionButton(event.target);
   const withinSuppressionWindow = performance.now() <= suppressAnyClickUntil;
-  const isOriginalButtonClick = Boolean(button && button === suppressClickButton);
 
-  // 長押し成立後は四択DOMが消えるため、click の target が元ボタンでなくなる場合がある。
-  // そのため元ボタン一致だけでなく、長押し直後の compatibility click 自体を document capture で止める。
-  if (!withinSuppressionWindow && !isOriginalButtonClick) return;
+  // 長押し後にブラウザが自動生成する trusted click だけを止める。
+  // 短押し時に pointerup から明示的に発火する button.click() は isTrusted=false なので通す。
+  if (!event.isTrusted || !withinSuppressionWindow) return;
 
   event.preventDefault();
   event.stopImmediatePropagation();
