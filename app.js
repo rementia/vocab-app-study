@@ -93,13 +93,15 @@ import {
   updateSpeechButtonAvailability,
   speakWord,
   loadPronunciation,
-  unlockPronunciationAudioOnce
+  unlockPronunciationAudioOnce,
+  setPronunciationTargetOverride
 } from './pronunciation.js';
 import {
   buildMultipleChoiceQuestion,
   getMultipleChoiceDirection
 } from './multipleChoice.js?v=20260922-1';
 import { createSpeechSyncController } from './speechSyncController.js';
+import { setMorphemeAnalysisTarget } from './morphemeAnalysisTarget.js';
 import { getNextSearchResultIndex } from './searchController.js';
 import { formatReloadSuccessMessage, getPreserveWordId, getReloadedIndex } from './wordReloadService.js';
 import { createReloadStatusController } from './reloadStatusService.js';
@@ -620,6 +622,19 @@ function handleMultipleChoiceUnknownClick() {
   scheduleSpeechSync();
 }
 
+function handleMultipleChoiceEtymologyOpen(event) {
+  const item = event?.detail?.item;
+  if (!item?.word || !multipleChoiceAnswer) return;
+
+  setMorphemeAnalysisTarget(item);
+  setPronunciationTargetOverride(item);
+
+  morphemeAnalysisMode = true;
+  saveMorphemeAnalysisModeState(true);
+  updateMorphemeButton();
+  renderCurrentWord();
+}
+
 function finishInitialLoading() {
   if (hasFinishedInitialLoading) return;
   hasFinishedInitialLoading = true;
@@ -665,6 +680,7 @@ function bindWordActionButtons() {
   nextWordBtnEl?.addEventListener("click", nextWord);
   speakWordBtnEl?.addEventListener("click", handleSpeakCurrentWord);
   multipleChoiceOptionsEl?.addEventListener("click", handleMultipleChoiceOptionClick);
+  multipleChoiceOptionsEl?.addEventListener("multiple-choice-etymology-open", handleMultipleChoiceEtymologyOpen);
   unknownChoiceBtnEl?.addEventListener("click", handleMultipleChoiceUnknownClick);
   document.addEventListener("click", handleMorphemeAnalysisBackgroundClick);
   document.querySelector(".center-box")?.addEventListener("click", handleAutoPlaySkipRequest);
