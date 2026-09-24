@@ -859,6 +859,14 @@ body.mode-morpheme-analysis .morpheme-analysis-panel {
   opacity: 1;
 }
 
+.main-btn.unknown-choice-btn.is-wrong,
+.main-btn.unknown-choice-btn.is-wrong:hover {
+  border-color: #bf4a4a;
+  background: #fbeaea;
+  color: #7a1f1f;
+  opacity: 1;
+}
+
 .main-btn.unknown-choice-btn:disabled {
   cursor: default;
   opacity: 0.45;
