@@ -552,7 +552,6 @@ export function renderMultipleChoice(context) {
   question.options.forEach((option, optionIndex) => {
     const isAnswered = Boolean(latestState.multipleChoiceAnswer);
     const isRevealed = isAnswered &&
-      !option.isCorrect &&
       latestState.multipleChoiceRevealedOptionIndexes?.includes(optionIndex);
     const button = document.createElement("button");
     button.type = "button";
