@@ -50,7 +50,7 @@ import {
   applySidebarState as uiApplySidebarState,
   updateAuthUI as uiUpdateAuthUI,
   updateMorphemeButton as uiUpdateMorphemeButton
-} from './ui.js?v=20260922-4';
+} from './ui.js?v=20260924-1';
 import {
   buildFavoriteEntries,
   isFavorite,
@@ -582,14 +582,12 @@ function handleMultipleChoiceOptionClick(event) {
   if (!selectedOption) return;
 
   if (multipleChoiceAnswer) {
-    if (!selectedOption.isCorrect) {
-      if (multipleChoiceRevealedOptionIndexes.has(choiceIndex)) {
-        multipleChoiceRevealedOptionIndexes.delete(choiceIndex);
-      } else {
-        multipleChoiceRevealedOptionIndexes.add(choiceIndex);
-      }
-      renderCurrentWord();
+    if (multipleChoiceRevealedOptionIndexes.has(choiceIndex)) {
+      multipleChoiceRevealedOptionIndexes.delete(choiceIndex);
+    } else {
+      multipleChoiceRevealedOptionIndexes.add(choiceIndex);
     }
+    renderCurrentWord();
     return;
   }
 
