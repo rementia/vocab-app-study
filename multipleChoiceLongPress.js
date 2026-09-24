@@ -1,11 +1,12 @@
 import { getLastBuiltMultipleChoiceQuestion } from './multipleChoice.js?v=20260922-1';
 
-const LONG_PRESS_MS = 550;
-const MOVE_TOLERANCE_PX = 12;
+const LONG_PRESS_MS = 480;
+const MOVE_TOLERANCE_PX = 28;
 const CLICK_SUPPRESSION_MS = 1000;
 
 let pressTimer = null;
 let activePointerId = null;
+let activePointerButton = null;
 let activeTouch = null;
 let startX = 0;
 let startY = 0;
@@ -42,6 +43,7 @@ function clearPressTimer() {
 function clearPointerPress() {
   clearPressTimer();
   activePointerId = null;
+  activePointerButton = null;
 }
 
 function clearTouchPress() {
@@ -144,17 +146,31 @@ function handlePointerDown(event, optionsEl) {
 
   clearPointerPress();
   activePointerId = event.pointerId;
+  activePointerButton = button;
   startX = event.clientX;
   startY = event.clientY;
   scheduleLongPress(button);
 }
 
+function isPointInsideButton(clientX, clientY, button) {
+  if (!(button instanceof HTMLElement)) return false;
+  const rect = button.getBoundingClientRect();
+  return (
+    clientX >= rect.left &&
+    clientX <= rect.right &&
+    clientY >= rect.top &&
+    clientY <= rect.bottom
+  );
+}
+
 function handlePointerMove(event) {
   if (event.pointerId !== activePointerId || pressTimer === null) return;
 
-  const movedX = Math.abs(event.clientX - startX);
-  const movedY = Math.abs(event.clientY - startY);
-  if (movedX > MOVE_TOLERANCE_PX || movedY > MOVE_TOLERANCE_PX) {
+  const distance = Math.hypot(event.clientX - startX, event.clientY - startY);
+  const stillInside = isPointInsideButton(event.clientX, event.clientY, activePointerButton);
+
+  // 同じ選択肢内の手ブレは許容する。枠外へ出たうえで明確に動いた時だけ長押しを解除。
+  if (!stillInside && distance > MOVE_TOLERANCE_PX) {
     clearPointerPress();
   }
 }
@@ -203,8 +219,10 @@ function handleTouchMove(event) {
     touch.clientX - state.startX,
     touch.clientY - state.startY
   );
+  const stillInside = isPointInsideButton(touch.clientX, touch.clientY, state.button);
 
-  if (distance > MOVE_TOLERANCE_PX) {
+  // 指の微動では解除しない。選択肢の外へ明確にドラッグした場合のみ解除する。
+  if (!stillInside && distance > MOVE_TOLERANCE_PX) {
     state.moved = true;
     clearPressTimer();
   }
