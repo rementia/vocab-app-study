@@ -195,6 +195,9 @@ let hasFinishedInitialLoading = false;
 let multipleChoiceQuestion = null;
 let multipleChoiceAnswer = null;
 let multipleChoiceRevealedOptionIndexes = new Set();
+let multipleChoiceActivePointerId = null;
+let multipleChoicePointerDownButton = null;
+let multipleChoiceSuppressClickButton = null;
 
 let listNeedsRebuild = true;
 let renderedListVersion = "";
@@ -567,11 +570,66 @@ function getMultipleChoiceQuestion() {
   return multipleChoiceQuestion;
 }
 
-function handleMultipleChoiceOptionClick(event) {
-  const button = event.target instanceof Element
-    ? event.target.closest(".multiple-choice-option")
+function getMultipleChoiceOptionButton(target) {
+  return target instanceof Element
+    ? target.closest(".multiple-choice-option")
     : null;
+}
+
+function isPointInsideElement(element, clientX, clientY) {
+  const rect = element.getBoundingClientRect();
+  return (
+    clientX >= rect.left &&
+    clientX <= rect.right &&
+    clientY >= rect.top &&
+    clientY <= rect.bottom
+  );
+}
+
+function handleMultipleChoicePointerDown(event) {
+  if (!event.isPrimary || multipleChoiceAnswer) return;
+
+  const button = getMultipleChoiceOptionButton(event.target);
   if (!(button instanceof HTMLElement)) return;
+
+  multipleChoiceActivePointerId = event.pointerId;
+  multipleChoicePointerDownButton = button;
+  multipleChoiceSuppressClickButton = null;
+}
+
+function handleMultipleChoicePointerUp(event) {
+  if (event.pointerId !== multipleChoiceActivePointerId) return;
+
+  const button = multipleChoicePointerDownButton;
+  multipleChoiceActivePointerId = null;
+  multipleChoicePointerDownButton = null;
+
+  if (!(button instanceof HTMLElement)) return;
+
+  if (!isPointInsideElement(button, event.clientX, event.clientY)) {
+    multipleChoiceSuppressClickButton = button;
+  }
+}
+
+function handleMultipleChoicePointerCancel(event) {
+  if (event.pointerId !== multipleChoiceActivePointerId) return;
+
+  multipleChoiceSuppressClickButton = multipleChoicePointerDownButton;
+  multipleChoiceActivePointerId = null;
+  multipleChoicePointerDownButton = null;
+}
+
+function handleMultipleChoiceOptionClick(event) {
+  const button = getMultipleChoiceOptionButton(event.target);
+  if (!(button instanceof HTMLElement)) return;
+
+  if (button === multipleChoiceSuppressClickButton) {
+    multipleChoiceSuppressClickButton = null;
+    event.preventDefault();
+    return;
+  }
+
+  multipleChoiceSuppressClickButton = null;
 
   const question = getMultipleChoiceQuestion();
   const current = getCurrentWord();
@@ -681,6 +739,9 @@ function bindWordActionButtons() {
   prevWordBtnEl?.addEventListener("click", prevWord);
   nextWordBtnEl?.addEventListener("click", nextWord);
   speakWordBtnEl?.addEventListener("click", handleSpeakCurrentWord);
+  multipleChoiceOptionsEl?.addEventListener("pointerdown", handleMultipleChoicePointerDown);
+  multipleChoiceOptionsEl?.addEventListener("pointerup", handleMultipleChoicePointerUp);
+  multipleChoiceOptionsEl?.addEventListener("pointercancel", handleMultipleChoicePointerCancel);
   multipleChoiceOptionsEl?.addEventListener("click", handleMultipleChoiceOptionClick);
   multipleChoiceOptionsEl?.addEventListener("multiple-choice-etymology-open", handleMultipleChoiceEtymologyOpen);
   unknownChoiceBtnEl?.addEventListener("click", handleMultipleChoiceUnknownClick);
