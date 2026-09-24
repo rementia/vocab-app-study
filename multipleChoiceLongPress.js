@@ -232,8 +232,7 @@ function isTouchEndInsideButton(event, button) {
   const touch = event.changedTouches?.[0];
   if (!touch || !(button instanceof HTMLElement)) return false;
 
-  const endTarget = document.elementFromPoint(touch.clientX, touch.clientY);
-  return endTarget instanceof Element && Boolean(endTarget.closest('.multiple-choice-option') === button);
+  return isPointInsideButton(touch.clientX, touch.clientY, button);
 }
 
 function handleTouchEnd(event) {
@@ -255,9 +254,10 @@ function handleTouchEnd(event) {
     return;
   }
 
-  if (state.moved || !endedInsideSameButton) return;
+  if (!endedInsideSameButton) return;
 
-  // 解答後の短押しは既存 click 処理へ戻す。
+  // 解答後の短押しは、途中で多少枠外へぶれても最終位置が同じ選択肢内なら成立させる。
+  // moved は長押しキャンセル専用で、短押しの訳切替までは失敗させない。
   state.button.click();
 }
 
