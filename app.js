@@ -78,7 +78,7 @@ import {
   isSwipeAllowedTarget,
   handleViewportChange,
   resetSwipeElementState
-} from './events.js?v=20260814-2';
+} from './events.js?v=20260924-2';
 import {
   initNavigation,
   moveToIndex as navMoveToIndex,
