@@ -394,8 +394,10 @@ body.loading {
   touch-action: manipulation;
 }
 
-.multiple-choice-option:hover {
-  background: var(--hover-bg);
+@media (hover: hover) and (pointer: fine) {
+  .multiple-choice-option:hover {
+    background: var(--hover-bg);
+  }
 }
 
 .multiple-choice-option.is-correct {
