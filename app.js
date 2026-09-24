@@ -582,12 +582,16 @@ function handleMultipleChoiceOptionClick(event) {
   if (!selectedOption) return;
 
   if (multipleChoiceAnswer) {
-    if (multipleChoiceRevealedOptionIndexes.has(choiceIndex)) {
+    const isRevealed = multipleChoiceRevealedOptionIndexes.has(choiceIndex);
+
+    if (isRevealed) {
       multipleChoiceRevealedOptionIndexes.delete(choiceIndex);
+      button.textContent = selectedOption.text;
     } else {
       multipleChoiceRevealedOptionIndexes.add(choiceIndex);
+      button.textContent = selectedOption.secondaryText || selectedOption.text;
     }
-    renderCurrentWord();
+
     return;
   }
 
