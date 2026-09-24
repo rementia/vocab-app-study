@@ -165,23 +165,28 @@ function handlePointerEnd(event) {
 }
 
 function handleTouchStart(event, optionsEl) {
-  if (!isAnswered(optionsEl)) return;
-
   const button = getOptionButton(event.target);
   const touch = event.touches?.[0];
-  if (!(button instanceof HTMLElement) || !touch || !getAnalysisItem(button)) return;
+  if (!(button instanceof HTMLElement) || !touch) return;
 
-  // iOS Safari のネイティブ長押し選択・コールアウトより先にこちらで処理する。
+  const answered = isAnswered(optionsEl);
+
+  // iOS Safari のネイティブ長押し選択・コールアウトと合成 click を抑止し、
+  // 解答前後とも touchend 側で「どこで指を離したか」を判定する。
   event.preventDefault();
   clearTouchPress();
 
   activeTouch = {
     button,
+    answered,
     startX: touch.clientX,
     startY: touch.clientY,
     moved: false,
     fired: false
   };
+
+  // 語源解析は解答後のみ。
+  if (!answered || !getAnalysisItem(button)) return;
 
   scheduleLongPress(button, () => {
     if (activeTouch) activeTouch.fired = true;
@@ -205,6 +210,14 @@ function handleTouchMove(event) {
   }
 }
 
+function isTouchEndInsideButton(event, button) {
+  const touch = event.changedTouches?.[0];
+  if (!touch || !(button instanceof HTMLElement)) return false;
+
+  const endTarget = document.elementFromPoint(touch.clientX, touch.clientY);
+  return endTarget instanceof Element && Boolean(endTarget.closest('.multiple-choice-option') === button);
+}
+
 function handleTouchEnd(event) {
   const state = activeTouch;
   if (!state) return;
@@ -213,9 +226,20 @@ function handleTouchEnd(event) {
   clearPressTimer();
   activeTouch = null;
 
-  if (state.fired || state.moved) return;
+  if (state.fired) return;
 
-  // touchstart を preventDefault したため、短押しは既存 click 処理へ明示的に戻す。
+  const endedInsideSameButton = isTouchEndInsideButton(event, state.button);
+
+  if (!state.answered) {
+    // 解答前は「押し始めた選択肢の枠内で離した」ときだけ回答する。
+    // 枠外へスライドして離した場合は、移動量にかかわらず無回答。
+    if (endedInsideSameButton) state.button.click();
+    return;
+  }
+
+  if (state.moved || !endedInsideSameButton) return;
+
+  // 解答後の短押しは既存 click 処理へ戻す。
   state.button.click();
 }
 
