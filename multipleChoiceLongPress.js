@@ -137,6 +137,14 @@ function handlePointerDown(event, optionsEl) {
   activePointerId = event.pointerId;
   startX = event.clientX;
   startY = event.clientY;
+
+  // 長押し中に指が選択肢の枠外へ出ても終了イベントを確実に受け取る。
+  if (typeof button.setPointerCapture === 'function') {
+    try {
+      button.setPointerCapture(event.pointerId);
+    } catch {}
+  }
+
   pressTimer = window.setTimeout(() => {
     pressTimer = null;
     openAnalysisForChoice(button);
@@ -155,6 +163,19 @@ function handlePointerMove(event) {
 
 function handlePointerEnd(event) {
   if (event.pointerId !== activePointerId) return;
+
+  const button = getOptionButton(event.target);
+  if (
+    button instanceof HTMLElement &&
+    typeof button.hasPointerCapture === 'function' &&
+    button.hasPointerCapture(event.pointerId) &&
+    typeof button.releasePointerCapture === 'function'
+  ) {
+    try {
+      button.releasePointerCapture(event.pointerId);
+    } catch {}
+  }
+
   clearActivePress();
 }
 
