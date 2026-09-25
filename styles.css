@@ -78,6 +78,28 @@ body.loading {
   visibility: hidden;
 }
 
+/* Text selection: disabled by default for app UI. */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Keep editable fields usable. */
+input,
+textarea,
+[contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Only study content intended for copying may be selected. */
+#pronunciation,
+.morpheme-analysis-panel,
+.morpheme-analysis-panel * {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 /* Buttons and controls */
 .control-btn,
 .login-btn {
