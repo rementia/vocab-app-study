@@ -691,6 +691,7 @@ function handleMultipleChoiceOptionClick(event) {
 
   recordReviewAnswer(reviewScores, current, selectedOption.isCorrect);
   finishReviewStatsChange();
+  loadPronunciation(current.word);
   scheduleSpeechSync();
 }
 function handleMultipleChoiceUnknownClick() {
@@ -708,6 +709,7 @@ function handleMultipleChoiceUnknownClick() {
 
   recordReviewAnswer(reviewScores, current, false);
   finishReviewStatsChange();
+  loadPronunciation(current.word);
   scheduleSpeechSync();
 }
 
