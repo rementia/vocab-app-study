@@ -280,6 +280,8 @@ globalThis.window = {
   matchMedia: () => ({ matches: false })
 };
 
+globalThis.requestAnimationFrame = (callback) => callback();
+
 function makeMultipleChoiceDom() {
   return {
     wordEl: makeMockElement(),
