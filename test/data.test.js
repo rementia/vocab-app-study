@@ -10,11 +10,13 @@ import {
   parseCsvToWords
 } from "../data.js";
 
-const EMPTY_PRONUNCIATION_FIELDS = {
+const EMPTY_OPTIONAL_FIELDS = {
   phonetic: "",
   pronunciationAudioUrl: "",
   pronunciationSource: "",
-  pronunciationStatus: ""
+  pronunciationStatus: "",
+  prefix: "",
+  suffix: ""
 };
 
 const sampleCsv = `\ufeffword,meaning\r\nhello,こんにちは\r\n"good,bye","さようなら"\r\n"quote""test",テスト\r\n`;
@@ -40,7 +42,7 @@ assert.deepStrictEqual(parsedWords[0], {
   semanticDevelopment: "",
   partOfSpeech: "",
   semanticCategory: "",
-  ...EMPTY_PRONUNCIATION_FIELDS,
+  ...EMPTY_OPTIONAL_FIELDS,
   legacyWordKey: "hello",
   sourceVol: "vol1"
 });
@@ -53,7 +55,7 @@ assert.deepStrictEqual(parsedWords[1], {
   semanticDevelopment: "",
   partOfSpeech: "",
   semanticCategory: "",
-  ...EMPTY_PRONUNCIATION_FIELDS,
+  ...EMPTY_OPTIONAL_FIELDS,
   legacyWordKey: "good,bye",
   sourceVol: "vol1"
 });
@@ -66,7 +68,7 @@ assert.deepStrictEqual(parsedWords[2], {
   semanticDevelopment: "",
   partOfSpeech: "",
   semanticCategory: "",
-  ...EMPTY_PRONUNCIATION_FIELDS,
+  ...EMPTY_OPTIONAL_FIELDS,
   legacyWordKey: "quote\"test",
   sourceVol: "vol1"
 });
@@ -83,7 +85,7 @@ assert.deepStrictEqual(parsedSheetWords, [
     semanticDevelopment: "",
     partOfSpeech: "",
     semanticCategory: "",
-    ...EMPTY_PRONUNCIATION_FIELDS,
+    ...EMPTY_OPTIONAL_FIELDS,
     legacyWordKey: "create",
     sourceVol: "vol2"
   },
@@ -96,7 +98,7 @@ assert.deepStrictEqual(parsedSheetWords, [
     semanticDevelopment: "",
     partOfSpeech: "",
     semanticCategory: "",
-    ...EMPTY_PRONUNCIATION_FIELDS,
+    ...EMPTY_OPTIONAL_FIELDS,
     legacyWordKey: "study",
     sourceVol: "vol2"
   }
@@ -114,7 +116,7 @@ assert.deepStrictEqual(stableIdWords, [
     semanticDevelopment: "",
     partOfSpeech: "",
     semanticCategory: "",
-    ...EMPTY_PRONUNCIATION_FIELDS,
+    ...EMPTY_OPTIONAL_FIELDS,
     legacyWordKey: "create",
     sourceVol: "vol3"
   },
@@ -127,7 +129,7 @@ assert.deepStrictEqual(stableIdWords, [
     semanticDevelopment: "",
     partOfSpeech: "",
     semanticCategory: "",
-    ...EMPTY_PRONUNCIATION_FIELDS,
+    ...EMPTY_OPTIONAL_FIELDS,
     legacyWordKey: "study",
     sourceVol: "vol3"
   }
@@ -144,7 +146,7 @@ assert.deepStrictEqual(morphemeWords[0], {
   semanticDevelopment: "carry across a distance",
   partOfSpeech: "",
   semanticCategory: "",
-  ...EMPTY_PRONUNCIATION_FIELDS,
+  ...EMPTY_OPTIONAL_FIELDS,
   legacyWordKey: "transport",
   sourceVol: "vol4"
 }, "parseCsvToWords should read optional morpheme columns when present");
