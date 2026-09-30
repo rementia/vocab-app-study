@@ -1,6 +1,4 @@
 import { getLastBuiltMultipleChoiceQuestion } from './multipleChoice.js?v=20260922-1';
-import { setPronunciationTargetOverride } from './pronunciation.js';
-import { setMorphemeAnalysisTarget } from './morphemeAnalysisTarget.js';
 
 const LONG_PRESS_MS = 500;
 const MOVE_TOLERANCE_PX = 12;
@@ -56,57 +54,6 @@ function scheduleClickSuppressionReset() {
   }, CLICK_SUPPRESSION_MS);
 }
 
-function normalizeText(value) {
-  return String(value ?? '').trim();
-}
-
-function appendAnalysisRow(list, label, value) {
-  const text = normalizeText(value);
-  if (!text) return false;
-
-  const term = document.createElement('dt');
-  term.textContent = label;
-  const detail = document.createElement('dd');
-  detail.textContent = text;
-  list.append(term, detail);
-  return true;
-}
-
-function renderAnalysisItem(item) {
-  const panel = document.getElementById('morphemeAnalysisPanel');
-  if (!panel || !item) return;
-
-  const content = document.createElement('div');
-  content.className = 'morpheme-analysis-content';
-
-  const heading = document.createElement('p');
-  heading.className = 'morpheme-analysis-word';
-  heading.textContent = normalizeText(item.word);
-  content.appendChild(heading);
-
-  const list = document.createElement('dl');
-  list.className = 'morpheme-analysis-list';
-  let hasDetails = false;
-  [
-    ['meaning：意味', item.meaning],
-    ['morpheme：形態素', item.morpheme],
-    ['morphemeMeaning：形態素の意味', item.morphemeMeaning],
-    ['semanticDevelopment：意味の展開', item.semanticDevelopment],
-    ['partOfSpeech：品詞', item.partOfSpeech],
-    ['semanticCategory：意味カテゴリ', item.semanticCategory]
-  ].forEach(([label, value]) => {
-    hasDetails = appendAnalysisRow(list, label, value) || hasDetails;
-  });
-
-  if (!hasDetails) {
-    appendAnalysisRow(list, '語源解析', 'この単語には語源・形態素データがまだ登録されていません。');
-  }
-
-  content.appendChild(list);
-  panel.replaceChildren(content);
-  panel.hidden = false;
-}
-
 function openAnalysisForChoice(button) {
   const item = getAnalysisItem(button);
   if (!item) return;
@@ -114,13 +61,10 @@ function openAnalysisForChoice(button) {
   suppressClickButton = button;
   scheduleClickSuppressionReset();
 
-  const morphemeButton = document.getElementById('morphemeBtn');
-  if (!(morphemeButton instanceof HTMLButtonElement) || morphemeButton.disabled) return;
-
-  setMorphemeAnalysisTarget(item);
-  setPronunciationTargetOverride(item);
-  morphemeButton.click();
-  renderAnalysisItem(item);
+  button.dispatchEvent(new CustomEvent('multiple-choice-etymology-open', {
+    bubbles: true,
+    detail: { item }
+  }));
 }
 
 function handlePointerDown(event, optionsEl) {
