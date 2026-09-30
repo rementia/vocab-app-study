@@ -195,14 +195,24 @@ assert.deepStrictEqual(
 );
 assert.strictEqual(resumeCalls, 1, "audio unlock should not run repeatedly after success");
 
+const mockAudioSession = { type: "auto" };
 Object.defineProperty(globalThis, "navigator", {
   configurable: true,
-  value: { userActivation: { hasBeenActive: true, isActive: false } }
+  value: {
+    userActivation: { hasBeenActive: true, isActive: false },
+    audioSession: mockAudioSession
+  }
 });
 initPronunciation({
   el: pronunciationEl,
   getCurrentWord: () => ({ word: "allowed" })
 });
+assert.strictEqual(
+  mockAudioSession.type,
+  "transient",
+  "pronunciation init should request a transient audio session when supported"
+);
+mockAudioSession.type = "auto";
 const allowedResult = safePlayPronunciation();
 assert.deepStrictEqual(
   allowedResult,
@@ -210,6 +220,11 @@ assert.deepStrictEqual(
   "speech should report the current browser-TTS result contract after user activation"
 );
 assert.strictEqual(speakCalls, 1, "allowed speech should call speechSynthesis.speak once");
+assert.strictEqual(
+  mockAudioSession.type,
+  "transient",
+  "browser TTS playback should refresh the transient audio-session request"
+);
 
 let verifiedAudioPlayCalls = 0;
 let verifiedAudioUrl = "";
