@@ -95,7 +95,7 @@ import {
   loadPronunciation,
   unlockPronunciationAudioOnce,
   setPronunciationTargetOverride
-} from './pronunciation.js';
+} from './pronunciation.js?v=20260930-1';
 import {
   buildMultipleChoiceQuestion,
   getMultipleChoiceDirection
