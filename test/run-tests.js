@@ -11,6 +11,7 @@ const tests = [
   "./pronunciation.test.js",
   "./speechSyncController.test.js",
   "./multipleChoice.test.js",
+  "./multipleChoiceLongPress.test.js",
   "./distractorExclusions.test.js",
   "./multipleChoiceVolumePriority.test.js",
   "./multipleChoiceFormatPriority.test.js",
