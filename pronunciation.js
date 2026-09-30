@@ -24,6 +24,7 @@ export function initPronunciation({ el, getCurrentWord }) {
   audioUnlocked = hasUserActivation();
   audioUnlockAttempted = false;
   audioUnlockInProgress = false;
+  configureTransientPronunciationAudioSession();
   bindAudioUnlockEvents();
 }
 
@@ -96,6 +97,7 @@ function playVerifiedAudio(url, fallbackWord) {
 
     const audio = new Audio(url);
     currentPronunciationAudio = audio;
+    configureTransientPronunciationAudioSession();
     const playPromise = audio.play();
     if (playPromise && typeof playPromise.catch === 'function') {
       playPromise.catch((error) => {
@@ -137,6 +139,7 @@ function playSpeechSynthesisFallback(word) {
     }
     utterance.rate = 0.9;
     utterance.pitch = 1.0;
+    configureTransientPronunciationAudioSession();
     window.speechSynthesis.speak(utterance);
     return {
       ok: true,
@@ -366,6 +369,21 @@ async function fetchPronunciationData(word, signal) {
 
 function isHtmlAudioSupported() {
   return typeof Audio !== 'undefined';
+}
+
+function configureTransientPronunciationAudioSession() {
+  if (typeof navigator === 'undefined' || !navigator.audioSession) return false;
+
+  try {
+    // Pronunciation is short-lived audio. "transient" asks the platform to
+    // mix it with other apps and, where supported, temporarily duck them
+    // instead of taking exclusive playback focus.
+    navigator.audioSession.type = 'transient';
+    return true;
+  } catch (error) {
+    console.warn("発音用オーディオセッションを設定できませんでした:", error);
+    return false;
+  }
 }
 
 function isSpeechSynthesisSupported() {
