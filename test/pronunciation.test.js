@@ -50,7 +50,14 @@ values = installMockStorage();
 let verifiedFetchCalls = 0;
 globalThis.fetch = async () => {
   verifiedFetchCalls += 1;
-  throw new Error("verified pronunciation must not hit the external fallback");
+  return {
+    json: async () => [{
+      phonetics: [{
+        text: "/əˈbændən/",
+        audio: "https://api.dictionaryapi.dev/media/pronunciations/en/abandon-us.mp3"
+      }]
+    }]
+  };
 };
 initPronunciation({
   el: pronunciationEl,
@@ -63,7 +70,8 @@ initPronunciation({
 });
 await loadPronunciation("Abandon");
 assert.strictEqual(pronunciationEl.textContent, "əˈbændən", "verified IPA should be preferred over caches and API fallback");
-assert.strictEqual(verifiedFetchCalls, 0, "verified IPA should not call the external fallback API");
+await new Promise((resolve) => setTimeout(resolve, 0));
+assert.strictEqual(verifiedFetchCalls, 1, "verified IPA may prefetch dictionary audio without replacing audited IPA");
 
 values = installMockStorage();
 let reviewFetchCalls = 0;
@@ -256,6 +264,38 @@ assert.deepStrictEqual(
 assert.strictEqual(verifiedAudioPlayCalls, 1, "verified audio should be preferred over browser TTS when a URL is present");
 assert.strictEqual(verifiedAudioUrl, "https://example.invalid/verified.mp3");
 assert.strictEqual(speakCalls, 1, "verified audio should not invoke browser TTS when playback starts successfully");
+
+let dictionaryAudioFetchCalls = 0;
+globalThis.fetch = async () => {
+  dictionaryAudioFetchCalls += 1;
+  return {
+    json: async () => [{
+      phonetic: "/dɪkʃəˈnɛri/",
+      phonetics: [{
+        text: "/dɪkʃəˈnɛri/",
+        audio: "https://api.dictionaryapi.dev/media/pronunciations/en/dictionary-us.mp3"
+      }]
+    }]
+  };
+};
+initPronunciation({
+  el: pronunciationEl,
+  getCurrentWord: () => ({ word: "dictionary" })
+});
+await loadPronunciation("dictionary");
+const dictionaryAudioResult = safePlayPronunciation();
+assert.deepStrictEqual(
+  dictionaryAudioResult,
+  { ok: true, source: "dictionary-audio" },
+  "dictionary audio should be preferred over browser TTS when available"
+);
+assert.strictEqual(dictionaryAudioFetchCalls, 1, "dictionary pronunciation data should be fetched once");
+assert.strictEqual(
+  verifiedAudioUrl,
+  "https://api.dictionaryapi.dev/media/pronunciations/en/dictionary-us.mp3",
+  "dictionary audio should use the selected HTTPS pronunciation URL"
+);
+assert.strictEqual(speakCalls, 1, "dictionary audio should avoid browser TTS when playback starts successfully");
 
 if (originalWindow === undefined) delete globalThis.window;
 else globalThis.window = originalWindow;
