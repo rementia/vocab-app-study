@@ -373,7 +373,7 @@ function normalizePhoneticText(value) {
 }
 
 function primeDictionaryAudio(word, normalizedWord, preferredPhonetic = '') {
-  if (!isHtmlAudioSupported() || dictionaryAudioCache.has(normalizedWord)) return;
+  if (dictionaryAudioCache.has(normalizedWord)) return;
 
   if (dictionaryAudioController) dictionaryAudioController.abort();
   dictionaryAudioController = new AbortController();
