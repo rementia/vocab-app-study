@@ -8,6 +8,8 @@ let lastPronunciationRequest = "";
 let getCurrentWordFn = null;
 let pronunciationTargetOverride = null;
 const pronunciationMissCache = new Set();
+const dictionaryAudioCache = new Map();
+let dictionaryAudioController = null;
 const PRONUNCIATION_CACHE_PREFIX = "vocab_app_study_pron";
 const LEGACY_PRONUNCIATION_CACHE_PREFIX = "portfolio_pron";
 const VERIFIED_PRONUNCIATION_STATUS = "verified";
@@ -87,10 +89,23 @@ export function safePlayPronunciation() {
     }
   }
 
+  const dictionaryAudioUrl = dictionaryAudioCache.get(normalizeWordKey(current.word));
+  if (dictionaryAudioUrl && isHtmlAudioSupported()) {
+    return playDictionaryAudio(dictionaryAudioUrl, current.word);
+  }
+
   return playSpeechSynthesisFallback(current.word);
 }
 
 function playVerifiedAudio(url, fallbackWord) {
+  return playHtmlPronunciationAudio(url, fallbackWord, 'verified-audio', '検証済み発音音声');
+}
+
+function playDictionaryAudio(url, fallbackWord) {
+  return playHtmlPronunciationAudio(url, fallbackWord, 'dictionary-audio', '辞書発音音声');
+}
+
+function playHtmlPronunciationAudio(url, fallbackWord, source, label) {
   try {
     stopCurrentPronunciationAudio();
     window.speechSynthesis?.cancel?.();
@@ -101,14 +116,14 @@ function playVerifiedAudio(url, fallbackWord) {
     const playPromise = audio.play();
     if (playPromise && typeof playPromise.catch === 'function') {
       playPromise.catch((error) => {
-        console.warn("検証済み発音音声の再生に失敗しました。端末内TTSへフォールバックします:", error);
+        console.warn(`${label}の再生に失敗しました。端末内TTSへフォールバックします:`, error);
         if (currentPronunciationAudio === audio) currentPronunciationAudio = null;
         playSpeechSynthesisFallback(fallbackWord);
       });
     }
-    return { ok: true, source: 'verified-audio' };
+    return { ok: true, source };
   } catch (error) {
-    console.warn("検証済み発音音声の再生に失敗しました。端末内TTSへフォールバックします:", error);
+    console.warn(`${label}の再生に失敗しました。端末内TTSへフォールバックします:`, error);
     return playSpeechSynthesisFallback(fallbackWord);
   }
 }
@@ -276,6 +291,7 @@ export async function loadPronunciation(word) {
     const verifiedPhonetic = getVerifiedPhonetic(current);
     if (verifiedPhonetic) {
       pronunciationEl.textContent = verifiedPhonetic;
+      primeDictionaryAudio(targetWord, normalizedWord, verifiedPhonetic);
       return;
     }
 
@@ -290,6 +306,7 @@ export async function loadPronunciation(word) {
   const cached = getCachedPronunciation(normalizedWord);
   if (cached !== null) {
     pronunciationEl.textContent = cached || '発音記号なし';
+    if (cached) primeDictionaryAudio(targetWord, normalizedWord, cached);
     return;
   }
 
@@ -308,6 +325,7 @@ export async function loadPronunciation(word) {
   try {
     const data = await fetchPronunciationData(targetWord, currentPronunciationController.signal);
     const phonetic = extractPhonetic(data);
+    cacheDictionaryAudio(normalizedWord, extractDictionaryAudioUrl(data, phonetic));
     if (phonetic) {
       safeSetItem(key, phonetic);
     } else {
@@ -352,6 +370,58 @@ function normalizeField(value) {
 
 function normalizePhoneticText(value) {
   return String(value || '').trim().replace(/^[/[]+|[\/\]]+$/g, '');
+}
+
+function primeDictionaryAudio(word, normalizedWord, preferredPhonetic = '') {
+  if (!isHtmlAudioSupported() || dictionaryAudioCache.has(normalizedWord)) return;
+
+  if (dictionaryAudioController) dictionaryAudioController.abort();
+  dictionaryAudioController = new AbortController();
+  const controller = dictionaryAudioController;
+
+  fetchPronunciationData(word, controller.signal)
+    .then((data) => {
+      if (controller.signal.aborted) return;
+      cacheDictionaryAudio(normalizedWord, extractDictionaryAudioUrl(data, preferredPhonetic));
+    })
+    .catch((error) => {
+      if (error?.name !== 'AbortError') {
+        console.warn("辞書発音音声の事前取得に失敗しました:", error);
+      }
+    });
+}
+
+function cacheDictionaryAudio(normalizedWord, url) {
+  if (!normalizedWord || !url) return;
+  dictionaryAudioCache.set(normalizedWord, url);
+}
+
+function extractDictionaryAudioUrl(data, preferredPhonetic = '') {
+  if (!Array.isArray(data)) return '';
+  const preferred = normalizePhoneticText(preferredPhonetic);
+  const candidates = [];
+
+  for (const entry of data) {
+    if (!Array.isArray(entry?.phonetics)) continue;
+    for (const item of entry.phonetics) {
+      const rawUrl = normalizeField(item?.audio);
+      if (!rawUrl) continue;
+      const url = rawUrl.startsWith('//') ? `https:${rawUrl}` : rawUrl;
+      if (!/^https:\/\//i.test(url)) continue;
+
+      const phonetic = normalizePhoneticText(item?.text);
+      const lowerUrl = url.toLowerCase();
+      let score = 0;
+      if (preferred && phonetic && phonetic === preferred) score += 100;
+      if (/(?:[_\/-])us(?:[_\/.\-]|$)/.test(lowerUrl)) score += 60;
+      else if (/(?:[_\/-])ca(?:[_\/.\-]|$)/.test(lowerUrl)) score += 25;
+      if (/(?:[_\/-])(?:gb|uk|au)(?:[_\/.\-]|$)/.test(lowerUrl)) score -= 20;
+      candidates.push({ url, score });
+    }
+  }
+
+  candidates.sort((a, b) => b.score - a.score);
+  return candidates[0]?.url || '';
 }
 
 async function fetchPronunciationData(word, signal) {
