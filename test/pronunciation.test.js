@@ -133,14 +133,18 @@ let speakCalls = 0;
 let resumeCalls = 0;
 let boundEvents = [];
 let eventHandlers = {};
+let speechStartHook = null;
 globalThis.window = {
   speechSynthesis: {
     cancel() {},
     resume() {
       resumeCalls += 1;
     },
-    speak() {
+    speak(utterance) {
       speakCalls += 1;
+      if (typeof speechStartHook === "function") {
+        speechStartHook(utterance);
+      }
     }
   },
   SpeechSynthesisUtterance: class {
@@ -196,6 +200,11 @@ assert.deepStrictEqual(
 assert.strictEqual(resumeCalls, 1, "audio unlock should not run repeatedly after success");
 
 const mockAudioSession = { type: "auto" };
+speechStartHook = (utterance) => {
+  // Simulate WebKit taking exclusive playback focus when native TTS starts.
+  mockAudioSession.type = "playback";
+  if (typeof utterance?.onstart === "function") utterance.onstart();
+};
 Object.defineProperty(globalThis, "navigator", {
   configurable: true,
   value: {
@@ -209,8 +218,8 @@ initPronunciation({
 });
 assert.strictEqual(
   mockAudioSession.type,
-  "transient",
-  "pronunciation init should request a transient audio session when supported"
+  "ambient",
+  "pronunciation init should request a mixable ambient audio session when supported"
 );
 mockAudioSession.type = "auto";
 const allowedResult = safePlayPronunciation();
@@ -222,8 +231,8 @@ assert.deepStrictEqual(
 assert.strictEqual(speakCalls, 1, "allowed speech should call speechSynthesis.speak once");
 assert.strictEqual(
   mockAudioSession.type,
-  "transient",
-  "browser TTS playback should refresh the transient audio-session request"
+  "ambient",
+  "browser TTS start should re-assert the mixable ambient audio-session request"
 );
 
 let verifiedAudioPlayCalls = 0;

@@ -24,7 +24,7 @@ export function initPronunciation({ el, getCurrentWord }) {
   audioUnlocked = hasUserActivation();
   audioUnlockAttempted = false;
   audioUnlockInProgress = false;
-  configureTransientPronunciationAudioSession();
+  configureMixablePronunciationAudioSession();
   bindAudioUnlockEvents();
 }
 
@@ -97,7 +97,7 @@ function playVerifiedAudio(url, fallbackWord) {
 
     const audio = new Audio(url);
     currentPronunciationAudio = audio;
-    configureTransientPronunciationAudioSession();
+    configureMixablePronunciationAudioSession();
     const playPromise = audio.play();
     if (playPromise && typeof playPromise.catch === 'function') {
       playPromise.catch((error) => {
@@ -139,7 +139,18 @@ function playSpeechSynthesisFallback(word) {
     }
     utterance.rate = 0.9;
     utterance.pitch = 1.0;
-    configureTransientPronunciationAudioSession();
+
+    // WebKit/iOS can switch the native audio session when speech actually
+    // starts. Re-apply the mixable session from the start/resume callbacks so
+    // background media is not left in an interrupted playback session.
+    utterance.onstart = () => {
+      configureMixablePronunciationAudioSession();
+    };
+    utterance.onresume = () => {
+      configureMixablePronunciationAudioSession();
+    };
+
+    configureMixablePronunciationAudioSession();
     window.speechSynthesis.speak(utterance);
     return {
       ok: true,
@@ -239,7 +250,9 @@ export function unlockPronunciationAudioOnce() {
 
   try {
     if (typeof window.speechSynthesis.resume === "function") {
+      configureMixablePronunciationAudioSession();
       window.speechSynthesis.resume();
+      configureMixablePronunciationAudioSession();
     }
     audioUnlocked = true;
     unbindAudioUnlockEvents();
@@ -371,17 +384,17 @@ function isHtmlAudioSupported() {
   return typeof Audio !== 'undefined';
 }
 
-function configureTransientPronunciationAudioSession() {
+function configureMixablePronunciationAudioSession() {
   if (typeof navigator === 'undefined' || !navigator.audioSession) return false;
 
   try {
-    // Pronunciation is short-lived audio. "transient" asks the platform to
-    // mix it with other apps and, where supported, temporarily duck them
-    // instead of taking exclusive playback focus.
-    navigator.audioSession.type = 'transient';
+    // Pronunciation is secondary to media the user may already be playing.
+    // "ambient" is explicitly mixable, so it avoids requesting exclusive
+    // playback focus from other apps such as YouTube on Apple platforms.
+    navigator.audioSession.type = 'ambient';
     return true;
   } catch (error) {
-    console.warn("発音用オーディオセッションを設定できませんでした:", error);
+    console.warn("発音用のmixableオーディオセッションを設定できませんでした:", error);
     return false;
   }
 }
