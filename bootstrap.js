@@ -1,4 +1,4 @@
-import { init, finishInitialLoading } from './app.js?v=20261001-2';
+import { init, finishInitialLoading } from './app.js?v=20261002-1';
 import { initMultipleChoiceLongPressEtymology } from './multipleChoiceLongPress.js?v=20261001-1';
 import { initMorphemeDoubleTapToggle } from './morphemeDoubleTapToggle.js?v=20260827-1';
 
