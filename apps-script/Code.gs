@@ -73,7 +73,7 @@ function diagnoseClassificationSource() {
 }
 
 function dryRun() {
-  const groupedRows = buildGroupedRows();
+  const groupedRows = buildGroupedRows({ preview: true });
 
   CONFIG.volumes.forEach(({ docId }) => {
     const wordCount = Math.max((groupedRows[docId] || []).length - 1, 0);
@@ -83,7 +83,7 @@ function dryRun() {
     Logger.log(`${docId}: ${wordCount} words / ${rawBytes} bytes / ${storageMode}`);
   });
 
-  Logger.log("dryRun完了: Firestoreには保存していません。");
+  Logger.log("dryRun完了: Google Sheets / Firestore ともに変更していません。");
 }
 
 function doPost(e) {
@@ -118,7 +118,9 @@ function doPost(e) {
 }
 
 function syncAllVolumesToFirestore() {
-  const groupedRows = buildGroupedRows();
+  const groupedRows = buildGroupedRows({
+    nonEmptyDocIds: CONFIG.volumes.map(({ docId }) => docId)
+  });
   const syncedAt = new Date().toISOString();
   const volumes = [];
 
@@ -157,7 +159,7 @@ function syncVol4() {
 }
 
 function syncOneVolume(docId) {
-  const groupedRows = buildGroupedRows();
+  const groupedRows = buildGroupedRows({ nonEmptyDocIds: [docId] });
 
   if (!groupedRows[docId]) {
     throw new Error(`未定義のdocIdです: ${docId}`);
@@ -182,23 +184,34 @@ function syncOneVolume(docId) {
   };
 }
 
-function buildGroupedRows() {
+function buildGroupedRows({ preview = false, nonEmptyDocIds = [] } = {}) {
+  // First prepare every generated ID in memory. Never mutate Sheets until
+  // the entire dataset passes validation, including cross-volume checks.
+  const pendingIdWrites = [];
   let groupedRows = null;
 
   if (CONFIG.mode === "sheetsByVolume") {
-    groupedRows = buildGroupedRowsFromVolumeSheets();
+    groupedRows = buildGroupedRowsFromVolumeSheets({ pendingIdWrites });
   } else if (CONFIG.mode === "singleSheetWithLevel") {
-    groupedRows = buildGroupedRowsFromSingleSheet();
+    groupedRows = buildGroupedRowsFromSingleSheet({ pendingIdWrites });
   } else {
     throw new Error(`未対応のmodeです: ${CONFIG.mode}`);
   }
 
   validateGroupedRowIds(groupedRows);
   validateClassificationRows(groupedRows);
+  validateNonEmptyVolumes(groupedRows, nonEmptyDocIds);
+
+  if (!preview) {
+    pendingIdWrites.forEach(({ sheet, row, column, value }) => {
+      sheet.getRange(row, column).setValue(value);
+    });
+  }
+
   return groupedRows;
 }
 
-function buildGroupedRowsFromVolumeSheets() {
+function buildGroupedRowsFromVolumeSheets({ pendingIdWrites }) {
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   const groupedRows = {};
 
@@ -208,17 +221,15 @@ function buildGroupedRowsFromVolumeSheets() {
       throw new Error(`シートが見つかりません: ${sheetName}`);
     }
 
-    ensureStableIds(sheet);
-    groupedRows[sheetName] = readSheetRows(sheet);
+    groupedRows[sheetName] = ensureStableIds(sheet, { pendingIdWrites });
   });
 
   return groupedRows;
 }
 
-function buildGroupedRowsFromSingleSheet() {
+function buildGroupedRowsFromSingleSheet({ pendingIdWrites }) {
   const sheet = getSourceSheet();
-  ensureStableIds(sheet);
-  const values = readSheetRows(sheet);
+  const values = ensureStableIds(sheet, { pendingIdWrites });
 
   if (values.length < 2) {
     throw new Error("データ行がありません。");
@@ -254,8 +265,7 @@ function buildGroupedRowsFromSingleSheet() {
     const volume = CONFIG.volumes.find((item) => item.level === level || item.docId === level);
 
     if (!volume) {
-      Logger.log(`未対応のlevelをスキップしました: row ${rowNumber}, level=${level}`);
-      return;
+      throw new Error(`未対応のlevelです: row ${rowNumber}, level=${level}。単語欠落を防ぐため同期を中止しました。`);
     }
 
     const optionalValues = optionalColumnIndexes.map(({ index }) => (
@@ -282,11 +292,11 @@ function getRequiredColumnIndexByNames(headers, names, label) {
   return index;
 }
 
-function ensureStableIds(sheet) {
+function ensureStableIds(sheet, { pendingIdWrites }) {
   const range = sheet.getDataRange();
   const values = range.getDisplayValues();
 
-  if (!values.length) return;
+  if (!values.length) return [];
 
   const headers = values[0].map(normalizeHeader);
   let idIndex = getColumnIndexByNames(headers, ID_COLUMN_NAMES);
@@ -294,7 +304,8 @@ function ensureStableIds(sheet) {
 
   if (idIndex === -1) {
     idIndex = values[0].length;
-    sheet.getRange(1, idIndex + 1).setValue("id");
+    pendingIdWrites.push({ sheet, row: 1, column: idIndex + 1, value: "id" });
+    values[0][idIndex] = "id";
   }
 
   const usedIds = new Set();
@@ -316,10 +327,13 @@ function ensureStableIds(sheet) {
     }
 
     const newId = generateStableWordId(usedIds);
-    sheet.getRange(rowNumber, idIndex + 1).setValue(newId);
+    pendingIdWrites.push({ sheet, row: rowNumber, column: idIndex + 1, value: newId });
+    row[idIndex] = newId;
     usedIds.add(newId);
     idRows[newId] = rowNumber;
   });
+
+  return values.filter((row) => row.some((cell) => String(cell).trim() !== ""));
 }
 
 function generateStableWordId(usedIds) {
@@ -452,6 +466,14 @@ function inspectSheetForSync(sheet) {
     classifiedRows,
     dataRows
   };
+}
+
+function validateNonEmptyVolumes(groupedRows, docIds) {
+  docIds.forEach((docId) => {
+    if (getWordCount(groupedRows[docId]) === 0) {
+      throw new Error(`${docId}: 単語数が0件のため、Firestoreへの上書きを中止しました。`);
+    }
+  });
 }
 
 function validateClassificationRows(groupedRows) {
