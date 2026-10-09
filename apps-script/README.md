@@ -42,7 +42,7 @@ The `csv` field is required by the web app. The `syncedAt` field is optional, bu
    - `CLIENT_EMAIL = service account JSON client_email`
    - `PRIVATE_KEY = service account JSON private_key`
    - `SYNC_TOKEN = the same string as the web app SHEET_SYNC_TOKEN`
-6. Run `dryRun()` to confirm row counts without writing to **Google Sheets or Firestore**. Missing stable IDs are generated **in memory only** during preview. They are not saved to Sheets until a real sync.
+6. Run `dryRun()` to confirm row counts without writing to **Google Sheets or Firestore**. Missing stable IDs are generated **in memory only** during preview. They are not saved to Sheets until a real sync. A real sync also validates all volumes for duplicate IDs and required classification data **before** writing generated IDs to Sheets; a validation failure makes no ID changes.
 7. Run `syncAllVolumesToFirestore()` or `syncVol1()` / `syncVol2()` / `syncVol3()` / `syncVol4()`.
 8. Approve the required Apps Script permissions.
 9. Check the Apps Script execution log for target volume, CSV row count, Firestore destination, `syncedAt`, and success or failure.
@@ -126,7 +126,7 @@ The Apps Script manages a stable `id` column in Google Sheets before exporting C
 
 - If the sheet does not have an `id` column, a **real sync** creates it. `dryRun()` only simulates the column in memory.
 - If a row already has an `id`, the script never overwrites it.
-- If a row has an empty `id`, a **real sync** saves a newly generated ID such as `w_abcd1234efgh`. `dryRun()` previews a temporary ID but never writes it.
+- If a row has an empty `id`, a **real sync** saves a newly generated ID such as `w_abcd1234efgh` **after all validation succeeds**. `dryRun()` previews a temporary ID but never writes it.
 - If duplicate IDs are found, the sync stops with an error before writing to Firestore.
 - The exported Firestore CSV includes the `id` column, and the web app uses it as the internal word key.
 - If `id` is missing or blank in CSV, the web app falls back to the old word-derived key.
