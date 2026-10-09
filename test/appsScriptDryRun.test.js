@@ -136,16 +136,16 @@ const exampleRows = [
     ["vol1", "vol2", "vol3", "vol4"].map((vol) => preview[vol].length),
     [2, 2, 2, 2]
   );
-  assert.equal(preview.vol2[1][0], "w_existing");
-  assert.match(preview.vol3[1][0], /^w_[a-z0-9]{12}$/);
+  assert.equal(preview.vol2[1][4], "w_existing");
+  assert.match(preview.vol3[1][4], /^w_[a-z0-9]{12}$/);
   assert.equal(fixture.writes.length, 0);
 
   // The real sync path still persists missing IDs without overwriting existing IDs.
   const actual = fixture.regular();
   assert.ok(fixture.writes.length > 0);
-  assert.equal(actual.vol2[1][0], "w_existing");
-  assert.equal(actual.vol3[1][0], fixture.rowsBySheet.vol3[2][4]);
-  assert.equal(actual.vol1[1][0], fixture.rowsBySheet.vol1[1][4]);
+  assert.equal(actual.vol2[1][4], "w_existing");
+  assert.equal(actual.vol3[1][4], fixture.rowsBySheet.vol3[2][4]);
+  assert.equal(actual.vol1[1][4], fixture.rowsBySheet.vol1[1][4]);
 }
 
 // Failed validation in dryRun must never modify any source sheet.
