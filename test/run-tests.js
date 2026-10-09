@@ -7,6 +7,7 @@ const tests = [
   "./wordReloadService.test.js",
   "./reloadStatusService.test.js",
   "./sheetSyncService.test.js",
+  "./appsScriptDryRun.test.js",
   "./data.test.js",
   "./pronunciation.test.js",
   "./speechSyncController.test.js",
