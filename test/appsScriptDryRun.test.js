@@ -227,4 +227,19 @@ const exampleRows = [
   assert.equal(JSON.stringify(fixture.rowsBySheet), before);
 }
 
+// A typo in level must abort rather than silently remove that word from Firestore.
+for (const invalidLevel of ["vol9", "", "unassigned"]) {
+  const fixture = createFixture([
+    columns,
+    [...exampleRows[1]],
+    ["candid", "率直な", invalidLevel, "adjective", "quality"],
+    [...exampleRows[2]]
+  ]);
+  const before = JSON.stringify(fixture.rowsBySheet);
+  assert.throws(() => fixture.dryRun(), /未対応のlevel/);
+  assert.throws(() => fixture.regular(), /未対応のlevel/);
+  assert.equal(fixture.writes.length, 0);
+  assert.equal(JSON.stringify(fixture.rowsBySheet), before);
+}
+
 console.log("Apps Script dryRun read-only regression tests passed.");
