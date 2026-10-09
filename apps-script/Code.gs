@@ -183,22 +183,32 @@ function syncOneVolume(docId) {
 }
 
 function buildGroupedRows({ preview = false } = {}) {
+  // First prepare every generated ID in memory. Never mutate Sheets until
+  // the entire dataset passes validation, including cross-volume checks.
+  const pendingIdWrites = [];
   let groupedRows = null;
 
   if (CONFIG.mode === "sheetsByVolume") {
-    groupedRows = buildGroupedRowsFromVolumeSheets({ preview });
+    groupedRows = buildGroupedRowsFromVolumeSheets({ pendingIdWrites });
   } else if (CONFIG.mode === "singleSheetWithLevel") {
-    groupedRows = buildGroupedRowsFromSingleSheet({ preview });
+    groupedRows = buildGroupedRowsFromSingleSheet({ pendingIdWrites });
   } else {
     throw new Error(`未対応のmodeです: ${CONFIG.mode}`);
   }
 
   validateGroupedRowIds(groupedRows);
   validateClassificationRows(groupedRows);
+
+  if (!preview) {
+    pendingIdWrites.forEach(({ sheet, row, column, value }) => {
+      sheet.getRange(row, column).setValue(value);
+    });
+  }
+
   return groupedRows;
 }
 
-function buildGroupedRowsFromVolumeSheets({ preview = false } = {}) {
+function buildGroupedRowsFromVolumeSheets({ pendingIdWrites }) {
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   const groupedRows = {};
 
@@ -208,17 +218,15 @@ function buildGroupedRowsFromVolumeSheets({ preview = false } = {}) {
       throw new Error(`シートが見つかりません: ${sheetName}`);
     }
 
-    const preparedRows = ensureStableIds(sheet, { preview });
-    groupedRows[sheetName] = preview ? preparedRows : readSheetRows(sheet);
+    groupedRows[sheetName] = ensureStableIds(sheet, { pendingIdWrites });
   });
 
   return groupedRows;
 }
 
-function buildGroupedRowsFromSingleSheet({ preview = false } = {}) {
+function buildGroupedRowsFromSingleSheet({ pendingIdWrites }) {
   const sheet = getSourceSheet();
-  const preparedRows = ensureStableIds(sheet, { preview });
-  const values = preview ? preparedRows : readSheetRows(sheet);
+  const values = ensureStableIds(sheet, { pendingIdWrites });
 
   if (values.length < 2) {
     throw new Error("データ行がありません。");
@@ -282,7 +290,7 @@ function getRequiredColumnIndexByNames(headers, names, label) {
   return index;
 }
 
-function ensureStableIds(sheet, { preview = false } = {}) {
+function ensureStableIds(sheet, { pendingIdWrites }) {
   const range = sheet.getDataRange();
   const values = range.getDisplayValues();
 
@@ -294,7 +302,7 @@ function ensureStableIds(sheet, { preview = false } = {}) {
 
   if (idIndex === -1) {
     idIndex = values[0].length;
-    if (!preview) sheet.getRange(1, idIndex + 1).setValue("id");
+    pendingIdWrites.push({ sheet, row: 1, column: idIndex + 1, value: "id" });
     values[0][idIndex] = "id";
   }
 
@@ -317,7 +325,7 @@ function ensureStableIds(sheet, { preview = false } = {}) {
     }
 
     const newId = generateStableWordId(usedIds);
-    if (!preview) sheet.getRange(rowNumber, idIndex + 1).setValue(newId);
+    pendingIdWrites.push({ sheet, row: rowNumber, column: idIndex + 1, value: newId });
     row[idIndex] = newId;
     usedIds.add(newId);
     idRows[newId] = rowNumber;
