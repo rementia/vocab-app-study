@@ -262,8 +262,7 @@ function buildGroupedRowsFromSingleSheet({ pendingIdWrites }) {
     const volume = CONFIG.volumes.find((item) => item.level === level || item.docId === level);
 
     if (!volume) {
-      Logger.log(`未対応のlevelをスキップしました: row ${rowNumber}, level=${level}`);
-      return;
+      throw new Error(`未対応のlevelです: row ${rowNumber}, level=${level}。単語欠落を防ぐため同期を中止しました。`);
     }
 
     const optionalValues = optionalColumnIndexes.map(({ index }) => (
