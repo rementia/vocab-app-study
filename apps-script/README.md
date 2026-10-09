@@ -53,9 +53,11 @@ Do not paste service account private keys, access tokens, or other secrets into 
 
 If a real private key was committed even once, removing it from the repository is not enough. Delete or disable that service account key in Google Cloud Console and issue a new key before using it again.
 
-## Web App Deployment
+## Web App Deployment (optional, currently unused by the app UI)
 
-To let the browser app trigger sync:
+The current `index.html` → `bootstrap.js` → `app.js` flow does **not** invoke the Apps Script Web App: the `単語更新` button reloads Firestore only. The following deployment flow is retained for a separately implemented or experimental browser-side sync caller; it is **not required** to use the current button.
+
+If you intentionally implement such a caller:
 
 1. Open the Apps Script editor.
 2. Select Deploy.
@@ -64,8 +66,8 @@ To let the browser app trigger sync:
 5. Execute as: Me.
 6. Choose access according to your private study operation.
 7. Copy the Web App URL.
-8. Set that URL in the web app's `syncConfig.js`.
-9. Set the same lightweight token in Apps Script Properties `SYNC_TOKEN` and `syncConfig.js`.
+8. Connect the deployed URL only from the separately implemented caller; `syncConfig.js` alone does not activate the current app UI.
+9. A token stored in `syncConfig.js` is public to readers of the repository/client bundle. Do not use it as the only protection for a privileged synchronization endpoint; enforce appropriate deployment access and credentials independently.
 
 The frontend token is not a strong secret because it is shipped to the browser. Treat it only as a lightweight guard for a personal study app. Firestore access control and service account permissions still matter.
 
