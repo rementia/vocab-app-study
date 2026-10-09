@@ -118,7 +118,9 @@ function doPost(e) {
 }
 
 function syncAllVolumesToFirestore() {
-  const groupedRows = buildGroupedRows();
+  const groupedRows = buildGroupedRows({
+    nonEmptyDocIds: CONFIG.volumes.map(({ docId }) => docId)
+  });
   const syncedAt = new Date().toISOString();
   const volumes = [];
 
@@ -157,7 +159,7 @@ function syncVol4() {
 }
 
 function syncOneVolume(docId) {
-  const groupedRows = buildGroupedRows();
+  const groupedRows = buildGroupedRows({ nonEmptyDocIds: [docId] });
 
   if (!groupedRows[docId]) {
     throw new Error(`未定義のdocIdです: ${docId}`);
@@ -182,7 +184,7 @@ function syncOneVolume(docId) {
   };
 }
 
-function buildGroupedRows({ preview = false } = {}) {
+function buildGroupedRows({ preview = false, nonEmptyDocIds = [] } = {}) {
   // First prepare every generated ID in memory. Never mutate Sheets until
   // the entire dataset passes validation, including cross-volume checks.
   const pendingIdWrites = [];
@@ -198,6 +200,7 @@ function buildGroupedRows({ preview = false } = {}) {
 
   validateGroupedRowIds(groupedRows);
   validateClassificationRows(groupedRows);
+  validateNonEmptyVolumes(groupedRows, nonEmptyDocIds);
 
   if (!preview) {
     pendingIdWrites.forEach(({ sheet, row, column, value }) => {
@@ -463,6 +466,14 @@ function inspectSheetForSync(sheet) {
     classifiedRows,
     dataRows
   };
+}
+
+function validateNonEmptyVolumes(groupedRows, docIds) {
+  docIds.forEach((docId) => {
+    if (getWordCount(groupedRows[docId]) === 0) {
+      throw new Error(`${docId}: 単語数が0件のため、Firestoreへの上書きを中止しました。`);
+    }
+  });
 }
 
 function validateClassificationRows(groupedRows) {
