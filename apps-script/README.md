@@ -117,6 +117,8 @@ Rows are split into `vol1`, `vol2`, `vol3`, and `vol4` by the configured `level`
 
 If a non-empty word has a blank or unsupported `level`, the sync and `dryRun()` stop with an error rather than silently exclude the word. Correct the invalid level before syncing so Firestore is not overwritten with an incomplete vocabulary.
 
+For a real full sync, every expected volume must have at least one vocabulary row; for a single-volume sync, that requested volume must be non-empty. Empty volumes cause sync to stop **before generated IDs are written to Sheets or Firestore is overwritten**. A deliberate full deletion must use a separately reviewed procedure; the routine sync does not serve as a deletion operation. Note that dryRun reports volume row counts and does not itself update Firestore.
+
 `level` values such as `1`, `2`, `3`, `4`, `vol1`, `vol2`, `vol3`, and `vol4` are normalized before grouping.
 
 The single-sheet export keeps these optional study columns when present: `morpheme`, `morphemeMeaning`, `semanticDevelopment`, `partOfSpeech`, and `semanticCategory`. Missing optional columns are exported as blank cells so older sheets remain compatible.
