@@ -207,7 +207,7 @@ const exampleRows = [
     ["expand", "広がる", "2", "", ""]
   ]);
   const before = JSON.stringify(fixture.rowsBySheet);
-  assert.throws(() => fixture.regular(), /分類情報が全件空/);
+  assert.throws(() => fixture.regular(), /が全件空/);
   assert.equal(fixture.writes.length, 0);
   assert.equal(JSON.stringify(fixture.rowsBySheet), before);
 }
