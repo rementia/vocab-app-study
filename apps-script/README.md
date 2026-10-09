@@ -115,6 +115,8 @@ expand,拡大する,vol2,ex- + pand,out + spread,外へ広げる,verb,change
 
 Rows are split into `vol1`, `vol2`, `vol3`, and `vol4` by the configured `level` column.
 
+If a non-empty word has a blank or unsupported `level`, the sync and `dryRun()` stop with an error rather than silently exclude the word. Correct the invalid level before syncing so Firestore is not overwritten with an incomplete vocabulary.
+
 `level` values such as `1`, `2`, `3`, `4`, `vol1`, `vol2`, `vol3`, and `vol4` are normalized before grouping.
 
 The single-sheet export keeps these optional study columns when present: `morpheme`, `morphemeMeaning`, `semanticDevelopment`, `partOfSpeech`, and `semanticCategory`. Missing optional columns are exported as blank cells so older sheets remain compatible.
