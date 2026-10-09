@@ -1,0 +1,110 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { runInContext, createContext } from "node:vm";
+
+const script = readFileSync(new URL("../apps-script/Code.gs", import.meta.url), "utf8");
+
+function createFixture(initialRows) {
+  const rows = initialRows.map((row) => [...row]);
+  const writes = [];
+  const logs = [];
+  const sheet = {
+    getName: () => "シート1",
+    getSheetId: () => 1,
+    getDataRange: () => ({
+      getDisplayValues: () => rows.map((row) => [...row])
+    }),
+    getRange: (row, col) => ({
+      setValue(value) {
+        writes.push({ row, col, value });
+        while (rows[row - 1].length < col) rows[row - 1].push("");
+        rows[row - 1][col - 1] = value;
+      }
+    })
+  };
+  const spreadsheet = {
+    getSheets: () => [sheet],
+    getSheetByName: (name) => name === "シート1" ? sheet : null
+  };
+  const context = createContext({
+    SpreadsheetApp: { getActiveSpreadsheet: () => spreadsheet },
+    Logger: { log: (message) => logs.push(String(message)) },
+    Utilities: {
+      newBlob: (data) => ({
+        getBytes: () => [...Buffer.from(String(data), "utf8")]
+      })
+    }
+  });
+  runInContext(script, context, { filename: "Code.gs" });
+  return {
+    rows,
+    writes,
+    logs,
+    preview: () => runInContext("buildGroupedRows({ preview: true })", context),
+    regular: () => runInContext("buildGroupedRows()", context),
+    dryRun: () => runInContext("dryRun()", context)
+  };
+}
+
+const columns = ["word", "meaning", "level", "partOfSpeech", "semanticCategory"];
+const exampleRows = [
+  columns,
+  ["abandon", "捨てる", "1", "verb", "action"],
+  ["expand", "広がる", "2", "verb", "change"]
+];
+
+// dryRun must not add an ID column or write generated IDs to the source sheet.
+{
+  const fixture = createFixture(exampleRows);
+  const before = JSON.stringify(fixture.rows);
+  fixture.dryRun();
+  assert.equal(JSON.stringify(fixture.rows), before);
+  assert.equal(fixture.writes.length, 0);
+  assert.ok(fixture.logs.some((log) => log.includes("変更していません")));
+  const preview = fixture.preview();
+  assert.equal(preview.vol1.length, 2);
+  assert.equal(preview.vol2.length, 2);
+  assert.match(preview.vol1[1][0], /^w_[a-z0-9]{12}$/);
+  assert.equal(fixture.writes.length, 0);
+}
+
+// The existing production sync path must still persist stable IDs.
+{
+  const fixture = createFixture(exampleRows);
+  const result = fixture.regular();
+  assert.equal(fixture.rows[0][5], "id");
+  assert.equal(fixture.writes.length, 3);
+  assert.equal(result.vol1[1][0], fixture.rows[1][5]);
+  assert.equal(result.vol2[1][0], fixture.rows[2][5]);
+  assert.notEqual(result.vol1[1][0], result.vol2[1][0]);
+}
+
+// Existing IDs are preserved, and blank IDs are only simulated during preview.
+{
+  const fixture = createFixture([
+    [...columns, "id"],
+    [...exampleRows[1], "w_existing"],
+    [...exampleRows[2], ""]
+  ]);
+  const before = JSON.stringify(fixture.rows);
+  const preview = fixture.preview();
+  assert.equal(preview.vol1[1][0], "w_existing");
+  assert.match(preview.vol2[1][0], /^w_[a-z0-9]{12}$/);
+  assert.equal(JSON.stringify(fixture.rows), before);
+  assert.equal(fixture.writes.length, 0);
+}
+
+// Duplicated IDs must fail without any mutation.
+{
+  const fixture = createFixture([
+    [...columns, "id"],
+    [...exampleRows[1], "w_duplicate"],
+    [...exampleRows[2], "w_duplicate"]
+  ]);
+  const before = JSON.stringify(fixture.rows);
+  assert.throws(() => fixture.dryRun(), /重複id/);
+  assert.equal(JSON.stringify(fixture.rows), before);
+  assert.equal(fixture.writes.length, 0);
+}
+
+console.log("Apps Script dryRun read-only regression tests passed.");
