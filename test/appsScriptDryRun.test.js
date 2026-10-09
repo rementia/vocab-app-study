@@ -52,6 +52,8 @@ function createFixture(initialRows) {
     setMode: (mode) => runInContext(`CONFIG.mode = ${JSON.stringify(mode)}`, context),
     preview: () => runInContext("buildGroupedRows({ preview: true })", context),
     regular: () => runInContext("buildGroupedRows()", context),
+    syncAll: () => runInContext("syncAllVolumesToFirestore()", context),
+    syncOne: (docId) => runInContext(`syncOneVolume(${JSON.stringify(docId)})`, context),
     dryRun: () => runInContext("dryRun()", context)
   };
 }
@@ -238,6 +240,36 @@ for (const invalidLevel of ["vol9", "", "unassigned"]) {
   const before = JSON.stringify(fixture.rowsBySheet);
   assert.throws(() => fixture.dryRun(), /未対応のlevel/);
   assert.throws(() => fixture.regular(), /未対応のlevel/);
+  assert.equal(fixture.writes.length, 0);
+  assert.equal(JSON.stringify(fixture.rowsBySheet), before);
+}
+
+// Full sync must reject a zero-word volume before modifying Sheets or Firestore.
+{
+  const fixture = createFixture(exampleRows);
+  const before = JSON.stringify(fixture.rowsBySheet);
+  assert.throws(() => fixture.syncAll(), /vol3: 単語数が0件/);
+  assert.equal(fixture.writes.length, 0);
+  assert.equal(JSON.stringify(fixture.rowsBySheet), before);
+  // A single-volume sync must reject the empty requested volume too.
+  assert.throws(() => fixture.syncOne("vol4"), /vol4: 単語数が0件/);
+  assert.equal(fixture.writes.length, 0);
+  assert.equal(JSON.stringify(fixture.rowsBySheet), before);
+}
+
+// If the last separate volume sheet becomes header-only, do not persist
+// prepared IDs into any of the earlier sheets.
+{
+  const headers = ["word", "meaning", "partOfSpeech", "semanticCategory"];
+  const fixture = createFixture({
+    vol1: [headers, ["abandon", "捨てる", "verb", "action"]],
+    vol2: [headers, ["expand", "広がる", "verb", "change"]],
+    vol3: [headers, ["candid", "率直な", "adjective", "quality"]],
+    vol4: [headers]
+  });
+  fixture.setMode("sheetsByVolume");
+  const before = JSON.stringify(fixture.rowsBySheet);
+  assert.throws(() => fixture.syncAll(), /vol4: 単語数が0件/);
   assert.equal(fixture.writes.length, 0);
   assert.equal(JSON.stringify(fixture.rowsBySheet), before);
 }
