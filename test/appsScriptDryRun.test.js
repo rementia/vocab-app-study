@@ -169,4 +169,62 @@ const exampleRows = [
   assert.equal(fixture.writes.length, 0);
 }
 
+// Real sync must NOT mutate Sheets when ID validation fails after ID generation.
+{
+  const fixture = createFixture([
+    [...columns, "id"],
+    [...exampleRows[1], ""],
+    [...exampleRows[2], "w_duplicate"],
+    ["candid", "率直な", "2", "adjective", "quality", "w_duplicate"]
+  ]);
+  const before = JSON.stringify(fixture.rowsBySheet);
+  assert.throws(() => fixture.regular(), /重複id/);
+  assert.equal(fixture.writes.length, 0);
+  assert.equal(JSON.stringify(fixture.rowsBySheet), before);
+}
+
+// Cross-volume duplicate discovered late must not leave partial IDs in vol1.
+{
+  const headers = ["word", "meaning", "partOfSpeech", "semanticCategory", "id"];
+  const fixture = createFixture({
+    vol1: [headers, ["abandon", "捨てる", "verb", "action", ""]],
+    vol2: [headers, ["expand", "広がる", "verb", "change", "w_duplicate"]],
+    vol3: [headers, ["candid", "率直な", "adjective", "quality", "w_duplicate"]],
+    vol4: [headers, ["ephemeral", "一時的な", "adjective", "quality", ""]]
+  });
+  fixture.setMode("sheetsByVolume");
+  const before = JSON.stringify(fixture.rowsBySheet);
+  assert.throws(() => fixture.regular(), /重複id/);
+  assert.equal(fixture.writes.length, 0);
+  assert.equal(JSON.stringify(fixture.rowsBySheet), before);
+}
+
+// Late classification failure must not leave new IDs on a different volume.
+{
+  const fixture = createFixture([
+    columns,
+    [...exampleRows[1]],
+    ["expand", "広がる", "2", "", ""]
+  ]);
+  const before = JSON.stringify(fixture.rowsBySheet);
+  assert.throws(() => fixture.regular(), /分類情報が全件空/);
+  assert.equal(fixture.writes.length, 0);
+  assert.equal(JSON.stringify(fixture.rowsBySheet), before);
+}
+
+// Missing volume source must fail before any modifications to earlier volumes.
+{
+  const fixture = createFixture({
+    vol1: [
+      ["word", "meaning", "partOfSpeech", "semanticCategory"],
+      ["abandon", "捨てる", "verb", "action"]
+    ]
+  });
+  fixture.setMode("sheetsByVolume");
+  const before = JSON.stringify(fixture.rowsBySheet);
+  assert.throws(() => fixture.regular(), /シートが見つかりません/);
+  assert.equal(fixture.writes.length, 0);
+  assert.equal(JSON.stringify(fixture.rowsBySheet), before);
+}
+
 console.log("Apps Script dryRun read-only regression tests passed.");
