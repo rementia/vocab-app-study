@@ -41,7 +41,7 @@ The `csv` field is required by the web app. The `syncedAt` field is optional, bu
 5. Set Script Properties:
    - `CLIENT_EMAIL = service account JSON client_email`
    - `PRIVATE_KEY = service account JSON private_key`
-   - `SYNC_TOKEN = the same string as the web app SHEET_SYNC_TOKEN`
+   - `SYNC_TOKEN = a server-side secret only if you retain the legacy doPost endpoint; never copy this into browser JavaScript or GitHub`
 6. Run `dryRun()` to confirm row counts without writing to Firestore.
 7. Run `syncAllVolumesToFirestore()` or `syncVol1()` / `syncVol2()` / `syncVol3()` / `syncVol4()`.
 8. Approve the required Apps Script permissions.
@@ -53,25 +53,15 @@ Do not paste service account private keys, access tokens, or other secrets into 
 
 If a real private key was committed even once, removing it from the repository is not enough. Delete or disable that service account key in Google Cloud Console and issue a new key before using it again.
 
-## Web App Deployment
+## Web App Deployment (optional; currently unused by the app UI)
 
-To let the browser app trigger sync:
+The current `index.html` → `bootstrap.js` → `app.js` flow does not invoke the Apps Script Web App. The `単語更新` button only reloads Firestore. For routine personal sync, use the Apps Script editor to run `syncAllVolumesToFirestore()` after checking source data, then reload the app.
 
-1. Open the Apps Script editor.
-2. Select Deploy.
-3. Select New deployment.
-4. Choose type: Web app.
-5. Execute as: Me.
-6. Choose access according to your private study operation.
-7. Copy the Web App URL.
-8. Set that URL in the web app's `syncConfig.js`.
-9. Set the same lightweight token in Apps Script Properties `SYNC_TOKEN` and `syncConfig.js`.
+The legacy `doPost()` endpoint accepts `SYNC_TOKEN` from a request and, when valid, runs a privileged Firestore sync using service credentials stored in Script Properties. If the Web App is deployed to execute **as the owner** with access **to everyone**, a leaked token may allow others to start that privileged operation. Do not expose the token or privileged Web App URL in frontend code, a public repository, documentation or issues.
 
-The frontend token is not a strong secret because it is shipped to the browser. Treat it only as a lightweight guard for a personal study app. Firestore access control and service account permissions still matter.
+Before maintaining or re-enabling remote calls, verify the actual deployed script version, allowed callers, access settings and dependencies. Use a server-side authorization design that does not rely on a browser-distributed shared token. Treat any historically exposed token as compromised and rotate/revoke it in the actual Apps Script environment, after planning updates for legitimate callers. Git history and old Hosting releases may continue to contain historical values.
 
-`SYNC_TOKEN` is only a lightweight guard for this personal study version. The matching `SHEET_SYNC_TOKEN` in the web app can be visible in the browser, so it must not be treated like a server-side secret.
-
-If browser fetch fails because of deployment or CORS-like access behavior, confirm the Web App URL, deployment access setting, and Apps Script execution logs first.
+If the browser needs direct secure synchronization in the future, implement an authenticated server-side endpoint with appropriate user permissions and abuse controls; do not restore a token to `syncConfig.js`.
 
 ## Authentication Note
 
