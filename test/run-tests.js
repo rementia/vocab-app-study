@@ -9,6 +9,7 @@ const tests = [
   "./sheetSyncService.test.js",
   "./frontendSyncConfig.test.js",
   "./appsScriptDryRun.test.js",
+  "./firestoreBackup.test.js",
   "./data.test.js",
   "./pronunciation.test.js",
   "./speechSyncController.test.js",
