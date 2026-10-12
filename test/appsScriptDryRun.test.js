@@ -21,6 +21,7 @@ function createFixture(initialRows) {
   let failOnWriteNumber = null;
   let fakeSuccessOnWriteNumber = null;
   let writeAttempts = 0;
+  let injectOnCellRead = null;
   const sheets = Object.entries(rowsBySheet).map(([name, rows], index) => ({
     getName: () => name,
     getSheetId: () => index + 1,
@@ -29,6 +30,11 @@ function createFixture(initialRows) {
     }),
     getRange: (row, col) => ({
       getDisplayValue() {
+        if (injectOnCellRead && injectOnCellRead.row === row && injectOnCellRead.col === col) {
+          while (rows[row - 1].length < col) rows[row - 1].push("");
+          rows[row - 1][col - 1] = injectOnCellRead.value;
+          injectOnCellRead = null;
+        }
         return String(rows[row - 1]?.[col - 1] ?? "");
       },
       setValue(value) {
@@ -78,6 +84,7 @@ function createFixture(initialRows) {
     requests,
     failOnWrite: (number) => { failOnWriteNumber = number; },
     fakeSuccessOnWrite: (number) => { fakeSuccessOnWriteNumber = number; },
+    injectAtPrewriteRead: (row, col, value) => { injectOnCellRead = { row, col, value }; },
     setResponse: (status, body = null) => { responseState.status = status; responseState.body = body; },
     setMode: (mode) => runInContext(`CONFIG.mode = ${JSON.stringify(mode)}`, context),
     preview: () => runInContext("buildGroupedRows({ preview: true })", context),
@@ -393,7 +400,8 @@ for (const invalidLevel of ["vol9", "", "unassigned"]) {
   assert.equal(fixture.requests.length, 0);
 }
 
-// A concurrent update to a target ID cell must abort before ANY generated IDs are persisted.
+// A concurrent write after the source snapshot must be detected in preflight,
+// before ANY generated ID is written or any Firestore request is sent.
 {
   const fixture = createFixture([
     ["word", "meaning", "level", "partOfSpeech", "semanticCategory", "id"],
@@ -402,10 +410,10 @@ for (const invalidLevel of ["vol9", "", "unassigned"]) {
     ["gamma", "C", "3", "noun", "thing", ""],
     ["delta", "D", "4", "noun", "thing", ""]
   ]);
-  fixture.rowsBySheet["シート1"][3][5] = "w_concurrent";
-  // Reading the current sheet now contains a valid ID, thus no pending write
-  // for that row; there should still be no overwrite of this preexisting ID.
-  fixture.syncAll();
+  fixture.injectAtPrewriteRead(4, 6, "w_concurrent");
+  assert.throws(() => fixture.syncAll(), /ID書込先が既に変更されています/);
+  assert.equal(fixture.writes.length, 0);
+  assert.equal(fixture.requests.length, 0);
   assert.equal(fixture.rowsBySheet["シート1"][3][5], "w_concurrent");
 }
 
