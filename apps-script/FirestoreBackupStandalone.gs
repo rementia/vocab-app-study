@@ -84,10 +84,13 @@ function backupFirestoreWordsToDrive() {
     JSON.stringify(archive, null, 2), "application/json", fileName
   );
   var file = DriveApp.createFile(blob);
-  // A copy in personal My Drive is private by default. Enforce it explicitly.
-  file.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.NONE);
+  // Files created in personal My Drive are private by default.
+  // DriveApp.Permission.NONE cannot be passed with Access.PRIVATE to
+  // setSharing(): do not call it. Check visibility immediately instead.
   if (file.getSharingAccess() !== DriveApp.Access.PRIVATE) {
-    throw new Error("Driveの共有設定を非公開と確認できません。作成されたファイルを確認してください。");
+    // Do not leave a newly created sensitive archive accessible by link.
+    file.setTrashed(true);
+    throw new Error("Driveの共有が非公開でないため、新規バックアップをゴミ箱へ移しました。");
   }
   Logger.log("Firestore 4巻バックアップ作成: " + file.getName());
   Logger.log("Driveでファイルの内容・非公開設定を確認してください。");

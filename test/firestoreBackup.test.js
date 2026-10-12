@@ -7,7 +7,7 @@ const source = readFileSync(
   "utf8"
 );
 
-function fixture({ errorAt = -1, malformedAt = -1, wrongNameAt = -1 } = {}) {
+function fixture({ errorAt = -1, malformedAt = -1, wrongNameAt = -1, publicOnCreate = false } = {}) {
   const ids = ["vol1", "vol2", "vol3", "vol4"];
   const prefix =
     "projects/svl-app-65204/databases/(default)/documents/privateWords/";
@@ -50,15 +50,15 @@ function fixture({ errorAt = -1, malformedAt = -1, wrongNameAt = -1 } = {}) {
       Access: { PRIVATE: "private" },
       Permission: { NONE: "none" },
       createFile: (blob) => {
-        const state = { blob, visibility: "inherited" };
+        const state = {
+          blob,
+          visibility: publicOnCreate ? "link-read" : "private",
+          trashed: false
+        };
         created.push(state);
         return {
-          setSharing(access, permission) {
-            assert.equal(access, "private");
-            assert.equal(permission, "none");
-            state.visibility = access;
-          },
           getSharingAccess: () => state.visibility,
+          setTrashed(value) { state.trashed = value; },
           getName: () => blob.name
         };
       }
@@ -80,6 +80,7 @@ function fixture({ errorAt = -1, malformedAt = -1, wrongNameAt = -1 } = {}) {
   assert.ok(t.network.every(x => x.method === "get" && x.hasAuth));
   assert.equal(t.created.length, 1);
   assert.equal(t.created[0].visibility, "private");
+  assert.equal(t.created[0].trashed, false);
   const archive = JSON.parse(t.created[0].blob.data);
   assert.equal(archive.documentCount, 4);
   assert.deepEqual(
@@ -104,5 +105,12 @@ for (const kind of ["errorAt", "malformedAt", "wrongNameAt"]) {
   assert.throws(t.run, /想定外のFirebaseプロジェクト/);
   assert.equal(t.network.length, 0);
   assert.equal(t.created.length, 0);
+}
+{
+  const t = fixture({ publicOnCreate: true });
+  assert.throws(t.run, /新規バックアップをゴミ箱へ移しました/);
+  assert.equal(t.created.length, 1);
+  assert.equal(t.created[0].trashed, true);
+  assert.ok(t.network.every(x => x.method === "get"));
 }
 console.log("Firestore read-only backup helper regression tests passed.");
