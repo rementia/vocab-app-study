@@ -130,6 +130,14 @@ In Google Sheets, hide and protect the `id` column so normal vocabulary edits do
 - Google Sheets stable-ID writes are still separate, non-atomic cell updates. The script now checks every target cell before writing, and flushes and verifies each saved ID before any Firestore commit. If a Sheets write fails or its readback differs, the script aborts **before** Firestore sync. Already-written IDs may remain in Sheets and can be reused on a later run; the Sheets and Firestore updates are not one cross-service transaction. Back up both systems before production rollout and verify each volume after sync.
 - Changes to this GitHub code do **not** automatically replace the active Apps Script editor project or its existing deployed Web App version. Validate the actual Apps Script installation separately before applying them.
 
+## Firebase Security Rules: repository versus production
+
+The GitHub `firestore.rules` file is a **proposed source definition**, not evidence of deployed production rules. The repository's `.github/workflows/firebase-hosting-merge.yml` and Hosting Preview workflow use Firebase Hosting deployment actions, which **do not publish Firestore Security Rules**. Do not infer rules status from a successful Hosting workflow.
+
+Before production approval, open Firebase Console > Firestore Database > Rules and compare the **deployed** rules with the intended access policy. In source, `privateUsers/{uid}` is restricted to the authenticated matching UID; `privateWords/{vol}` is readable by any authenticated Firebase user and client writes are denied. The latter is shared study data, **not owner-only**. Any deliberate change to production rules requires a separate change-risk review and authorized deployment; this draft PR does not deploy rules or change access.
+
+Deleting the previously exposed Apps Script `SYNC_TOKEN` property should make the version-controlled `validateSyncToken()` reject legacy Web App POST requests, but the **actual deployed Apps Script version must be checked separately**. Source-code tests do not prove revocation in production; do not test by triggering a privileged full sync on live data.
+
 ## Firebase Console Check
 
 After running the script, confirm these values in Firebase Console:

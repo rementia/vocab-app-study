@@ -18,6 +18,7 @@ function createFixture(initialRows) {
   const logs = [];
   const requests = [];
   const responseState = { status: 200, body: null };
+  const authProps = { syncToken: null };
   let failOnWriteNumber = null;
   let fakeSuccessOnWriteNumber = null;
   let writeAttempts = 0;
@@ -71,6 +72,9 @@ function createFixture(initialRows) {
       }
     }) },
     Logger: { log: (message) => logs.push(String(message)) },
+    PropertiesService: { getScriptProperties: () => ({
+      getProperty: (key) => key === "SYNC_TOKEN" ? authProps.syncToken : null
+    }) },
     UrlFetchApp: { fetch: (url, options) => {
       requests.push({ url, options });
       const count = JSON.parse(options.payload).writes.length;
@@ -99,6 +103,11 @@ function createFixture(initialRows) {
     requests,
     lockState,
     holdLock: (isHeld) => { lockState.contended = isHeld; },
+    setExpectedSyncToken: (value) => { authProps.syncToken = value; },
+    validateWebSyncToken: (token) => runInContext(
+      `validateSyncToken(${JSON.stringify({ postData: { contents: JSON.stringify({ token }) } })})`,
+      context
+    ),
     failOnWrite: (number) => { failOnWriteNumber = number; },
     fakeSuccessOnWrite: (number) => { fakeSuccessOnWriteNumber = number; },
     injectAtPrewriteRead: (row, col, value) => { injectOnCellRead = { row, col, value }; },
@@ -495,6 +504,26 @@ for (const invalidLevel of ["vol9", "", "unassigned"]) {
   assert.equal(fixture.lockState.releases, 1);
   assert.equal(fixture.lockState.locked, false);
 }
+
+// Deprecated Web App synchronization remains fail-closed after SYNC_TOKEN deletion.
+// These are mock tests: they do not establish which script version is live.
+{
+  const fixture = createFixture(exampleRows);
+  assert.throws(
+    () => fixture.validateWebSyncToken("historically_exposed_value"),
+    /SYNC_TOKEN が設定されていません/
+  );
+  fixture.setExpectedSyncToken("server_only_test_token");
+  assert.throws(
+    () => fixture.validateWebSyncToken("historically_exposed_value"),
+    /Invalid token/
+  );
+  assert.doesNotThrow(() => fixture.validateWebSyncToken("server_only_test_token"));
+  assert.equal(fixture.requests.length, 0);
+  assert.equal(fixture.writes.length, 0);
+}
+
+console.log("Apps Script revoked token fail-closed regression tests passed.");
 
 console.log("Apps Script synchronization lock regression tests passed.");
 
