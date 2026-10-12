@@ -16,6 +16,8 @@ function createFixture(initialRows) {
   );
   const writes = [];
   const logs = [];
+  const requests = [];
+  const responseState = { status: 200, body: null };
   const sheets = Object.entries(rowsBySheet).map(([name, rows], index) => ({
     getName: () => name,
     getSheetId: () => index + 1,
@@ -37,6 +39,17 @@ function createFixture(initialRows) {
   const context = createContext({
     SpreadsheetApp: { getActiveSpreadsheet: () => spreadsheet },
     Logger: { log: (message) => logs.push(String(message)) },
+    UrlFetchApp: { fetch: (url, options) => {
+      requests.push({ url, options });
+      const count = JSON.parse(options.payload).writes.length;
+      return {
+        getResponseCode: () => responseState.status,
+        getContentText: () => responseState.body ?? JSON.stringify({
+          writeResults: Array.from({ length: count }, () => ({ updateTime: "2026-10-12T00:00:00Z" })),
+          commitTime: "2026-10-12T00:00:00Z"
+        })
+      };
+    } },
     Utilities: {
       newBlob: (data) => ({
         getBytes: () => [...Buffer.from(String(data), "utf8")]
@@ -44,11 +57,15 @@ function createFixture(initialRows) {
     }
   });
   runInContext(script, context, { filename: "Code.gs" });
+  // The Apps Script credential exchanger is out of scope for Firestore REST tests.
+  runInContext('getAccessToken = () => "mock_access_token"', context);
   return {
     rows: rowsBySheet["シート1"],
     rowsBySheet,
     writes,
     logs,
+    requests,
+    setResponse: (status, body = null) => { responseState.status = status; responseState.body = body; },
     setMode: (mode) => runInContext(`CONFIG.mode = ${JSON.stringify(mode)}`, context),
     preview: () => runInContext("buildGroupedRows({ preview: true })", context),
     regular: () => runInContext("buildGroupedRows()", context),
@@ -274,4 +291,63 @@ for (const invalidLevel of ["vol9", "", "unassigned"]) {
   assert.equal(JSON.stringify(fixture.rowsBySheet), before);
 }
 
+// Full sync must emit one atomic Firestore Commit with all four masked writes.
+{
+  const headers = ["word", "meaning", "partOfSpeech", "semanticCategory", "id"];
+  const fixture = createFixture({
+    vol1: [headers, ["abandon", "捨てる", "verb", "action", "w_one"]],
+    vol2: [headers, ["expand", "広がる", "verb", "change", "w_two"]],
+    vol3: [headers, ["candid", "率直な", "adjective", "quality", "w_three"]],
+    vol4: [headers, ["ephemeral", "一時的な", "adjective", "quality", "w_four"]]
+  });
+  fixture.setMode("sheetsByVolume");
+  const summary = fixture.syncAll();
+  assert.equal(summary.volumes.length, 4);
+  assert.equal(fixture.requests.length, 1);
+  const { url, options } = fixture.requests[0];
+  assert.match(url, /\/documents:commit$/);
+  assert.equal(options.method, "post");
+  const payload = JSON.parse(options.payload);
+  assert.equal(payload.writes.length, 4);
+  assert.deepStrictEqual(
+    payload.writes.map(({ update }) => update.name.split("/").pop()),
+    ["vol1", "vol2", "vol3", "vol4"]
+  );
+  assert.ok(payload.writes.every(({ updateMask }) => (
+    updateMask.fieldPaths.includes("csv") &&
+    updateMask.fieldPaths.includes("csvGzipBase64") &&
+    updateMask.fieldPaths.includes("syncedAt")
+  )));
+  assert.ok(payload.writes.every(({ update }) => update.fields.csv.stringValue.includes("w_")));
+  assert.equal(fixture.writes.length, 0);
+}
+
+// A failed atomic commit is surfaced, and no fallback per-volume PATCH is sent.
+{
+  const fixture = createFixture({
+    vol1: [["word", "meaning", "partOfSpeech", "semanticCategory", "id"], ["a", "x", "noun", "object", "w_a"]],
+    vol2: [["word", "meaning", "partOfSpeech", "semanticCategory", "id"], ["b", "y", "noun", "object", "w_b"]],
+    vol3: [["word", "meaning", "partOfSpeech", "semanticCategory", "id"], ["c", "z", "noun", "object", "w_c"]],
+    vol4: [["word", "meaning", "partOfSpeech", "semanticCategory", "id"], ["d", "w", "noun", "object", "w_d"]]
+  });
+  fixture.setMode("sheetsByVolume");
+  fixture.setResponse(403, "{\"error\":\"access denied\"}");
+  assert.throws(() => fixture.syncAll(), /Firestore一括保存失敗: HTTP 403/);
+  assert.equal(fixture.requests.length, 1);
+  assert.equal(fixture.requests[0].options.method, "post");
+}
+
+// Unexpected success responses must not be misreported as a fully verified sync.
+{
+  const fixture = createFixture([
+    ["word", "meaning", "level", "partOfSpeech", "semanticCategory", "id"],
+    ["abandon", "捨てる", "1", "verb", "action", "w_a"],
+    ["expand", "広がる", "2", "verb", "change", "w_b"]
+  ]);
+  fixture.setResponse(200, "{}");
+  assert.throws(() => fixture.syncOne("vol1"), /応答件数が不一致/);
+  assert.equal(fixture.requests.length, 1);
+}
+
+console.log("Apps Script atomic Firestore commit regression tests passed.");
 console.log("Apps Script dryRun read-only regression tests passed.");

@@ -122,23 +122,21 @@ function syncAllVolumesToFirestore() {
     nonEmptyDocIds: CONFIG.volumes.map(({ docId }) => docId)
   });
   const syncedAt = new Date().toISOString();
-  const volumes = [];
 
-  CONFIG.volumes.forEach(({ docId }) => {
+  // Prepare and size-check EVERY document before making any Firestore request.
+  // Commit applies all four writes atomically; a failed commit changes none.
+  const prepared = CONFIG.volumes.map(({ docId }) => {
     const rows = groupedRows[docId] || [];
-    const storage = uploadCsvToFirestore(docId, rowsToCsv(rows), syncedAt, rows);
-    volumes.push({
-      docId,
-      rowCount: getWordCount(rows),
-      storageMode: storage.storageMode,
-      storedBytes: storage.storedBytes
-    });
+    return prepareFirestoreWrite(docId, rowsToCsv(rows), syncedAt, rows);
   });
 
-  Logger.log("全volのFirestore同期が完了しました。");
+  commitFirestoreWrites(prepared);
+  Logger.log("全volのFirestore一括同期が完了しました。");
   return {
     syncedAt,
-    volumes
+    volumes: prepared.map(({ docId, rowCount, storageMode, storedBytes }) => ({
+      docId, rowCount, storageMode, storedBytes
+    }))
   };
 }
 
@@ -166,20 +164,21 @@ function syncOneVolume(docId) {
   }
 
   const syncedAt = new Date().toISOString();
-  const storage = uploadCsvToFirestore(
+  const prepared = prepareFirestoreWrite(
     docId,
     rowsToCsv(groupedRows[docId]),
     syncedAt,
     groupedRows[docId]
   );
+  commitFirestoreWrites([prepared]);
   Logger.log(`${docId} の同期が完了しました。`);
   return {
     syncedAt,
     volumes: [{
       docId,
-      rowCount: getWordCount(groupedRows[docId]),
-      storageMode: storage.storageMode,
-      storedBytes: storage.storedBytes
+      rowCount: prepared.rowCount,
+      storageMode: prepared.storageMode,
+      storedBytes: prepared.storedBytes
     }]
   };
 }
@@ -565,8 +564,7 @@ function gzipCsvToBase64(csv) {
   return Utilities.base64Encode(gzipBlob.getBytes());
 }
 
-function uploadCsvToFirestore(docId, csv, syncedAt, rows) {
-  const accessToken = getAccessToken();
+function prepareFirestoreWrite(docId, csv, syncedAt, rows) {
   const rawBytes = getUtf8ByteLength(csv);
   const useCompression = rawBytes > FIRESTORE_SAFE_STRING_BYTES;
   const compressedBase64 = useCompression ? gzipCsvToBase64(csv) : "";
@@ -582,7 +580,6 @@ function uploadCsvToFirestore(docId, csv, syncedAt, rows) {
   const documentPath =
     `projects/${CONFIG.firebaseProjectId}` +
     `/databases/(default)/documents/${CONFIG.collectionName}/${docId}`;
-
   const updateFields = [
     "csv",
     "csvGzipBase64",
@@ -591,73 +588,73 @@ function uploadCsvToFirestore(docId, csv, syncedAt, rows) {
     "storedBytes",
     "syncedAt"
   ];
-  const updateMask = updateFields
-    .map((fieldName) => `updateMask.fieldPaths=${encodeURIComponent(fieldName)}`)
-    .join("&");
-  const url = `https://firestore.googleapis.com/v1/${documentPath}?${updateMask}`;
-
   const fields = {
     csvEncoding: {
       stringValue: useCompression ? "gzip-base64" : "plain"
     },
-    uncompressedBytes: {
-      integerValue: String(rawBytes)
-    },
-    storedBytes: {
-      integerValue: String(storedBytes)
-    },
-    syncedAt: {
-      timestampValue: syncedAt
-    }
+    uncompressedBytes: { integerValue: String(rawBytes) },
+    storedBytes: { integerValue: String(storedBytes) },
+    syncedAt: { timestampValue: syncedAt }
   };
 
   if (useCompression) {
-    fields.csvGzipBase64 = {
-      stringValue: compressedBase64
-    };
+    fields.csvGzipBase64 = { stringValue: compressedBase64 };
   } else {
-    fields.csv = {
-      stringValue: csv
-    };
+    fields.csv = { stringValue: csv };
   }
 
-  const payload = { fields };
+  const rowCount = Math.max((rows || []).length - 1, 0);
+  Logger.log(`同期準備: ${docId}, ${rowCount}語, ${storedBytes}bytes, ${useCompression ? "gzip-base64" : "plain"}`);
+  return {
+    docId,
+    rowCount,
+    storageMode: useCompression ? "gzip-base64" : "plain",
+    storedBytes,
+    write: {
+      update: { name: documentPath, fields },
+      // Masked-but-omitted csv/csvGzipBase64 clears a stale encoding field.
+      updateMask: { fieldPaths: updateFields }
+    }
+  };
+}
 
-  const csvRowCount = Math.max((rows || []).length - 1, 0);
-  Logger.log(`同期開始: ${docId}`);
-  Logger.log(`CSV行数: ${csvRowCount}`);
-  Logger.log(`Firestore保存先: ${CONFIG.collectionName}/${docId}`);
-  Logger.log(`保存形式: ${useCompression ? "gzip-base64" : "plain"}`);
-  Logger.log(`CSVサイズ: ${rawBytes} bytes -> ${storedBytes} bytes`);
-  Logger.log(`syncedAt: ${syncedAt}`);
+function commitFirestoreWrites(prepared) {
+  if (!prepared.length) {
+    throw new Error("Firestoreに書き込むデータがありません。");
+  }
 
+  const accessToken = getAccessToken();
+  const url =
+    `https://firestore.googleapis.com/v1/projects/${CONFIG.firebaseProjectId}` +
+    "/databases/(default)/documents:commit";
   const response = UrlFetchApp.fetch(url, {
-    method: "patch",
+    method: "post",
     contentType: "application/json",
-    headers: {
-      Authorization: `Bearer ${accessToken}`
-    },
-    payload: JSON.stringify(payload),
+    headers: { Authorization: `Bearer ${accessToken}` },
+    payload: JSON.stringify({ writes: prepared.map(({ write }) => write) }),
     muteHttpExceptions: true
   });
-
   const status = response.getResponseCode();
 
   if (status < 200 || status >= 300) {
-    Logger.log(`Firestore保存失敗: ${docId}, status=${status}`);
+    Logger.log(`Firestore一括保存失敗: status=${status}`);
     throw new Error(
-      `Firestore保存失敗: ${docId}\n` +
-      `status: ${status}\n` +
-      response.getContentText()
+      `Firestore一括保存失敗: HTTP ${status}。全巻の変更は確定していません。`
     );
   }
 
-  Logger.log(`Firestore保存成功: ${CONFIG.collectionName}/${docId}`);
-  return {
-    storageMode: useCompression ? "gzip-base64" : "plain",
-    rawBytes,
-    storedBytes
-  };
+  // An HTTP success is not enough to assert that every requested write
+  // was acknowledged. Avoid silently reporting success on malformed responses.
+  let result;
+  try {
+    result = JSON.parse(response.getContentText());
+  } catch (error) {
+    throw new Error("Firestore応答の解析に失敗。書込済みの可能性があるため、再実行前に本番データを確認してください。");
+  }
+  if (!Array.isArray(result.writeResults) || result.writeResults.length !== prepared.length) {
+    throw new Error("Firestore一括保存の応答件数が不一致。再実行前に本番データを確認してください。");
+  }
+  Logger.log(`Firestore一括保存成功: ${prepared.map(({ docId }) => docId).join(", ")}`);
 }
 
 function getAccessToken() {

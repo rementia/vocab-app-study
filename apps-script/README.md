@@ -124,8 +124,9 @@ In Google Sheets, hide and protect the `id` column so normal vocabulary edits do
 ## Validation and failure boundaries
 
 - The revised script validates unknown volume levels, cross-volume duplicate IDs, missing classifications, and empty target volumes before starting a normal sync. An invalid or empty volume aborts rather than overwriting Firestore with incomplete data.
+- After preflighting all four CSV payloads, a full sync uses Firestore REST `documents:commit` with a masked write for each volume. Firestore applies all four document writes atomically: if any fails, none are committed. Single-volume sync uses the same endpoint with one write.
 - `dryRun()` is a no-write preview: it does not create the `id` column or persist generated IDs to Google Sheets, and it does not change Firestore.
-- A real sync can still fail partway through separate Google Sheets cell writes or sequential Firestore volume writes. These operations are **not atomic**. Back up the source and destination before production rollout and verify each volume after sync.
+- Google Sheets stable-ID writes are still separate, non-atomic cell updates. They may remain if an error occurs before the Firestore commit; the Sheets and Firestore updates are not one cross-service transaction. Back up the source and destination before production rollout and verify each volume after sync.
 - Changes to this GitHub code do **not** automatically replace the active Apps Script editor project or its existing deployed Web App version. Validate the actual Apps Script installation separately before applying them.
 
 ## Firebase Console Check
