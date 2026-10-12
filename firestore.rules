@@ -1,3 +1,10 @@
+// DO NOT DEPLOY THIS HISTORICAL REFERENCE FILE.
+// The rules shown in Firebase Console on 2026-10-12 are more restrictive:
+// privateWords is restricted to two explicitly permitted Firebase UIDs;
+// privateUsers additionally requires matching userId; portfolioUsers uses
+// authenticated self-access. The UID values are deliberately not copied here.
+// firebase.json excludes this file from CLI deploys to prevent overwriting
+// the live policy. Refer to Firebase Console for the actual published rules.
 rules_version = '2';
 
 service cloud.firestore {
