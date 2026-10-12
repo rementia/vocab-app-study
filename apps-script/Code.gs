@@ -118,26 +118,28 @@ function doPost(e) {
 }
 
 function syncAllVolumesToFirestore() {
-  const groupedRows = buildGroupedRows({
-    nonEmptyDocIds: CONFIG.volumes.map(({ docId }) => docId)
-  });
-  const syncedAt = new Date().toISOString();
+  return withSyncLock(() => {
+    const groupedRows = buildGroupedRows({
+      nonEmptyDocIds: CONFIG.volumes.map(({ docId }) => docId)
+    });
+    const syncedAt = new Date().toISOString();
 
-  // Prepare and size-check EVERY document before making any Firestore request.
-  // Commit applies all four writes atomically; a failed commit changes none.
-  const prepared = CONFIG.volumes.map(({ docId }) => {
-    const rows = groupedRows[docId] || [];
-    return prepareFirestoreWrite(docId, rowsToCsv(rows), syncedAt, rows);
-  });
+    // Prepare and size-check EVERY document before making any Firestore request.
+    // Commit applies all four writes atomically; a failed commit changes none.
+    const prepared = CONFIG.volumes.map(({ docId }) => {
+      const rows = groupedRows[docId] || [];
+      return prepareFirestoreWrite(docId, rowsToCsv(rows), syncedAt, rows);
+    });
 
-  commitFirestoreWrites(prepared);
-  Logger.log("全volのFirestore一括同期が完了しました。");
-  return {
-    syncedAt,
-    volumes: prepared.map(({ docId, rowCount, storageMode, storedBytes }) => ({
-      docId, rowCount, storageMode, storedBytes
-    }))
-  };
+    commitFirestoreWrites(prepared);
+    Logger.log("全volのFirestore一括同期が完了しました。");
+    return {
+      syncedAt,
+      volumes: prepared.map(({ docId, rowCount, storageMode, storedBytes }) => ({
+        docId, rowCount, storageMode, storedBytes
+      }))
+    };
+  });
 }
 
 function syncVol1() {
@@ -157,30 +159,46 @@ function syncVol4() {
 }
 
 function syncOneVolume(docId) {
-  const groupedRows = buildGroupedRows({ nonEmptyDocIds: [docId] });
+  return withSyncLock(() => {
+    const groupedRows = buildGroupedRows({ nonEmptyDocIds: [docId] });
 
-  if (!groupedRows[docId]) {
-    throw new Error(`未定義のdocIdです: ${docId}`);
-  }
+    if (!groupedRows[docId]) {
+      throw new Error(`未定義のdocIdです: ${docId}`);
+    }
 
-  const syncedAt = new Date().toISOString();
-  const prepared = prepareFirestoreWrite(
-    docId,
-    rowsToCsv(groupedRows[docId]),
-    syncedAt,
-    groupedRows[docId]
-  );
-  commitFirestoreWrites([prepared]);
-  Logger.log(`${docId} の同期が完了しました。`);
-  return {
-    syncedAt,
-    volumes: [{
+    const syncedAt = new Date().toISOString();
+    const prepared = prepareFirestoreWrite(
       docId,
-      rowCount: prepared.rowCount,
-      storageMode: prepared.storageMode,
-      storedBytes: prepared.storedBytes
-    }]
-  };
+      rowsToCsv(groupedRows[docId]),
+      syncedAt,
+      groupedRows[docId]
+    );
+    commitFirestoreWrites([prepared]);
+    Logger.log(`${docId} の同期が完了しました。`);
+    return {
+      syncedAt,
+      volumes: [{
+        docId,
+        rowCount: prepared.rowCount,
+        storageMode: prepared.storageMode,
+        storedBytes: prepared.storedBytes
+      }]
+    };
+  });
+}
+
+function withSyncLock(run) {
+  // Serialize executions belonging to this Apps Script project, including
+  // manual runs and legacy doPost calls. Never release a lock we did not get.
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) {
+    throw new Error("別の語彙同期処理が実行中です。完了後に再実行してください。");
+  }
+  try {
+    return run();
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function buildGroupedRows({ preview = false, nonEmptyDocIds = [] } = {}) {

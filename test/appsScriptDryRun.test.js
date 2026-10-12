@@ -22,6 +22,7 @@ function createFixture(initialRows) {
   let fakeSuccessOnWriteNumber = null;
   let writeAttempts = 0;
   let injectOnCellRead = null;
+  const lockState = { locked: false, contended: false, tries: 0, releases: 0 };
   const sheets = Object.entries(rowsBySheet).map(([name, rows], index) => ({
     getName: () => name,
     getSheetId: () => index + 1,
@@ -55,6 +56,20 @@ function createFixture(initialRows) {
   };
   const context = createContext({
     SpreadsheetApp: { getActiveSpreadsheet: () => spreadsheet, flush: () => {} },
+    LockService: { getScriptLock: () => ({
+      tryLock(timeoutMs) {
+        assert.equal(timeoutMs, 30000);
+        lockState.tries++;
+        if (lockState.contended || lockState.locked) return false;
+        lockState.locked = true;
+        return true;
+      },
+      releaseLock() {
+        assert.equal(lockState.locked, true, "must only release acquired lock");
+        lockState.locked = false;
+        lockState.releases++;
+      }
+    }) },
     Logger: { log: (message) => logs.push(String(message)) },
     UrlFetchApp: { fetch: (url, options) => {
       requests.push({ url, options });
@@ -82,6 +97,8 @@ function createFixture(initialRows) {
     writes,
     logs,
     requests,
+    lockState,
+    holdLock: (isHeld) => { lockState.contended = isHeld; },
     failOnWrite: (number) => { failOnWriteNumber = number; },
     fakeSuccessOnWrite: (number) => { fakeSuccessOnWriteNumber = number; },
     injectAtPrewriteRead: (row, col, value) => { injectOnCellRead = { row, col, value }; },
@@ -416,6 +433,70 @@ for (const invalidLevel of ["vol9", "", "unassigned"]) {
   assert.equal(fixture.requests.length, 0);
   assert.equal(fixture.rowsBySheet["シート1"][3][5], "w_concurrent");
 }
+
+// All Firestore synchronization routes must use and release the same script lock.
+{
+  const fixture = createFixture([
+    ["word", "meaning", "level", "partOfSpeech", "semanticCategory", "id"],
+    ["alpha", "A", "1", "noun", "thing", "w_one"],
+    ["beta", "B", "2", "noun", "thing", "w_two"],
+    ["gamma", "C", "3", "noun", "thing", "w_three"],
+    ["delta", "D", "4", "noun", "thing", "w_four"]
+  ]);
+  fixture.syncAll();
+  fixture.syncOne("vol1");
+  assert.equal(fixture.lockState.tries, 2);
+  assert.equal(fixture.lockState.releases, 2);
+  assert.equal(fixture.lockState.locked, false);
+  assert.equal(fixture.requests.length, 2);
+}
+
+// Lock contention must abort before any source writes or Firestore requests.
+{
+  const fixture = createFixture([
+    ["word", "meaning", "level", "partOfSpeech", "semanticCategory"],
+    ["alpha", "A", "1", "noun", "thing"],
+    ["beta", "B", "2", "noun", "thing"],
+    ["gamma", "C", "3", "noun", "thing"],
+    ["delta", "D", "4", "noun", "thing"]
+  ]);
+  fixture.holdLock(true);
+  assert.throws(() => fixture.syncAll(), /別の語彙同期処理が実行中/);
+  assert.equal(fixture.lockState.tries, 1);
+  assert.equal(fixture.lockState.releases, 0);
+  assert.equal(fixture.writes.length, 0);
+  assert.equal(fixture.requests.length, 0);
+}
+
+// A failed Sheets write / failed Firestore commit must still release the lock.
+{
+  const fixture = createFixture([
+    ["word", "meaning", "level", "partOfSpeech", "semanticCategory"],
+    ["alpha", "A", "1", "noun", "thing"],
+    ["beta", "B", "2", "noun", "thing"],
+    ["gamma", "C", "3", "noun", "thing"],
+    ["delta", "D", "4", "noun", "thing"]
+  ]);
+  fixture.failOnWrite(2);
+  assert.throws(() => fixture.syncAll(), /ID保存検証失敗/);
+  assert.equal(fixture.lockState.releases, 1);
+  assert.equal(fixture.lockState.locked, false);
+}
+{
+  const fixture = createFixture([
+    ["word", "meaning", "level", "partOfSpeech", "semanticCategory", "id"],
+    ["alpha", "A", "1", "noun", "thing", "w_one"],
+    ["beta", "B", "2", "noun", "thing", "w_two"],
+    ["gamma", "C", "3", "noun", "thing", "w_three"],
+    ["delta", "D", "4", "noun", "thing", "w_four"]
+  ]);
+  fixture.setResponse(500);
+  assert.throws(() => fixture.syncAll(), /Firestore一括保存失敗/);
+  assert.equal(fixture.lockState.releases, 1);
+  assert.equal(fixture.lockState.locked, false);
+}
+
+console.log("Apps Script synchronization lock regression tests passed.");
 
 console.log("Apps Script generated ID persistence checks passed.");
 
