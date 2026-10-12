@@ -18,6 +18,9 @@ function createFixture(initialRows) {
   const logs = [];
   const requests = [];
   const responseState = { status: 200, body: null };
+  let failOnWriteNumber = null;
+  let fakeSuccessOnWriteNumber = null;
+  let writeAttempts = 0;
   const sheets = Object.entries(rowsBySheet).map(([name, rows], index) => ({
     getName: () => name,
     getSheetId: () => index + 1,
@@ -25,8 +28,16 @@ function createFixture(initialRows) {
       getDisplayValues: () => rows.map((row) => [...row])
     }),
     getRange: (row, col) => ({
+      getDisplayValue() {
+        return String(rows[row - 1]?.[col - 1] ?? "");
+      },
       setValue(value) {
+        writeAttempts++;
+        if (writeAttempts === failOnWriteNumber) {
+          throw new Error("simulated Sheets write failure");
+        }
         writes.push({ sheet: name, row, col, value });
+        if (writeAttempts === fakeSuccessOnWriteNumber) return;
         while (rows[row - 1].length < col) rows[row - 1].push("");
         rows[row - 1][col - 1] = value;
       }
@@ -37,7 +48,7 @@ function createFixture(initialRows) {
     getSheetByName: (name) => sheets.find((sheet) => sheet.getName() === name) || null
   };
   const context = createContext({
-    SpreadsheetApp: { getActiveSpreadsheet: () => spreadsheet },
+    SpreadsheetApp: { getActiveSpreadsheet: () => spreadsheet, flush: () => {} },
     Logger: { log: (message) => logs.push(String(message)) },
     UrlFetchApp: { fetch: (url, options) => {
       requests.push({ url, options });
@@ -65,6 +76,8 @@ function createFixture(initialRows) {
     writes,
     logs,
     requests,
+    failOnWrite: (number) => { failOnWriteNumber = number; },
+    fakeSuccessOnWrite: (number) => { fakeSuccessOnWriteNumber = number; },
     setResponse: (status, body = null) => { responseState.status = status; responseState.body = body; },
     setMode: (mode) => runInContext(`CONFIG.mode = ${JSON.stringify(mode)}`, context),
     preview: () => runInContext("buildGroupedRows({ preview: true })", context),
@@ -348,6 +361,55 @@ for (const invalidLevel of ["vol9", "", "unassigned"]) {
   assert.throws(() => fixture.syncOne("vol1"), /応答件数が不一致/);
   assert.equal(fixture.requests.length, 1);
 }
+
+// Simulated failure partway through saving new IDs must prevent Firestore commit.
+{
+  const headers = ["word", "meaning", "level", "partOfSpeech", "semanticCategory"];
+  const fixture = createFixture([
+    headers,
+    ["alpha", "A", "1", "noun", "thing"],
+    ["beta", "B", "2", "noun", "thing"],
+    ["gamma", "C", "3", "noun", "thing"],
+    ["delta", "D", "4", "noun", "thing"]
+  ]);
+  fixture.failOnWrite(3);
+  assert.throws(() => fixture.syncAll(), /ID保存検証失敗.*Firestoreには未同期/);
+  assert.equal(fixture.requests.length, 0);
+  // The earlier header and first new ID may be saved, but Firestore is unchanged.
+  assert.equal(fixture.writes.length, 2);
+}
+
+// A silent Sheets write failure must be detected by reading the cell back.
+{
+  const fixture = createFixture([
+    ["word", "meaning", "level", "partOfSpeech", "semanticCategory", "id"],
+    ["alpha", "A", "1", "noun", "thing", ""],
+    ["beta", "B", "2", "noun", "thing", ""],
+    ["gamma", "C", "3", "noun", "thing", ""],
+    ["delta", "D", "4", "noun", "thing", ""]
+  ]);
+  fixture.fakeSuccessOnWrite(2);
+  assert.throws(() => fixture.syncAll(), /書込後のIDが一致しません/);
+  assert.equal(fixture.requests.length, 0);
+}
+
+// A concurrent update to a target ID cell must abort before ANY generated IDs are persisted.
+{
+  const fixture = createFixture([
+    ["word", "meaning", "level", "partOfSpeech", "semanticCategory", "id"],
+    ["alpha", "A", "1", "noun", "thing", ""],
+    ["beta", "B", "2", "noun", "thing", ""],
+    ["gamma", "C", "3", "noun", "thing", ""],
+    ["delta", "D", "4", "noun", "thing", ""]
+  ]);
+  fixture.rowsBySheet["シート1"][3][5] = "w_concurrent";
+  // Reading the current sheet now contains a valid ID, thus no pending write
+  // for that row; there should still be no overwrite of this preexisting ID.
+  fixture.syncAll();
+  assert.equal(fixture.rowsBySheet["シート1"][3][5], "w_concurrent");
+}
+
+console.log("Apps Script generated ID persistence checks passed.");
 
 console.log("Apps Script atomic Firestore commit regression tests passed.");
 console.log("Apps Script dryRun read-only regression tests passed.");

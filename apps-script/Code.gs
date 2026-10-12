@@ -202,12 +202,45 @@ function buildGroupedRows({ preview = false, nonEmptyDocIds = [] } = {}) {
   validateNonEmptyVolumes(groupedRows, nonEmptyDocIds);
 
   if (!preview) {
-    pendingIdWrites.forEach(({ sheet, row, column, value }) => {
-      sheet.getRange(row, column).setValue(value);
-    });
+    persistGeneratedIds(pendingIdWrites);
   }
 
   return groupedRows;
+}
+
+// Google Sheets writes are not transactional with Firestore. Pre-check all
+// target cells, and verify persisted values before starting Firestore writes.
+// If a write fails partway, the partial IDs remain in Sheets but the next sync
+// can safely reuse them; Firestore is NOT updated by this attempt.
+function persistGeneratedIds(pendingIdWrites) {
+  const targets = pendingIdWrites.map(({ sheet, row, column, value }) => {
+    const range = sheet.getRange(row, column);
+    const current = String(range.getDisplayValue() ?? "").trim();
+    if (current !== "") {
+      throw new Error(
+        `ID書込先が既に変更されています: ${sheet.getName()} 行${row} 列${column}。Firestore同期を中止しました。`
+      );
+    }
+    return { range, sheetName: sheet.getName(), row, column, value };
+  });
+
+  for (const target of targets) {
+    const position = `${target.sheetName} 行${target.row} 列${target.column}`;
+    try {
+      target.range.setValue(target.value);
+      SpreadsheetApp.flush();
+      const persisted = String(target.range.getDisplayValue() ?? "").trim();
+      if (persisted !== target.value) {
+        throw new Error("書込後のIDが一致しません。");
+      }
+    } catch (error) {
+      throw new Error(
+        `ID保存検証失敗: ${position}。Firestoreには未同期です。` +
+        "一部のIDだけGoogle Sheetsに保存されている可能性があります。" +
+        `原因: ${error && error.message ? error.message : String(error)}`
+      );
+    }
+  }
 }
 
 function buildGroupedRowsFromVolumeSheets({ pendingIdWrites }) {
