@@ -12,11 +12,16 @@
  * Firestore string/document size limit.
  *
  * Do not paste service account private keys directly into this file.
- * Store CLIENT_EMAIL, PRIVATE_KEY, and SYNC_TOKEN in Apps Script Properties.
+ * Store CLIENT_EMAIL and PRIVATE_KEY in Apps Script Properties.
+ * The retired Web App sync route is disabled by default, even if a
+ * SYNC_TOKEN property is accidentally reintroduced.
  */
 const CONFIG = {
   firebaseProjectId: "svl-app-65204",
   collectionName: "privateWords",
+  // Do not enable legacy remote sync without a reviewed server-side auth design.
+  // The current browser application does not call this Web App endpoint.
+  enableLegacyWebAppSync: false,
 
   // "sheetsByVolume" or "singleSheetWithLevel"
   mode: "singleSheetWithLevel",
@@ -89,6 +94,10 @@ function dryRun() {
 function doPost(e) {
   try {
     Logger.log("doPost開始");
+
+    if (!CONFIG.enableLegacyWebAppSync) {
+      throw new Error("旧Webアプリ同期は無効化されています。Apps Scriptエディタから手動同期してください。");
+    }
 
     validateSyncToken(e);
     Logger.log("トークン検証成功");

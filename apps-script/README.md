@@ -41,7 +41,7 @@ The `csv` field is required by the web app. The `syncedAt` field is optional, bu
 5. Set Script Properties:
    - `CLIENT_EMAIL = service account JSON client_email`
    - `PRIVATE_KEY = service account JSON private_key`
-   - `SYNC_TOKEN = a server-side secret only if you retain the legacy doPost endpoint; never copy this into browser JavaScript or GitHub`
+   - `SYNC_TOKEN` is **not required** for routine editor-run synchronization. Leave it deleted. Do not re-enable legacy remote synchronization without a reviewed server-side authentication design.
 6. Run `dryRun()` to confirm row counts **without writing to Google Sheets or Firestore** (requires the proposed Apps Script version to be deployed).
 7. Run `syncAllVolumesToFirestore()` or `syncVol1()` / `syncVol2()` / `syncVol3()` / `syncVol4()`.
 8. Approve the required Apps Script permissions.
@@ -57,7 +57,7 @@ If a real private key was committed even once, removing it from the repository i
 
 The current `index.html` → `bootstrap.js` → `app.js` flow does not invoke the Apps Script Web App. The `単語更新` button only reloads Firestore. For routine personal sync, use the Apps Script editor to run `syncAllVolumesToFirestore()` after checking source data, then reload the app.
 
-The legacy `doPost()` endpoint accepts `SYNC_TOKEN` from a request and, when valid, runs a privileged Firestore sync using service credentials stored in Script Properties. If the Web App is deployed to execute **as the owner** with access **to everyone**, a leaked token may allow others to start that privileged operation. Do not expose the token or privileged Web App URL in frontend code, a public repository, documentation or issues.
+The legacy `doPost()` endpoint is disabled by default in the revised `Code.gs` (`CONFIG.enableLegacyWebAppSync = false`), even if somebody accidentally restores `SYNC_TOKEN`. Re-enabling this retired path is not recommended without a reviewed server-side authentication design; the browser app does not depend on it. Only if explicitly re-enabled would the endpoint accept `SYNC_TOKEN` from a request and run privileged Firestore sync using service credentials stored in Script Properties. If the Web App is deployed to execute **as the owner** with access **to everyone**, a leaked token may allow others to start that privileged operation. Do not expose the token or privileged Web App URL in frontend code, a public repository, documentation or issues.
 
 Before maintaining or re-enabling remote calls, verify the actual deployed script version, allowed callers, access settings and dependencies. Use a server-side authorization design that does not rely on a browser-distributed shared token. Treat any historically exposed token as compromised and rotate/revoke it in the actual Apps Script environment, after planning updates for legitimate callers. Git history and old Hosting releases may continue to contain historical values.
 
@@ -72,7 +72,6 @@ If Firestore returns `403` or an authorization error, check:
 - `CONFIG.firebaseProjectId`
 - Script Properties `CLIENT_EMAIL`
 - Script Properties `PRIVATE_KEY`
-- Script Properties `SYNC_TOKEN`
 - whether `PRIVATE_KEY` keeps `\n` line breaks correctly
 - Firestore IAM permissions for the service account
 

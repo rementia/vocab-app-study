@@ -72,6 +72,12 @@ function createFixture(initialRows) {
       }
     }) },
     Logger: { log: (message) => logs.push(String(message)) },
+    ContentService: {
+      MimeType: { JSON: "application/json" },
+      createTextOutput: (value) => ({
+        setMimeType: () => ({ getContent: () => value })
+      })
+    },
     PropertiesService: { getScriptProperties: () => ({
       getProperty: (key) => key === "SYNC_TOKEN" ? authProps.syncToken : null
     }) },
@@ -108,6 +114,10 @@ function createFixture(initialRows) {
       `validateSyncToken(${JSON.stringify({ postData: { contents: JSON.stringify({ token }) } })})`,
       context
     ),
+    invokeWebSync: (token) => JSON.parse(runInContext(
+      `doPost(${JSON.stringify({ postData: { contents: JSON.stringify({ token }) } })}).getContent()`,
+      context
+    )),
     failOnWrite: (number) => { failOnWriteNumber = number; },
     fakeSuccessOnWrite: (number) => { fakeSuccessOnWriteNumber = number; },
     injectAtPrewriteRead: (row, col, value) => { injectOnCellRead = { row, col, value }; },
@@ -572,6 +582,27 @@ for (const invalidLevel of ["vol9", "", "unassigned"]) {
   assert.throws(() => fixture.preview(), /同期元シートが複数見つかりました/);
   assert.equal(fixture.writes.length, 0);
 }
+// Legacy doPost must remain disabled even if somebody re-adds a valid
+// SYNC_TOKEN property. It must not acquire sync locks or mutate either store.
+{
+  const fixture = createFixture([
+    ["word", "meaning", "level", "partOfSpeech", "semanticCategory"],
+    ["alpha", "A", "1", "noun", "thing"],
+    ["beta", "B", "2", "noun", "thing"],
+    ["gamma", "C", "3", "noun", "thing"],
+    ["delta", "D", "4", "noun", "thing"]
+  ]);
+  fixture.setExpectedSyncToken("server_only_test_token");
+  const response = fixture.invokeWebSync("server_only_test_token");
+  assert.equal(response.ok, false);
+  assert.match(response.error, /旧Webアプリ同期は無効化されています/);
+  assert.equal(fixture.requests.length, 0);
+  assert.equal(fixture.writes.length, 0);
+  assert.equal(fixture.lockState.tries, 0);
+}
+
+console.log("Apps Script legacy remote sync opt-out regression tests passed.");
+
 console.log("Apps Script explicit source-sheet regression tests passed.");
 
 console.log("Apps Script revoked token fail-closed regression tests passed.");
