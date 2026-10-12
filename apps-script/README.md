@@ -120,6 +120,10 @@ The Apps Script manages a stable `id` column in Google Sheets before exporting C
 
 In Google Sheets, hide and protect the `id` column so normal vocabulary edits do not accidentally change word identity. Changing an existing `id` can disconnect favorites, difficult words, and review history from that word.
 
+## Production rollout and backup
+
+Before deploying modified Apps Script code, follow the [backup, preflight, rollback and recovery checklist](../docs/sync-rollout-and-recovery.md). A verified **Sheets-only** backup is available as of 2026-10-12; the Firestore backup and restore verification are **not** complete. Never run the original Apps Script v4 `dryRun()` (it may write IDs into Sheets).
+
 ## Validation and failure boundaries
 
 - The revised script validates unknown volume levels, cross-volume duplicate IDs, missing classifications, and empty target volumes before starting a normal sync. An invalid or empty volume aborts rather than overwriting Firestore with incomplete data.
