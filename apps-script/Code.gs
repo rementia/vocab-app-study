@@ -25,8 +25,8 @@ const CONFIG = {
   volumeSheetNames: ["vol1", "vol2", "vol3", "vol4"],
 
   // singleSheetWithLevel mode reads one sheet and splits rows by level.
-  // Preferred source sheet. If this sheet has no usable classification data,
-  // the script automatically searches other sheets for the required columns.
+  // Explicit source sheet. If it is missing or invalid, fail closed.
+  // Never silently fall back to a different sheet.
   sourceSheetName: "シート1",
   levelColumnName: "level",
   requireClassificationData: true,
@@ -426,45 +426,49 @@ function validateGroupedRowIds(groupedRows) {
 function getSourceSheet() {
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   const sheets = spreadsheet.getSheets();
-
   if (!sheets.length) {
     throw new Error("スプレッドシートにシートがありません。");
   }
 
-  const preferredSheet = CONFIG.sourceSheetName
-    ? spreadsheet.getSheetByName(CONFIG.sourceSheetName)
-    : null;
+  const preferredName = String(CONFIG.sourceSheetName || "").trim();
+  if (preferredName) {
+    const sheet = spreadsheet.getSheetByName(preferredName);
+    if (!sheet) {
+      throw new Error(
+        `指定された同期元シートが存在しません: ${preferredName}。別シートへの自動切替は行いません。`
+      );
+    }
+    const inspected = inspectSheetForSync(sheet);
+    if (!inspected.hasBaseColumns || !inspected.hasClassificationColumns) {
+      throw new Error(
+        `指定された同期元シートの必須列が不足しています: ${preferredName}。別シートへの自動切替は行いません。`
+      );
+    }
+    if (CONFIG.requireClassificationData && inspected.classifiedRows === 0) {
+      throw new Error(
+        `指定された同期元シートの分類データが空です: ${preferredName}。別シートへの自動切替は行いません。`
+      );
+    }
+    Logger.log(`同期元シート: ${inspected.sheetName} / 分類済み行: ${inspected.classifiedRows} / データ行: ${inspected.dataRows}`);
+    return sheet;
+  }
 
-  const orderedSheets = preferredSheet
-    ? [preferredSheet, ...sheets.filter((sheet) => sheet.getSheetId() !== preferredSheet.getSheetId())]
-    : sheets;
-
-  const diagnostics = orderedSheets.map(inspectSheetForSync);
-  const usable = diagnostics.filter((item) => item.hasBaseColumns && item.hasClassificationColumns);
-
+  const inspected = sheets.map(inspectSheetForSync);
+  const usable = inspected.filter((item) => (
+    item.hasBaseColumns &&
+    item.hasClassificationColumns &&
+    (!CONFIG.requireClassificationData || item.classifiedRows > 0)
+  ));
   if (!usable.length) {
-    const summary = diagnostics
-      .map((item) => `${item.sheetName}: base=${item.hasBaseColumns}, classificationColumns=${item.hasClassificationColumns}, classifiedRows=${item.classifiedRows}`)
-      .join(" / ");
+    throw new Error("必要な列と分類情報を備えた同期元シートがありません。");
+  }
+  if (usable.length !== 1) {
     throw new Error(
-      "word / meaning / level / partOfSpeech / semanticCategory を備えた同期元シートが見つかりません。" +
-      (summary ? ` 候補: ${summary}` : "")
+      `同期元シートが複数見つかりました: ${usable.map((item) => item.sheetName).join(", ")}。CONFIG.sourceSheetName を指定してください。`
     );
   }
-
-  const withData = usable.filter((item) => item.classifiedRows > 0);
-  const selected = (withData.length ? withData : usable)[0];
-
-  if (CONFIG.requireClassificationData && selected.classifiedRows === 0) {
-    throw new Error(
-      `分類データが空のため同期を中止しました: ${selected.sheetName} ` +
-      "(partOfSpeech / semanticCategory に値がありません)"
-    );
-  }
-
-  Logger.log(
-    `同期元シート: ${selected.sheetName} / 分類済み行: ${selected.classifiedRows} / データ行: ${selected.dataRows}`
-  );
+  const selected = usable[0];
+  Logger.log(`同期元シート: ${selected.sheetName} / 分類済み行: ${selected.classifiedRows} / データ行: ${selected.dataRows}`);
   return selected.sheet;
 }
 

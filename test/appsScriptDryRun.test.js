@@ -113,6 +113,7 @@ function createFixture(initialRows) {
     injectAtPrewriteRead: (row, col, value) => { injectOnCellRead = { row, col, value }; },
     setResponse: (status, body = null) => { responseState.status = status; responseState.body = body; },
     setMode: (mode) => runInContext(`CONFIG.mode = ${JSON.stringify(mode)}`, context),
+    setSourceSheetName: (name) => runInContext(`CONFIG.sourceSheetName = ${JSON.stringify(name)}`, context),
     preview: () => runInContext("buildGroupedRows({ preview: true })", context),
     regular: () => runInContext("buildGroupedRows()", context),
     syncAll: () => runInContext("syncAllVolumesToFirestore()", context),
@@ -522,6 +523,56 @@ for (const invalidLevel of ["vol9", "", "unassigned"]) {
   assert.equal(fixture.requests.length, 0);
   assert.equal(fixture.writes.length, 0);
 }
+
+// The configured study source sheet must not silently fall back to another
+// sheet (such as a backup) if it is missing, invalid, or has no classifications.
+{
+  const good = [
+    ["word", "meaning", "level", "partOfSpeech", "semanticCategory"],
+    ["alpha", "A", "1", "noun", "thing"]
+  ];
+  const fixture = createFixture({ backup: good });
+  assert.throws(() => fixture.preview(), /指定された同期元シートが存在しません/);
+  assert.equal(fixture.writes.length, 0);
+  assert.equal(fixture.requests.length, 0);
+}
+{
+  const good = [
+    ["word", "meaning", "level", "partOfSpeech", "semanticCategory"],
+    ["alpha", "A", "1", "noun", "thing"]
+  ];
+  const fixture = createFixture({
+    "シート1": [["word", "meaning", "level"], ["wrong", "WRONG", "1"]],
+    backup: good
+  });
+  assert.throws(() => fixture.regular(), /指定された同期元シートの必須列が不足/);
+  assert.equal(fixture.writes.length, 0);
+}
+{
+  const good = [
+    ["word", "meaning", "level", "partOfSpeech", "semanticCategory"],
+    ["alpha", "A", "1", "noun", "thing"]
+  ];
+  const fixture = createFixture({
+    "シート1": [
+      good[0], ["wrong", "WRONG", "1", "", ""]
+    ],
+    backup: good
+  });
+  assert.throws(() => fixture.regular(), /指定された同期元シートの分類データが空/);
+  assert.equal(fixture.writes.length, 0);
+}
+{
+  const good = [
+    ["word", "meaning", "level", "partOfSpeech", "semanticCategory"],
+    ["alpha", "A", "1", "noun", "thing"]
+  ];
+  const fixture = createFixture({ primary: good, backup: good });
+  fixture.setSourceSheetName("");
+  assert.throws(() => fixture.preview(), /同期元シートが複数見つかりました/);
+  assert.equal(fixture.writes.length, 0);
+}
+console.log("Apps Script explicit source-sheet regression tests passed.");
 
 console.log("Apps Script revoked token fail-closed regression tests passed.");
 

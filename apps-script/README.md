@@ -37,7 +37,7 @@ The `csv` field is required by the web app. The `syncedAt` field is optional, bu
 1. Open Google Apps Script from the vocabulary spreadsheet.
 2. Paste `Code.gs` into the Apps Script editor.
 3. Set `CONFIG.firebaseProjectId`.
-4. Choose the sheet layout in `CONFIG.mode`.
+4. Choose the sheet layout in `CONFIG.mode`, and set `CONFIG.sourceSheetName` to the exact intended tab for single-sheet mode. When set, a missing or invalid tab aborts synchronization rather than falling back to another tab. If left blank, synchronization requires exactly one valid candidate tab.
 5. Set Script Properties:
    - `CLIENT_EMAIL = service account JSON client_email`
    - `PRIVATE_KEY = service account JSON private_key`
