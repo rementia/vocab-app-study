@@ -39,13 +39,11 @@ If you discover a potential security issue, you may report it through a non-publ
 
 ## Notes
 
-* The browser uses public Firebase client configuration, including its Firebase API key; this is **not** a server-side authentication secret. Firebase Auth, Firestore Security Rules and service permissions must enforce access restrictions.
-  （ブラウザ内のFirebase設定値は公開情報です。アクセス制御はFirebase Auth、Firestoreのルールとサービス権限で行います。）
-* The separate Google Apps Script synchronization flow requires service-account credentials in **Apps Script Script Properties**. Never commit the actual private key, access tokens or other server credentials to GitHub.
-  （Apps Script側で使用するサービスアカウント秘密鍵等はScript Propertiesで管理し、GitHubには保存しません。）
-* A token or sync URL included in public frontend source or a public repository is **not** a strong authorization boundary. Verify the actual Apps Script deployment access and execution identity independently.
-  （公開コードに含まれる同期用トークンやURLだけでは、第三者からの利用を安全に防止できません。実デプロイの権限確認が必要です。）
-* Under the current **repository** Firestore rules, `privateWords/{vol}` is readable by **any authenticated Firebase user**, not only its owner. Actual deployed rules require separate verification. Per-user `privateUsers/{uid}` reads/writes are UID-scoped.
-  （リポジトリ上のルールでは単語データは認証済みユーザー全員が閲覧可能です。本番反映状況は未確認です。）
-* If real server credentials have ever been exposed, removing them from the repository alone does not revoke them; rotate or revoke them in the relevant provider.
-  （秘密鍵が流出した場合、GitHubからの削除だけでなく提供元での失効・ローテーションが必要です。）
+* Firebase client configuration is public, not a substitute for authentication or Firestore Security Rules.
+  （Firebaseクライアント設定は公開情報であり、アクセス制御の代替にはなりません。）
+* Google Apps Script synchronization uses service-account credentials in Script Properties. Never place real private keys, access tokens, privileged synchronization tokens or privileged Web App URLs in GitHub or browser-visible JavaScript.
+  （Apps Scriptのサービス資格情報と特権同期トークンは公開コードへ置かず、Script Properties等で保管します。）
+* The current study app reloads Firestore only; it does not use the old browser-side synchronization configuration. Publicly exposed historical tokens require revocation or rotation, not merely source deletion. Independently verify the active Apps Script deployment and its access settings before changing production credentials.
+  （旧ブラウザ側同期設定は未使用です。公開履歴にあるトークンは削除だけで無効化されず、本番デプロイを確認してから失効させます。）
+* Repository Firestore rules currently let any authenticated Firebase user read `privateWords/{vol}`, while `privateUsers/{uid}` is UID-scoped. The rules actually deployed to production need separate verification.
+  （リポジトリのルールと本番適用中のルールは区別します。）

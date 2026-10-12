@@ -41,8 +41,8 @@ The `csv` field is required by the web app. The `syncedAt` field is optional, bu
 5. Set Script Properties:
    - `CLIENT_EMAIL = service account JSON client_email`
    - `PRIVATE_KEY = service account JSON private_key`
-   - `SYNC_TOKEN = the same string as the web app SHEET_SYNC_TOKEN`
-6. Run `dryRun()` to confirm row counts without writing to **Google Sheets or Firestore**. Missing stable IDs are generated **in memory only** during preview. They are not saved to Sheets until a real sync. A real sync also validates all volumes for duplicate IDs and required classification data **before** writing generated IDs to Sheets; a validation failure makes no ID changes.
+   - `SYNC_TOKEN = a server-side secret only if you retain the legacy doPost endpoint; never copy this into browser JavaScript or GitHub`
+6. Run `dryRun()` to confirm row counts **without writing to Google Sheets or Firestore** (requires the proposed Apps Script version to be deployed).
 7. Run `syncAllVolumesToFirestore()` or `syncVol1()` / `syncVol2()` / `syncVol3()` / `syncVol4()`.
 8. Approve the required Apps Script permissions.
 9. Check the Apps Script execution log for target volume, CSV row count, Firestore destination, `syncedAt`, and success or failure.
@@ -53,27 +53,15 @@ Do not paste service account private keys, access tokens, or other secrets into 
 
 If a real private key was committed even once, removing it from the repository is not enough. Delete or disable that service account key in Google Cloud Console and issue a new key before using it again.
 
-## Web App Deployment (optional, currently unused by the app UI)
+## Web App Deployment (optional; currently unused by the app UI)
 
-The current `index.html` → `bootstrap.js` → `app.js` flow does **not** invoke the Apps Script Web App: the `単語更新` button reloads Firestore only. The following deployment flow is retained for a separately implemented or experimental browser-side sync caller; it is **not required** to use the current button.
+The current `index.html` → `bootstrap.js` → `app.js` flow does not invoke the Apps Script Web App. The `単語更新` button only reloads Firestore. For routine personal sync, use the Apps Script editor to run `syncAllVolumesToFirestore()` after checking source data, then reload the app.
 
-If you intentionally implement such a caller:
+The legacy `doPost()` endpoint accepts `SYNC_TOKEN` from a request and, when valid, runs a privileged Firestore sync using service credentials stored in Script Properties. If the Web App is deployed to execute **as the owner** with access **to everyone**, a leaked token may allow others to start that privileged operation. Do not expose the token or privileged Web App URL in frontend code, a public repository, documentation or issues.
 
-1. Open the Apps Script editor.
-2. Select Deploy.
-3. Select New deployment.
-4. Choose type: Web app.
-5. Execute as: Me.
-6. Choose access according to your private study operation.
-7. Copy the Web App URL.
-8. Connect the deployed URL only from the separately implemented caller; `syncConfig.js` alone does not activate the current app UI.
-9. A token stored in `syncConfig.js` is public to readers of the repository/client bundle. Do not use it as the only protection for a privileged synchronization endpoint; enforce appropriate deployment access and credentials independently.
+Before maintaining or re-enabling remote calls, verify the actual deployed script version, allowed callers, access settings and dependencies. Use a server-side authorization design that does not rely on a browser-distributed shared token. Treat any historically exposed token as compromised and rotate/revoke it in the actual Apps Script environment, after planning updates for legitimate callers. Git history and old Hosting releases may continue to contain historical values.
 
-The frontend token is not a strong secret because it is shipped to the browser. Treat it only as a lightweight guard for a personal study app. Firestore access control and service account permissions still matter.
-
-`SYNC_TOKEN` is only a lightweight guard for this personal study version. The matching `SHEET_SYNC_TOKEN` in the web app can be visible in the browser, so it must not be treated like a server-side secret.
-
-If browser fetch fails because of deployment or CORS-like access behavior, confirm the Web App URL, deployment access setting, and Apps Script execution logs first.
+If the browser needs direct secure synchronization in the future, implement an authenticated server-side endpoint with appropriate user permissions and abuse controls; do not restore a token to `syncConfig.js`.
 
 ## Authentication Note
 
@@ -115,10 +103,6 @@ expand,拡大する,vol2,ex- + pand,out + spread,外へ広げる,verb,change
 
 Rows are split into `vol1`, `vol2`, `vol3`, and `vol4` by the configured `level` column.
 
-If a non-empty word has a blank or unsupported `level`, the sync and `dryRun()` stop with an error rather than silently exclude the word. Correct the invalid level before syncing so Firestore is not overwritten with an incomplete vocabulary.
-
-For a real full sync, every expected volume must have at least one vocabulary row; for a single-volume sync, that requested volume must be non-empty. Empty volumes cause sync to stop **before generated IDs are written to Sheets or Firestore is overwritten**. A deliberate full deletion must use a separately reviewed procedure; the routine sync does not serve as a deletion operation. Note that dryRun reports volume row counts and does not itself update Firestore.
-
 `level` values such as `1`, `2`, `3`, `4`, `vol1`, `vol2`, `vol3`, and `vol4` are normalized before grouping.
 
 The single-sheet export keeps these optional study columns when present: `morpheme`, `morphemeMeaning`, `semanticDevelopment`, `partOfSpeech`, and `semanticCategory`. Missing optional columns are exported as blank cells so older sheets remain compatible.
@@ -128,14 +112,21 @@ The single-sheet export keeps these optional study columns when present: `morphe
 
 The Apps Script manages a stable `id` column in Google Sheets before exporting CSV to Firestore.
 
-- If the sheet does not have an `id` column, a **real sync** creates it. `dryRun()` only simulates the column in memory.
+- If the sheet does not have an `id` column, the script creates one.
 - If a row already has an `id`, the script never overwrites it.
-- If a row has an empty `id`, a **real sync** saves a newly generated ID such as `w_abcd1234efgh` **after all validation succeeds**. `dryRun()` previews a temporary ID but never writes it.
+- If a row has an empty `id`, the script generates a new internal ID such as `w_abcd1234efgh`.
 - If duplicate IDs are found, the sync stops with an error before writing to Firestore.
 - The exported Firestore CSV includes the `id` column, and the web app uses it as the internal word key.
 - If `id` is missing or blank in CSV, the web app falls back to the old word-derived key.
 
 In Google Sheets, hide and protect the `id` column so normal vocabulary edits do not accidentally change word identity. Changing an existing `id` can disconnect favorites, difficult words, and review history from that word.
+
+## Validation and failure boundaries
+
+- The revised script validates unknown volume levels, cross-volume duplicate IDs, missing classifications, and empty target volumes before starting a normal sync. An invalid or empty volume aborts rather than overwriting Firestore with incomplete data.
+- `dryRun()` is a no-write preview: it does not create the `id` column or persist generated IDs to Google Sheets, and it does not change Firestore.
+- A real sync can still fail partway through separate Google Sheets cell writes or sequential Firestore volume writes. These operations are **not atomic**. Back up the source and destination before production rollout and verify each volume after sync.
+- Changes to this GitHub code do **not** automatically replace the active Apps Script editor project or its existing deployed Web App version. Validate the actual Apps Script installation separately before applying them.
 
 ## Firebase Console Check
 

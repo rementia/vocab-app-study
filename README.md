@@ -13,7 +13,7 @@ This is a student-built personal vocabulary learning app, but it is designed bey
 Key design points:
 
 - Vocabulary learning features: favorites, difficult words, review scores, pronunciation support, search, random/frequency review, recall mode, and four-choice practice.
-- Data separation: shared study vocabulary is stored in Firestore `privateWords/{vol}`, while per-user learning state is stored under `privateUsers/{uid}`. The repository rules currently permit any Firebase-authenticated user to read `privateWords`; this collection is **not** owner-only.
+- Data separation: private vocabulary data is stored in Firestore `privateWords/{vol}`, while user learning state is stored under `privateUsers/{uid}`.
 - Browser state restore: selected volume, mode, position, and UI settings are restored from `localStorage` with the `vocab_app_study_` prefix.
 - Stable word IDs: learning records are tied to stable `w_...` IDs instead of directly depending on editable display text.
 - Legacy migration: older word-key records are still readable and are migrated to stable IDs when vocabulary data is loaded.
@@ -40,7 +40,7 @@ https://svl-app-65204.web.app
 
 このリポジトリは、個人学習用の英単語アプリ study 版です。
 
-This repository is the personal study version of the vocabulary learning app. It keeps the same core learning experience as the public version, but uses Google Apps Script and Firestore to manage its study vocabulary data.
+This repository is the personal study version of the vocabulary learning app. It keeps the same core learning experience as the public version, but uses Google Apps Script and Firestore to manage private vocabulary data.
 
 公開用アプリとは保存先を分けるため、Firestore collection と localStorage key prefix を study 版専用にしています。ユーザー別学習データは `privateUsers/{uid}`、localStorage は `vocab_app_study_` prefix に分けています。
 
@@ -52,11 +52,11 @@ This repository is the personal study version of the vocabulary learning app. It
 | --- | --- | --- |
 | Purpose | Public portfolio demo | Personal study version |
 | Vocabulary source | Google Sheets CSV direct fetch | Firestore `privateWords/{vol}` synced by Apps Script |
-| Reload button | Refetches Google Sheets CSV | Refetches Firestore only (Apps Script sync is a separate operation) |
+| Reload button | Refetches Google Sheets CSV | Refetches Firestore only (Apps Script synchronization is separate) |
 | User collection | `portfolioUsers/{uid}` | `privateUsers/{uid}` |
 | Word collection | none | `privateWords/{vol}` |
 | localStorage prefix | `portfolio_tango_` | `vocab_app_study_` |
-| Data privacy | Demo-oriented public data flow | Per-user records are UID-scoped; shared vocabulary is readable by any authenticated user under repository rules (deployed rules must be verified) |
+| Data privacy | Demo-oriented public data flow | User records are UID-scoped; repository rules allow any authenticated Firebase user to read shared vocabulary (deployed rules not verified) |
 | Apps Script requirement | Not required | Required when syncing Google Sheets changes into Firestore |
 
 ## Browser Audio Note
@@ -244,7 +244,7 @@ privateWords/vol4
 
 アプリはログイン後、必要な volume の CSV を取得し、`id`, `word`, `meaning`, `legacyWordKey`, `sourceVol` を持つ単語データとして扱います。
 
-現在の `単語更新` ボタンは、ログイン後に現在の mode に必要な Firestore `privateWords/{vol}` の CSV を**再取得するだけ**です。Google Sheets の変更を Firestore に反映するには、別途 Apps Script の `syncAllVolumesToFirestore()` 等による同期を実行する必要があります。現行 `app.js` は `syncConfig.js` / `sheetSyncService.js` を参照せず、ボタンから Apps Script Web App を呼び出しません。
+現在の `単語更新` ボタンは、Firestore `privateWords/{vol}` の CSV を再取得するだけです。Google Sheetsの変更を反映するには、Apps Script側で `syncAllVolumesToFirestore()` 等の同期を別途実行します。現行の `app.js` は `syncConfig.js` / `sheetSyncService.js` を読み込まないため、ブラウザからApps Script Web Appを呼び出しません。
 
 ### Stable Word IDs
 
@@ -270,34 +270,19 @@ stable ID 導入前の localStorage / Firestore データを壊さないよう�
 
 Apps Script sync example: see `apps-script/README.md`.
 
-旧・実験用のApps Script Web App呼出設定例として `syncConfig.js` / `sheetSyncService.js` がリポジトリに残っていますが、**現行 `app.js` の単語更新ボタンとは未接続**です。これらにURLやトークンを設定しても、現行ボタンにSheets同期処理は追加されません。
+現行のブラウザアプリにはApps Script同期呼び出し機能はありません。旧実験用の `syncConfig.js` は未使用で、URL・トークンのエクスポートは空欄、Firebase Hostingからの配信対象外です。**公開リポジトリやフロントエンドへ、実際のWeb App URLや認証トークンを記載しないでください。**
 
-```js
-export const SHEET_SYNC_WEB_APP_URL = "";
-export const SHEET_SYNC_TOKEN = "";
-```
+Google Sheets → Firestoreの正規同期は、アクセスを管理できるApps Scriptエディタから `syncAllVolumesToFirestore()` 等を実行します。Apps Scriptのサービスアカウント資格情報（`CLIENT_EMAIL`、`PRIVATE_KEY`）はScript Propertiesで管理し、リポジトリやブラウザへ置きません。Web App経由の同期を再び使う場合は、公開トークン以外のサーバー側認可・呼出元制限を設計してから使用してください。
 
-現行ボタンは `SHEET_SYNC_WEB_APP_URL` の値に関係なく、Firestoreのみ再読み込みます。`SHEET_SYNC_TOKEN` は公開クライアントコードから閲覧できるため、認証情報として信頼できません。Web Appの本番公開範囲と実行ユーザーは別途確認してください。
-
-Apps Script Web Appを使う場合は、Apps Scriptエディタで `apps-script/Code.gs` を貼り付け、Web Appとしてデプロイします。
-
-- デプロイ > 新しいデプロイ
-- 種類: ウェブアプリ
-- 実行ユーザー: 自分
-- アクセスできるユーザー: 運用方針に合わせる
-- 発行されたWeb App URLを利用する場合は、別途正規の呼出元とアクセス制御を設計する（現行の単語更新ボタンからは使用されない）
-- Apps Script Propertiesに `CLIENT_EMAIL`, `PRIVATE_KEY`, `SYNC_TOKEN` を設定する
-- クライアント側トークンは公開されるため、サービスアカウントの権限やWeb Appの公開範囲を代替する認証方法として用いない
-
-この同期は Google Sheets をWebアプリが直接fetchするものではありません。Apps Script は、独立した同期処理として Firestore `privateWords/{vol}.csv` を更新します。現行Webアプリは、その後ユーザーが `単語更新` を押すと Firestore を再取得します。
+過去に公開されたトークンはソースから消しても失効しません。実デプロイと依存先を確認し、安全にローテーションしてください。同期後、現行Webアプリの `単語更新` ボタンでFirestoreの更新内容を再取得します。
 
 ### スプレッドシート修正が反映されない場合
 
-Webアプリは Google Sheets を直接読みません。`単語更新` は、Apps Script Web App URL が設定されている場合だけ Google Sheets → Firestore 同期を呼び出し、その後 Firestore `privateWords/{vol}` を再取得します。
+WebアプリはGoogle Sheetsを直接読みません。現行の `単語更新` ボタンは、Apps Script Web App URLの設定に関係なくFirestore `privateWords/{vol}` を再取得するだけです。
 
 反映されない場合は、次を確認します。
 
-- `syncConfig.js` の Apps Script Web App URL が設定されている
+- Apps Scriptエディタ側で適切な権限で同期処理を実行した（ブラウザ設定は不要）
 - Apps Script Web App としてデプロイ済みである
 - `apps-script/Code.gs` のような同期処理を実行した
 - Firebase Console で `privateWords/vol1`, `privateWords/vol2`, `privateWords/vol3`, `privateWords/vol4` の document ID がコード側の volume 名と一致している
@@ -449,7 +434,7 @@ node --check app.js
 app.js                         App initialization and module wiring
 bootstrap.js                   Startup entry point
 data.js                        Firestore privateWords CSV fetching and parsing
-syncConfig.js                  Apps Script Web App URL/token configuration
+syncConfig.js                  Unused legacy stub; blank exports and excluded from Hosting
 sheetSyncService.js            Apps Script Web App sync request helper
 apps-script/Code.gs            Google Sheets -> Firestore sync Apps Script sample
 apps-script/README.md          Apps Script setup and deployment notes
@@ -484,7 +469,7 @@ package-lock.json              Locked npm dependency resolution for reproducible
 
 このアプリは個人学習とポートフォリオを目的としたプロジェクトです。
 
-単語データの管理元や管理用 URL は公開リポジトリに含めず、実装・認証・保存設計・UI・テスト構成を中心に確認できるようにしています。
+今後、管理用URL・同期トークン・サービス資格情報を公開リポジトリに追加しません。過去のコミットに公開された値は履歴に残り得るため、必要な失効・ローテーションと実デプロイの確認を別途行います。
 
 ## Future Improvements
 
