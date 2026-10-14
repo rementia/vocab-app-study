@@ -92,7 +92,13 @@ function backupFirestoreWordsToDrive() {
     file.setTrashed(true);
     throw new Error("Driveの共有が非公開でないため、新規バックアップをゴミ箱へ移しました。");
   }
+  var fileUrl = file.getUrl();
   Logger.log("Firestore 4巻バックアップ作成: " + file.getName());
+  Logger.log("Google DriveバックアップURL: " + fileUrl);
   Logger.log("Driveでファイルの内容・非公開設定を確認してください。");
-  return { fileName: file.getName(), documentCount: results.length };
+  return {
+    fileName: file.getName(),
+    fileUrl: fileUrl,
+    documentCount: results.length
+  };
 }

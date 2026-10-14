@@ -59,7 +59,8 @@ function fixture({ errorAt = -1, malformedAt = -1, wrongNameAt = -1, publicOnCre
         return {
           getSharingAccess: () => state.visibility,
           setTrashed(value) { state.trashed = value; },
-          getName: () => blob.name
+          getName: () => blob.name,
+          getUrl: () => "https://drive.google.com/file/d/test-created-backup/view"
         };
       }
     },
@@ -76,6 +77,8 @@ function fixture({ errorAt = -1, malformedAt = -1, wrongNameAt = -1, publicOnCre
   const t = fixture();
   const output = t.run();
   assert.equal(output.documentCount, 4);
+  assert.equal(output.fileUrl, "https://drive.google.com/file/d/test-created-backup/view");
+  assert.ok(t.messages.some(line => line.includes(output.fileUrl)));
   assert.equal(t.network.length, 4);
   assert.ok(t.network.every(x => x.method === "get" && x.hasAuth));
   assert.equal(t.created.length, 1);
