@@ -64,6 +64,8 @@
 
 - **`dryRun()`の一致保証（ドラフト改修版）**：4巻すべての非空検証と、実同期に用いる`prepareFirestoreWrite()`によるCSV/gzip符号化および格納後バイト数検査まで実行する。生成IDが未保存であっても書込候補はメモリ内だけで処理し、Sheets・Firestore・Driveには書き込まない。欠落巻／サイズ超過ならログで成功と誤表示せず失敗扱い。
 
+- **欠損した単語・意味の検出**：同期元で英単語だけ空欄でも同じ行に他の値が残る場合、または英単語があるのに意味が空欄の場合、全同期・プレビューとも書込前に中止する。完全な空白行だけ無視する。誤って行を黙殺してFirestoreの単語を欠落させないためのガード。
+
 ## 4a. ローカル復元ドライラン（本番書込なし）
 
 - `tools/verify-firestore-backup.mjs` はNode.js標準ライブラリのみ使用する**読み取り専用**ツール。実行例：`node tools/verify-firestore-backup.mjs /path/to/private.json`。非公開バックアップJSONをGitHubへpushしない。

@@ -345,7 +345,18 @@ function buildGroupedRowsFromSingleSheet({ pendingIdWrites }) {
     const level = normalizeLevel(row[levelIndex]);
 
     if (!word) {
+      // A truly blank row is harmless, but a row whose word was accidentally
+      // cleared must never disappear silently from the Firestore snapshot.
+      const hasOtherData = row.some((cell, columnIndex) => (
+        columnIndex !== wordIndex && String(cell ?? "").trim() !== ""
+      ));
+      if (hasOtherData) {
+        throw new Error(`英単語が空欄なのに他のデータがある行です: row ${rowNumber}。単語欠落を防ぐため同期を中止しました。`);
+      }
       return;
+    }
+    if (!meaning) {
+      throw new Error(`意味が空欄です: row ${rowNumber}, word=${word}。同期を中止しました。`);
     }
 
     const volume = CONFIG.volumes.find((item) => item.level === level || item.docId === level);

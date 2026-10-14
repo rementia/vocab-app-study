@@ -321,6 +321,43 @@ const exampleRows = [
   assert.equal(JSON.stringify(fixture.rowsBySheet), before);
 }
 
+// Missing meaning or a blank word with other data must abort rather than
+// silently publishing an incomplete vocabulary snapshot. Wholly empty rows
+// still remain safe to ignore.
+for (const invalidRow of [
+  ["", "lost meaning", "1", "noun", "thing"],
+  ["orphan", "", "1", "noun", "thing"]
+]) {
+  const fixture = createFixture([
+    columns,
+    ["alpha", "A", "1", "noun", "thing"],
+    ["beta", "B", "2", "noun", "thing"],
+    ["gamma", "C", "3", "noun", "thing"],
+    ["delta", "D", "4", "noun", "thing"],
+    invalidRow
+  ]);
+  const snapshot = JSON.stringify(fixture.rowsBySheet);
+  const expectedError = invalidRow[0] ? /意味が空欄/ : /英単語が空欄なのに他のデータがある行/;
+  assert.throws(() => fixture.dryRun(), expectedError);
+  assert.throws(() => fixture.syncAll(), expectedError);
+  assert.equal(fixture.writes.length, 0);
+  assert.equal(fixture.requests.length, 0);
+  assert.equal(JSON.stringify(fixture.rowsBySheet), snapshot);
+}
+{
+  const fixture = createFixture([
+    columns,
+    ["alpha", "A", "1", "noun", "thing"],
+    ["beta", "B", "2", "noun", "thing"],
+    ["gamma", "C", "3", "noun", "thing"],
+    ["delta", "D", "4", "noun", "thing"],
+    ["", "", "", "", ""]
+  ]);
+  assert.doesNotThrow(() => fixture.dryRun());
+  assert.equal(fixture.writes.length, 0);
+  assert.equal(fixture.requests.length, 0);
+}
+
 // A typo in level must abort rather than silently remove that word from Firestore.
 for (const invalidLevel of ["vol9", "", "unassigned"]) {
   const fixture = createFixture([
