@@ -122,7 +122,7 @@ In Google Sheets, hide and protect the `id` column so normal vocabulary edits do
 
 ## Production rollout and backup
 
-Before deploying modified Apps Script code, follow the [backup, preflight, rollback and recovery checklist](../docs/sync-rollout-and-recovery.md). A verified **Sheets-only** backup is available as of 2026-10-12; the Firestore backup and restore verification are **not** complete. Never run the original Apps Script v4 `dryRun()` (it may write IDs into Sheets).
+Before deploying modified Apps Script code, follow the [backup, preflight, rollback and recovery checklist](../docs/sync-rollout-and-recovery.md). A nonpublic **Sheets six-tab** backup is available as of 2026-10-12, and a nonpublic **Firestore four-document** JSON backup was successfully validated on 2026-10-14 (5,758 rows, valid plain/gzip data, no duplicate IDs, owner-only). **Actual Firestore restoration and user-state backup are not tested**; the original Firestore sync timestamp was 2026-10-08. Recheck freshness before any write. Never run the original Apps Script v4 `dryRun()` (it may write IDs into Sheets).
 
 ## Validation and failure boundaries
 
