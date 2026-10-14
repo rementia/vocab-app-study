@@ -72,6 +72,7 @@
 - Firestore管理の`createTime`/`updateTime`は復元しても元時刻を再現できない。一方`fields.updatedAt`はアプリ側のフィールドであり、元の値を保持する必要がある。
 - 実際の復旧時には、対象4文書の最新内容と`updateTime`を直前取得して競合更新を防ぐ条件を作り、**別途審査・承認された原子的4文書書込**を実施する。バックアップの古い管理`updateTime`を更新前提条件に使わない。
 - 本番を変更せずに復元成功を実証するには、独立検証環境での実書込・読戻し・差分照合が必要。現段階では未実施。
+- **2026-10-14に隔離エミュレータ実行成功**：GitHub Actions run `38495741934` は `completed/success`、ジョブログに「4 document restore, field masks, readback, and stale-precondition atomic rejection passed」と記録。合成4文書の実書込・復元・再読込・競合拒否を**localhostのFirestoreエミュレータ**で検証済み。本番Firebaseや個人バックアップJSONは一切使用していないため、**本番への復元を実証したものではない**。このエミュレータ試験と通常Test、Hosting Previewは同じPRコミットで全て成功。
 - **GitHub Actionsの隔離エミュレータ試験（合成データのみ）**：`.github/workflows/firestore-restore-emulator.yml` は本番プロジェクトIDと認証情報を一切使わず、`demo-vocab-restore-ci`のローカルFirestoreエミュレータだけで4文書作成→変更→原子的4文書復元→読戻しを試す。復元時の`updateMask`が一時フィールドを消し、`fields.updatedAt`を含む元フィールドを保持できるか確認。別操作が介入した場合は`currentDocument.updateTime`の前提条件でコミット全体を拒否することも検証。エミュレータには本番のトランザクション・制限・IAMを完全には再現しない限界があるため、成功しても本番での復元完了とは扱わない。
 
 
