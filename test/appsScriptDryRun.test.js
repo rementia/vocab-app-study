@@ -144,7 +144,11 @@ const exampleRows = [
 
 // dryRun must not add an ID column or write generated IDs to the source sheet.
 {
-  const fixture = createFixture(exampleRows);
+  const fixture = createFixture([
+    ...exampleRows,
+    ["candid", "率直な", "3", "adjective", "quality"],
+    ["ephemeral", "一時的な", "4", "adjective", "quality"]
+  ]);
   const before = JSON.stringify(fixture.rows);
   fixture.dryRun();
   assert.equal(JSON.stringify(fixture.rows), before);
@@ -194,6 +198,17 @@ const exampleRows = [
   assert.throws(() => fixture.dryRun(), /重複id/);
   assert.equal(JSON.stringify(fixture.rows), before);
   assert.equal(fixture.writes.length, 0);
+}
+
+// dryRun must match the full-sync empty-volume safeguard, while remaining
+// read-only. Previous dryRun merely printed the empty count.
+{
+  const fixture = createFixture(exampleRows);
+  const before = JSON.stringify(fixture.rowsBySheet);
+  assert.throws(() => fixture.dryRun(), /vol3: 単語数が0件/);
+  assert.equal(fixture.writes.length, 0);
+  assert.equal(fixture.requests.length, 0);
+  assert.equal(JSON.stringify(fixture.rowsBySheet), before);
 }
 
 // Four separate volume sheets must also be read-only during dryRun.
@@ -421,6 +436,11 @@ for (const oneVolume of [false, true]) {
     ["delta", "D", "4", "noun", "thing"]
   ]);
   const initial = JSON.stringify(fixture.rowsBySheet);
+  if (!oneVolume) {
+    assert.throws(() => fixture.dryRun(), /圧縮後のCSVもFirestore安全上限を超えています/);
+    assert.equal(fixture.writes.length, 0);
+    assert.equal(fixture.requests.length, 0);
+  }
   assert.throws(
     () => oneVolume ? fixture.syncOne("vol1") : fixture.syncAll(),
     /圧縮後のCSVもFirestore安全上限を超えています/

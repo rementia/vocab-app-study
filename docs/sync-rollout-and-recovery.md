@@ -62,6 +62,8 @@
 
 - **同期処理の検査順序（ドラフト改修版）**：4巻（または対象1巻）の分類・ID・空巻検証後、全CSVの符号化・圧縮後の保存サイズをメモリで検査する。**サイズ検証が成功してから**新規IDをSheetsに保存し、最後にFirestoreへ一括コミットする。サイズ検査失敗ではSheetsもFirestoreも変更しない。ID保存とFirestoreは別サービスなのでトランザクションではなく、ID保存中の障害では部分IDが残る可能性がある。
 
+- **`dryRun()`の一致保証（ドラフト改修版）**：4巻すべての非空検証と、実同期に用いる`prepareFirestoreWrite()`によるCSV/gzip符号化および格納後バイト数検査まで実行する。生成IDが未保存であっても書込候補はメモリ内だけで処理し、Sheets・Firestore・Driveには書き込まない。欠落巻／サイズ超過ならログで成功と誤表示せず失敗扱い。
+
 ## 4a. ローカル復元ドライラン（本番書込なし）
 
 - `tools/verify-firestore-backup.mjs` はNode.js標準ライブラリのみ使用する**読み取り専用**ツール。実行例：`node tools/verify-firestore-backup.mjs /path/to/private.json`。非公開バックアップJSONをGitHubへpushしない。

@@ -78,17 +78,21 @@ function diagnoseClassificationSource() {
 }
 
 function dryRun() {
-  const groupedRows = buildGroupedRows({ preview: true });
-
-  CONFIG.volumes.forEach(({ docId }) => {
-    const wordCount = Math.max((groupedRows[docId] || []).length - 1, 0);
-    const csv = rowsToCsv(groupedRows[docId] || []);
-    const rawBytes = getUtf8ByteLength(csv);
-    const storageMode = rawBytes <= FIRESTORE_SAFE_STRING_BYTES ? "plain" : "gzip-base64";
-    Logger.log(`${docId}: ${wordCount} words / ${rawBytes} bytes / ${storageMode}`);
+  // Mirror the full-sync validation and actual CSV/gzip byte-size preflight,
+  // including its all-four-volumes non-empty rule. No IDs, Sheets or Firestore
+  // are written because buildGroupedRows(preview=true) is read-only and
+  // prepareFirestoreWrite() constructs an in-memory Firestore payload only.
+  const groupedRows = buildGroupedRows({
+    preview: true,
+    nonEmptyDocIds: CONFIG.volumes.map(({ docId }) => docId)
   });
-
-  Logger.log("dryRun完了: Google Sheets / Firestore ともに変更していません。");
+  const checkedAt = new Date().toISOString();
+  CONFIG.volumes.forEach(({ docId }) => {
+    const rows = groupedRows[docId];
+    const prepared = prepareFirestoreWrite(docId, rowsToCsv(rows), checkedAt, rows);
+    Logger.log(`${docId}: ${prepared.rowCount} words / ${prepared.storedBytes} stored bytes / ${prepared.storageMode}`);
+  });
+  Logger.log("dryRun完了: 4巻のCSV保存サイズ検査合格。Google Sheets / Firestore ともに変更していません。");
 }
 
 function doPost(e) {
