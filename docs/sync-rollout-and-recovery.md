@@ -60,6 +60,8 @@
 7. Firestore Rulesを**変更しない**。Web Appを「全員」に戻さない。旧共有トークンを再設定しない。
 8. Hosting本番が必要な別変更はアプリUI検証後に分けて実施する。GitHub PRマージでHosting本番ワークフローが動くので、反映タイミング・ロールバックを別途管理する。
 
+- **同期処理の検査順序（ドラフト改修版）**：4巻（または対象1巻）の分類・ID・空巻検証後、全CSVの符号化・圧縮後の保存サイズをメモリで検査する。**サイズ検証が成功してから**新規IDをSheetsに保存し、最後にFirestoreへ一括コミットする。サイズ検査失敗ではSheetsもFirestoreも変更しない。ID保存とFirestoreは別サービスなのでトランザクションではなく、ID保存中の障害では部分IDが残る可能性がある。
+
 ## 4a. ローカル復元ドライラン（本番書込なし）
 
 - `tools/verify-firestore-backup.mjs` はNode.js標準ライブラリのみ使用する**読み取り専用**ツール。実行例：`node tools/verify-firestore-backup.mjs /path/to/private.json`。非公開バックアップJSONをGitHubへpushしない。

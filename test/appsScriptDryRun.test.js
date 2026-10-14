@@ -95,7 +95,10 @@ function createFixture(initialRows) {
     Utilities: {
       newBlob: (data) => ({
         getBytes: () => [...Buffer.from(String(data), "utf8")]
-      })
+      }),
+      // Deliberately no compression in the size-limit failure test.
+      gzip: (blob) => blob,
+      base64Encode: (bytes) => Buffer.from(bytes).toString("base64")
     }
   });
   runInContext(script, context, { filename: "Code.gs" });
@@ -404,6 +407,51 @@ for (const invalidLevel of ["vol9", "", "unassigned"]) {
   fixture.setResponse(200, "{}");
   assert.throws(() => fixture.syncOne("vol1"), /応答件数が不一致/);
   assert.equal(fixture.requests.length, 1);
+}
+
+// Payload oversize must fail BEFORE any generated IDs (or an ID header)
+// are saved to Sheets. Both full and single-volume synchronization paths.
+for (const oneVolume of [false, true]) {
+  const hugeWord = "X".repeat(900100);
+  const fixture = createFixture([
+    columns,
+    [hugeWord, "A", "1", "noun", "thing"],
+    ["beta", "B", "2", "noun", "thing"],
+    ["gamma", "C", "3", "noun", "thing"],
+    ["delta", "D", "4", "noun", "thing"]
+  ]);
+  const initial = JSON.stringify(fixture.rowsBySheet);
+  assert.throws(
+    () => oneVolume ? fixture.syncOne("vol1") : fixture.syncAll(),
+    /圧縮後のCSVもFirestore安全上限を超えています/
+  );
+  assert.equal(fixture.writes.length, 0);
+  assert.equal(fixture.requests.length, 0);
+  assert.equal(JSON.stringify(fixture.rowsBySheet), initial);
+  assert.equal(fixture.lockState.releases, 1);
+}
+
+// Successful sync still saves the SAME generated IDs represented in the
+// preflighted and atomically committed CSV, without generating them twice.
+{
+  const fixture = createFixture([
+    columns,
+    ["alpha", "A", "1", "noun", "thing"],
+    ["beta", "B", "2", "noun", "thing"],
+    ["gamma", "C", "3", "noun", "thing"],
+    ["delta", "D", "4", "noun", "thing"]
+  ]);
+  fixture.syncAll();
+  assert.equal(fixture.writes.length, 5);
+  assert.equal(fixture.requests.length, 1);
+  const payload = JSON.parse(fixture.requests[0].options.payload);
+  const sheetIdColumn = fixture.rows[0].indexOf("id");
+  assert.ok(sheetIdColumn >= 0);
+  for (let volume = 0; volume < 4; volume++) {
+    const id = fixture.rows[volume + 1][sheetIdColumn];
+    assert.match(id, /^w_[a-z0-9]{12}$/);
+    assert.ok(payload.writes[volume].update.fields.csv.stringValue.includes(id));
+  }
 }
 
 // Simulated failure partway through saving new IDs must prevent Firestore commit.

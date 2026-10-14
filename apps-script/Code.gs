@@ -128,8 +128,10 @@ function doPost(e) {
 
 function syncAllVolumesToFirestore() {
   return withSyncLock(() => {
+    const pendingIdWrites = [];
     const groupedRows = buildGroupedRows({
-      nonEmptyDocIds: CONFIG.volumes.map(({ docId }) => docId)
+      nonEmptyDocIds: CONFIG.volumes.map(({ docId }) => docId),
+      pendingIdWritesOutput: pendingIdWrites
     });
     const syncedAt = new Date().toISOString();
 
@@ -140,6 +142,9 @@ function syncAllVolumesToFirestore() {
       return prepareFirestoreWrite(docId, rowsToCsv(rows), syncedAt, rows);
     });
 
+    // Preflight every CSV/encoding and its stored-byte size before changing
+    // even the generated ID cells in Google Sheets.
+    persistGeneratedIds(pendingIdWrites);
     commitFirestoreWrites(prepared);
     Logger.log("全volのFirestore一括同期が完了しました。");
     return {
@@ -169,7 +174,11 @@ function syncVol4() {
 
 function syncOneVolume(docId) {
   return withSyncLock(() => {
-    const groupedRows = buildGroupedRows({ nonEmptyDocIds: [docId] });
+    const pendingIdWrites = [];
+    const groupedRows = buildGroupedRows({
+      nonEmptyDocIds: [docId],
+      pendingIdWritesOutput: pendingIdWrites
+    });
 
     if (!groupedRows[docId]) {
       throw new Error(`未定義のdocIdです: ${docId}`);
@@ -182,6 +191,7 @@ function syncOneVolume(docId) {
       syncedAt,
       groupedRows[docId]
     );
+    persistGeneratedIds(pendingIdWrites);
     commitFirestoreWrites([prepared]);
     Logger.log(`${docId} の同期が完了しました。`);
     return {
@@ -210,7 +220,11 @@ function withSyncLock(run) {
   }
 }
 
-function buildGroupedRows({ preview = false, nonEmptyDocIds = [] } = {}) {
+function buildGroupedRows({
+  preview = false,
+  nonEmptyDocIds = [],
+  pendingIdWritesOutput = null
+} = {}) {
   // First prepare every generated ID in memory. Never mutate Sheets until
   // the entire dataset passes validation, including cross-volume checks.
   const pendingIdWrites = [];
@@ -228,7 +242,16 @@ function buildGroupedRows({ preview = false, nonEmptyDocIds = [] } = {}) {
   validateClassificationRows(groupedRows);
   validateNonEmptyVolumes(groupedRows, nonEmptyDocIds);
 
-  if (!preview) {
+  if (pendingIdWritesOutput !== null) {
+    // Synchronization defers all Sheets writes until Firestore CSV payload
+    // preparation has succeeded. Preserve generated IDs and the corresponding
+    // CSV snapshot from this SAME build, without re-generating random IDs.
+    if (preview || !Array.isArray(pendingIdWritesOutput)) {
+      throw new Error("ID書込の遅延設定が不正です。");
+    }
+    pendingIdWritesOutput.push(...pendingIdWrites);
+  } else if (!preview) {
+    // Preserve the existing direct buildGroupedRows() contract.
     persistGeneratedIds(pendingIdWrites);
   }
 
