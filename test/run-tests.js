@@ -10,6 +10,7 @@ const tests = [
   "./frontendSyncConfig.test.js",
   "./appsScriptDryRun.test.js",
   "./firestoreBackup.test.js",
+  "./firestoreRestoreDryRun.test.js",
   "./data.test.js",
   "./pronunciation.test.js",
   "./speechSyncController.test.js",
