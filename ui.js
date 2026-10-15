@@ -520,6 +520,7 @@ export function renderMultipleChoice(context) {
 
   if (typeof document !== "undefined") {
     document.body.classList.toggle("mode-multiple-choice", isPresentationActive);
+    document.body.classList.toggle("mode-multiple-choice-answered", isPresentationActive && Boolean(state.multipleChoiceAnswer));
   }
 
   dom.multipleChoicePanelEl.hidden = !isPresentationActive;
