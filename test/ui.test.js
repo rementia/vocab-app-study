@@ -361,6 +361,7 @@ assert.strictEqual(inactiveChoiceContext.dom.multipleChoiceOptionsEl.children.le
 
 const activeChoiceContext = makeMultipleChoiceContext({ multipleChoiceMode: true });
 renderCurrentWord(activeChoiceContext);
+assert.strictEqual(document.body.classList.contains("mode-multiple-choice-answered"), false, "unanswered choice must keep IPA hidden through CSS state");
 assert.strictEqual(activeChoiceContext.dom.wordEl.textContent, "abandon", "multiple choice question should be shown as the current word");
 assert.strictEqual(activeChoiceContext.dom.meaningEl.textContent, "", "normal meaning should be hidden in multiple choice mode");
 assert.strictEqual(activeChoiceContext.dom.wordDetailMetaEl.hidden, true, "word detail metadata should be hidden during multiple choice prompts");
@@ -410,6 +411,7 @@ const correctChoiceContext = makeMultipleChoiceContext({
   multipleChoiceAnswer: { selectedText: "abandon", correctText: "abandon", isCorrect: true }
 });
 renderMultipleChoice(correctChoiceContext);
+assert.strictEqual(document.body.classList.contains("mode-multiple-choice-answered"), true, "answered choice must expose IPA through CSS state");
 const correctButtons = correctChoiceContext.dom.multipleChoiceOptionsEl.children;
 assert.strictEqual(correctChoiceContext.dom.multipleChoiceFeedbackEl.textContent, "", "correct answer should not show text feedback");
 assert.strictEqual(correctButtons[0].classList.contains("is-correct"), true, "correct option should get correct class");
