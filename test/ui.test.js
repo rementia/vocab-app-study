@@ -372,6 +372,24 @@ assert.deepStrictEqual(
 );
 assert.strictEqual(activeChoiceContext.dom.multipleChoiceFeedbackEl.textContent, "", "multiple choice should not show text feedback before answering");
 
+// Regression: IPA stays hidden before answering and becomes visible after either outcome.
+let pendingChoicePronunciationLoads = 0;
+activeChoiceContext.callbacks.loadPronunciation = () => { pendingChoicePronunciationLoads += 1; };
+renderCurrentWord(activeChoiceContext);
+assert.strictEqual(pendingChoicePronunciationLoads, 0, "IPA must stay hidden before answering");
+assert.strictEqual(activeChoiceContext.dom.pronunciationEl.textContent, "", "pre-answer IPA must be blank");
+for (const answer of [
+  { selectedText: "abandon", correctText: "abandon", isCorrect: true },
+  { selectedText: "expand", correctText: "abandon", isCorrect: false },
+  { selectedText: null, correctText: "abandon", isCorrect: false, answerType: "unknown" }
+]) {
+  const answeredContext = makeMultipleChoiceContext({ multipleChoiceMode: true, multipleChoiceAnswer: answer });
+  let loadedWord = "";
+  answeredContext.callbacks.loadPronunciation = (word) => { loadedWord = word; };
+  renderCurrentWord(answeredContext);
+  assert.strictEqual(loadedWord, "abandon", "answered multiple choice must load the correct word's IPA");
+}
+
 const morphemeChoiceContext = makeMultipleChoiceContext({
   multipleChoiceMode: true,
   morphemeAnalysisMode: true
