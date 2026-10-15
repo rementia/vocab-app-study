@@ -449,7 +449,7 @@ body.mode-multiple-choice #meaning {
   display: none;
 }
 
-body.mode-multiple-choice #pronunciation {
+body.mode-multiple-choice:not(.mode-multiple-choice-answered) #pronunciation {
   display: none;
 }
 
