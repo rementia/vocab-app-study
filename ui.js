@@ -170,7 +170,7 @@ export function renderCurrentWord(context) {
   updateMorphemeButton(context);
   updateMorphemeAnalysisPanel(context);
   updateCurrentStateMeta(context);
-  if (isMultipleChoicePresentationActive(state)) {
+  if (isMultipleChoicePresentationActive(state) && !state.multipleChoiceAnswer) {
     if (dom.pronunciationEl) dom.pronunciationEl.textContent = "";
   } else {
     callbacks.loadPronunciation(current.word);
