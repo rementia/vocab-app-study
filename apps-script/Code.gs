@@ -12,11 +12,16 @@
  * Firestore string/document size limit.
  *
  * Do not paste service account private keys directly into this file.
- * Store CLIENT_EMAIL, PRIVATE_KEY, and SYNC_TOKEN in Apps Script Properties.
+ * Store CLIENT_EMAIL and PRIVATE_KEY in Apps Script Properties.
+ * The retired Web App sync route is disabled by default, even if a
+ * SYNC_TOKEN property is accidentally reintroduced.
  */
 const CONFIG = {
   firebaseProjectId: "svl-app-65204",
   collectionName: "privateWords",
+  // Do not enable legacy remote sync without a reviewed server-side auth design.
+  // The current browser application does not call this Web App endpoint.
+  enableLegacyWebAppSync: false,
 
   // "sheetsByVolume" or "singleSheetWithLevel"
   mode: "singleSheetWithLevel",
@@ -25,8 +30,8 @@ const CONFIG = {
   volumeSheetNames: ["vol1", "vol2", "vol3", "vol4"],
 
   // singleSheetWithLevel mode reads one sheet and splits rows by level.
-  // Preferred source sheet. If this sheet has no usable classification data,
-  // the script automatically searches other sheets for the required columns.
+  // Explicit source sheet. If it is missing or invalid, fail closed.
+  // Never silently fall back to a different sheet.
   sourceSheetName: "シート1",
   levelColumnName: "level",
   requireClassificationData: true,
@@ -73,22 +78,30 @@ function diagnoseClassificationSource() {
 }
 
 function dryRun() {
-  const groupedRows = buildGroupedRows();
-
-  CONFIG.volumes.forEach(({ docId }) => {
-    const wordCount = Math.max((groupedRows[docId] || []).length - 1, 0);
-    const csv = rowsToCsv(groupedRows[docId] || []);
-    const rawBytes = getUtf8ByteLength(csv);
-    const storageMode = rawBytes <= FIRESTORE_SAFE_STRING_BYTES ? "plain" : "gzip-base64";
-    Logger.log(`${docId}: ${wordCount} words / ${rawBytes} bytes / ${storageMode}`);
+  // Mirror the full-sync validation and actual CSV/gzip byte-size preflight,
+  // including its all-four-volumes non-empty rule. No IDs, Sheets or Firestore
+  // are written because buildGroupedRows(preview=true) is read-only and
+  // prepareFirestoreWrite() constructs an in-memory Firestore payload only.
+  const groupedRows = buildGroupedRows({
+    preview: true,
+    nonEmptyDocIds: CONFIG.volumes.map(({ docId }) => docId)
   });
-
-  Logger.log("dryRun完了: Firestoreには保存していません。");
+  const checkedAt = new Date().toISOString();
+  CONFIG.volumes.forEach(({ docId }) => {
+    const rows = groupedRows[docId];
+    const prepared = prepareFirestoreWrite(docId, rowsToCsv(rows), checkedAt, rows);
+    Logger.log(`${docId}: ${prepared.rowCount} words / ${prepared.storedBytes} stored bytes / ${prepared.storageMode}`);
+  });
+  Logger.log("dryRun完了: 4巻のCSV保存サイズ検査合格。Google Sheets / Firestore ともに変更していません。");
 }
 
 function doPost(e) {
   try {
     Logger.log("doPost開始");
+
+    if (!CONFIG.enableLegacyWebAppSync) {
+      throw new Error("旧Webアプリ同期は無効化されています。Apps Scriptエディタから手動同期してください。");
+    }
 
     validateSyncToken(e);
     Logger.log("トークン検証成功");
@@ -118,26 +131,33 @@ function doPost(e) {
 }
 
 function syncAllVolumesToFirestore() {
-  const groupedRows = buildGroupedRows();
-  const syncedAt = new Date().toISOString();
-  const volumes = [];
-
-  CONFIG.volumes.forEach(({ docId }) => {
-    const rows = groupedRows[docId] || [];
-    const storage = uploadCsvToFirestore(docId, rowsToCsv(rows), syncedAt, rows);
-    volumes.push({
-      docId,
-      rowCount: getWordCount(rows),
-      storageMode: storage.storageMode,
-      storedBytes: storage.storedBytes
+  return withSyncLock(() => {
+    const pendingIdWrites = [];
+    const groupedRows = buildGroupedRows({
+      nonEmptyDocIds: CONFIG.volumes.map(({ docId }) => docId),
+      pendingIdWritesOutput: pendingIdWrites
     });
-  });
+    const syncedAt = new Date().toISOString();
 
-  Logger.log("全volのFirestore同期が完了しました。");
-  return {
-    syncedAt,
-    volumes
-  };
+    // Prepare and size-check EVERY document before making any Firestore request.
+    // Commit applies all four writes atomically; a failed commit changes none.
+    const prepared = CONFIG.volumes.map(({ docId }) => {
+      const rows = groupedRows[docId] || [];
+      return prepareFirestoreWrite(docId, rowsToCsv(rows), syncedAt, rows);
+    });
+
+    // Preflight every CSV/encoding and its stored-byte size before changing
+    // even the generated ID cells in Google Sheets.
+    persistGeneratedIds(pendingIdWrites);
+    commitFirestoreWrites(prepared);
+    Logger.log("全volのFirestore一括同期が完了しました。");
+    return {
+      syncedAt,
+      volumes: prepared.map(({ docId, rowCount, storageMode, storedBytes }) => ({
+        docId, rowCount, storageMode, storedBytes
+      }))
+    };
+  });
 }
 
 function syncVol1() {
@@ -157,48 +177,127 @@ function syncVol4() {
 }
 
 function syncOneVolume(docId) {
-  const groupedRows = buildGroupedRows();
+  return withSyncLock(() => {
+    const pendingIdWrites = [];
+    const groupedRows = buildGroupedRows({
+      nonEmptyDocIds: [docId],
+      pendingIdWritesOutput: pendingIdWrites
+    });
 
-  if (!groupedRows[docId]) {
-    throw new Error(`未定義のdocIdです: ${docId}`);
-  }
+    if (!groupedRows[docId]) {
+      throw new Error(`未定義のdocIdです: ${docId}`);
+    }
 
-  const syncedAt = new Date().toISOString();
-  const storage = uploadCsvToFirestore(
-    docId,
-    rowsToCsv(groupedRows[docId]),
-    syncedAt,
-    groupedRows[docId]
-  );
-  Logger.log(`${docId} の同期が完了しました。`);
-  return {
-    syncedAt,
-    volumes: [{
+    const syncedAt = new Date().toISOString();
+    const prepared = prepareFirestoreWrite(
       docId,
-      rowCount: getWordCount(groupedRows[docId]),
-      storageMode: storage.storageMode,
-      storedBytes: storage.storedBytes
-    }]
-  };
+      rowsToCsv(groupedRows[docId]),
+      syncedAt,
+      groupedRows[docId]
+    );
+    persistGeneratedIds(pendingIdWrites);
+    commitFirestoreWrites([prepared]);
+    Logger.log(`${docId} の同期が完了しました。`);
+    return {
+      syncedAt,
+      volumes: [{
+        docId,
+        rowCount: prepared.rowCount,
+        storageMode: prepared.storageMode,
+        storedBytes: prepared.storedBytes
+      }]
+    };
+  });
 }
 
-function buildGroupedRows() {
+function withSyncLock(run) {
+  // Serialize executions belonging to this Apps Script project, including
+  // manual runs and legacy doPost calls. Never release a lock we did not get.
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) {
+    throw new Error("別の語彙同期処理が実行中です。完了後に再実行してください。");
+  }
+  try {
+    return run();
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function buildGroupedRows({
+  preview = false,
+  nonEmptyDocIds = [],
+  pendingIdWritesOutput = null
+} = {}) {
+  // First prepare every generated ID in memory. Never mutate Sheets until
+  // the entire dataset passes validation, including cross-volume checks.
+  const pendingIdWrites = [];
   let groupedRows = null;
 
   if (CONFIG.mode === "sheetsByVolume") {
-    groupedRows = buildGroupedRowsFromVolumeSheets();
+    groupedRows = buildGroupedRowsFromVolumeSheets({ pendingIdWrites });
   } else if (CONFIG.mode === "singleSheetWithLevel") {
-    groupedRows = buildGroupedRowsFromSingleSheet();
+    groupedRows = buildGroupedRowsFromSingleSheet({ pendingIdWrites });
   } else {
     throw new Error(`未対応のmodeです: ${CONFIG.mode}`);
   }
 
   validateGroupedRowIds(groupedRows);
   validateClassificationRows(groupedRows);
+  validateNonEmptyVolumes(groupedRows, nonEmptyDocIds);
+
+  if (pendingIdWritesOutput !== null) {
+    // Synchronization defers all Sheets writes until Firestore CSV payload
+    // preparation has succeeded. Preserve generated IDs and the corresponding
+    // CSV snapshot from this SAME build, without re-generating random IDs.
+    if (preview || !Array.isArray(pendingIdWritesOutput)) {
+      throw new Error("ID書込の遅延設定が不正です。");
+    }
+    pendingIdWritesOutput.push(...pendingIdWrites);
+  } else if (!preview) {
+    // Preserve the existing direct buildGroupedRows() contract.
+    persistGeneratedIds(pendingIdWrites);
+  }
+
   return groupedRows;
 }
 
-function buildGroupedRowsFromVolumeSheets() {
+// Google Sheets writes are not transactional with Firestore. Pre-check all
+// target cells, and verify persisted values before starting Firestore writes.
+// If a write fails partway, the partial IDs remain in Sheets but the next sync
+// can safely reuse them; Firestore is NOT updated by this attempt.
+function persistGeneratedIds(pendingIdWrites) {
+  const targets = pendingIdWrites.map(({ sheet, row, column, value }) => {
+    const range = sheet.getRange(row, column);
+    const current = String(range.getDisplayValue() ?? "").trim();
+    if (current !== "") {
+      throw new Error(
+        `ID書込先が既に変更されています: ${sheet.getName()} 行${row} 列${column}。Firestore同期を中止しました。`
+      );
+    }
+    return { range, sheetName: sheet.getName(), row, column, value };
+  });
+
+  for (const target of targets) {
+    const position = `${target.sheetName} 行${target.row} 列${target.column}`;
+    try {
+      target.range.setValue(target.value);
+      SpreadsheetApp.flush();
+      const persisted = String(target.range.getDisplayValue() ?? "").trim();
+      if (persisted !== target.value) {
+        throw new Error("書込後のIDが一致しません。");
+      }
+    } catch (error) {
+      throw new Error(
+        `ID保存検証失敗: ${position}。Firestoreには未同期です。` +
+        "一部のIDだけGoogle Sheetsに保存されている可能性があります。" +
+        `原因: ${error && error.message ? error.message : String(error)}`
+      );
+    }
+  }
+}
+
+function buildGroupedRowsFromVolumeSheets({ pendingIdWrites }) {
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   const groupedRows = {};
 
@@ -208,17 +307,15 @@ function buildGroupedRowsFromVolumeSheets() {
       throw new Error(`シートが見つかりません: ${sheetName}`);
     }
 
-    ensureStableIds(sheet);
-    groupedRows[sheetName] = readSheetRows(sheet);
+    groupedRows[sheetName] = ensureStableIds(sheet, { pendingIdWrites });
   });
 
   return groupedRows;
 }
 
-function buildGroupedRowsFromSingleSheet() {
+function buildGroupedRowsFromSingleSheet({ pendingIdWrites }) {
   const sheet = getSourceSheet();
-  ensureStableIds(sheet);
-  const values = readSheetRows(sheet);
+  const values = ensureStableIds(sheet, { pendingIdWrites });
 
   if (values.length < 2) {
     throw new Error("データ行がありません。");
@@ -248,14 +345,24 @@ function buildGroupedRowsFromSingleSheet() {
     const level = normalizeLevel(row[levelIndex]);
 
     if (!word) {
+      // A truly blank row is harmless, but a row whose word was accidentally
+      // cleared must never disappear silently from the Firestore snapshot.
+      const hasOtherData = row.some((cell, columnIndex) => (
+        columnIndex !== wordIndex && String(cell ?? "").trim() !== ""
+      ));
+      if (hasOtherData) {
+        throw new Error(`英単語が空欄なのに他のデータがある行です: row ${rowNumber}。単語欠落を防ぐため同期を中止しました。`);
+      }
       return;
+    }
+    if (!meaning) {
+      throw new Error(`意味が空欄です: row ${rowNumber}, word=${word}。同期を中止しました。`);
     }
 
     const volume = CONFIG.volumes.find((item) => item.level === level || item.docId === level);
 
     if (!volume) {
-      Logger.log(`未対応のlevelをスキップしました: row ${rowNumber}, level=${level}`);
-      return;
+      throw new Error(`未対応のlevelです: row ${rowNumber}, level=${level}。単語欠落を防ぐため同期を中止しました。`);
     }
 
     const optionalValues = optionalColumnIndexes.map(({ index }) => (
@@ -282,11 +389,11 @@ function getRequiredColumnIndexByNames(headers, names, label) {
   return index;
 }
 
-function ensureStableIds(sheet) {
+function ensureStableIds(sheet, { pendingIdWrites }) {
   const range = sheet.getDataRange();
   const values = range.getDisplayValues();
 
-  if (!values.length) return;
+  if (!values.length) return [];
 
   const headers = values[0].map(normalizeHeader);
   let idIndex = getColumnIndexByNames(headers, ID_COLUMN_NAMES);
@@ -294,7 +401,8 @@ function ensureStableIds(sheet) {
 
   if (idIndex === -1) {
     idIndex = values[0].length;
-    sheet.getRange(1, idIndex + 1).setValue("id");
+    pendingIdWrites.push({ sheet, row: 1, column: idIndex + 1, value: "id" });
+    values[0][idIndex] = "id";
   }
 
   const usedIds = new Set();
@@ -316,10 +424,13 @@ function ensureStableIds(sheet) {
     }
 
     const newId = generateStableWordId(usedIds);
-    sheet.getRange(rowNumber, idIndex + 1).setValue(newId);
+    pendingIdWrites.push({ sheet, row: rowNumber, column: idIndex + 1, value: newId });
+    row[idIndex] = newId;
     usedIds.add(newId);
     idRows[newId] = rowNumber;
   });
+
+  return values.filter((row) => row.some((cell) => String(cell).trim() !== ""));
 }
 
 function generateStableWordId(usedIds) {
@@ -362,45 +473,49 @@ function validateGroupedRowIds(groupedRows) {
 function getSourceSheet() {
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   const sheets = spreadsheet.getSheets();
-
   if (!sheets.length) {
     throw new Error("スプレッドシートにシートがありません。");
   }
 
-  const preferredSheet = CONFIG.sourceSheetName
-    ? spreadsheet.getSheetByName(CONFIG.sourceSheetName)
-    : null;
+  const preferredName = String(CONFIG.sourceSheetName || "").trim();
+  if (preferredName) {
+    const sheet = spreadsheet.getSheetByName(preferredName);
+    if (!sheet) {
+      throw new Error(
+        `指定された同期元シートが存在しません: ${preferredName}。別シートへの自動切替は行いません。`
+      );
+    }
+    const inspected = inspectSheetForSync(sheet);
+    if (!inspected.hasBaseColumns || !inspected.hasClassificationColumns) {
+      throw new Error(
+        `指定された同期元シートの必須列が不足しています: ${preferredName}。別シートへの自動切替は行いません。`
+      );
+    }
+    if (CONFIG.requireClassificationData && inspected.classifiedRows === 0) {
+      throw new Error(
+        `指定された同期元シートの分類データが空です: ${preferredName}。別シートへの自動切替は行いません。`
+      );
+    }
+    Logger.log(`同期元シート: ${inspected.sheetName} / 分類済み行: ${inspected.classifiedRows} / データ行: ${inspected.dataRows}`);
+    return sheet;
+  }
 
-  const orderedSheets = preferredSheet
-    ? [preferredSheet, ...sheets.filter((sheet) => sheet.getSheetId() !== preferredSheet.getSheetId())]
-    : sheets;
-
-  const diagnostics = orderedSheets.map(inspectSheetForSync);
-  const usable = diagnostics.filter((item) => item.hasBaseColumns && item.hasClassificationColumns);
-
+  const inspected = sheets.map(inspectSheetForSync);
+  const usable = inspected.filter((item) => (
+    item.hasBaseColumns &&
+    item.hasClassificationColumns &&
+    (!CONFIG.requireClassificationData || item.classifiedRows > 0)
+  ));
   if (!usable.length) {
-    const summary = diagnostics
-      .map((item) => `${item.sheetName}: base=${item.hasBaseColumns}, classificationColumns=${item.hasClassificationColumns}, classifiedRows=${item.classifiedRows}`)
-      .join(" / ");
+    throw new Error("必要な列と分類情報を備えた同期元シートがありません。");
+  }
+  if (usable.length !== 1) {
     throw new Error(
-      "word / meaning / level / partOfSpeech / semanticCategory を備えた同期元シートが見つかりません。" +
-      (summary ? ` 候補: ${summary}` : "")
+      `同期元シートが複数見つかりました: ${usable.map((item) => item.sheetName).join(", ")}。CONFIG.sourceSheetName を指定してください。`
     );
   }
-
-  const withData = usable.filter((item) => item.classifiedRows > 0);
-  const selected = (withData.length ? withData : usable)[0];
-
-  if (CONFIG.requireClassificationData && selected.classifiedRows === 0) {
-    throw new Error(
-      `分類データが空のため同期を中止しました: ${selected.sheetName} ` +
-      "(partOfSpeech / semanticCategory に値がありません)"
-    );
-  }
-
-  Logger.log(
-    `同期元シート: ${selected.sheetName} / 分類済み行: ${selected.classifiedRows} / データ行: ${selected.dataRows}`
-  );
+  const selected = usable[0];
+  Logger.log(`同期元シート: ${selected.sheetName} / 分類済み行: ${selected.classifiedRows} / データ行: ${selected.dataRows}`);
   return selected.sheet;
 }
 
@@ -452,6 +567,14 @@ function inspectSheetForSync(sheet) {
     classifiedRows,
     dataRows
   };
+}
+
+function validateNonEmptyVolumes(groupedRows, docIds) {
+  docIds.forEach((docId) => {
+    if (getWordCount(groupedRows[docId]) === 0) {
+      throw new Error(`${docId}: 単語数が0件のため、Firestoreへの上書きを中止しました。`);
+    }
+  });
 }
 
 function validateClassificationRows(groupedRows) {
@@ -543,8 +666,7 @@ function gzipCsvToBase64(csv) {
   return Utilities.base64Encode(gzipBlob.getBytes());
 }
 
-function uploadCsvToFirestore(docId, csv, syncedAt, rows) {
-  const accessToken = getAccessToken();
+function prepareFirestoreWrite(docId, csv, syncedAt, rows) {
   const rawBytes = getUtf8ByteLength(csv);
   const useCompression = rawBytes > FIRESTORE_SAFE_STRING_BYTES;
   const compressedBase64 = useCompression ? gzipCsvToBase64(csv) : "";
@@ -560,7 +682,6 @@ function uploadCsvToFirestore(docId, csv, syncedAt, rows) {
   const documentPath =
     `projects/${CONFIG.firebaseProjectId}` +
     `/databases/(default)/documents/${CONFIG.collectionName}/${docId}`;
-
   const updateFields = [
     "csv",
     "csvGzipBase64",
@@ -569,73 +690,73 @@ function uploadCsvToFirestore(docId, csv, syncedAt, rows) {
     "storedBytes",
     "syncedAt"
   ];
-  const updateMask = updateFields
-    .map((fieldName) => `updateMask.fieldPaths=${encodeURIComponent(fieldName)}`)
-    .join("&");
-  const url = `https://firestore.googleapis.com/v1/${documentPath}?${updateMask}`;
-
   const fields = {
     csvEncoding: {
       stringValue: useCompression ? "gzip-base64" : "plain"
     },
-    uncompressedBytes: {
-      integerValue: String(rawBytes)
-    },
-    storedBytes: {
-      integerValue: String(storedBytes)
-    },
-    syncedAt: {
-      timestampValue: syncedAt
-    }
+    uncompressedBytes: { integerValue: String(rawBytes) },
+    storedBytes: { integerValue: String(storedBytes) },
+    syncedAt: { timestampValue: syncedAt }
   };
 
   if (useCompression) {
-    fields.csvGzipBase64 = {
-      stringValue: compressedBase64
-    };
+    fields.csvGzipBase64 = { stringValue: compressedBase64 };
   } else {
-    fields.csv = {
-      stringValue: csv
-    };
+    fields.csv = { stringValue: csv };
   }
 
-  const payload = { fields };
+  const rowCount = Math.max((rows || []).length - 1, 0);
+  Logger.log(`同期準備: ${docId}, ${rowCount}語, ${storedBytes}bytes, ${useCompression ? "gzip-base64" : "plain"}`);
+  return {
+    docId,
+    rowCount,
+    storageMode: useCompression ? "gzip-base64" : "plain",
+    storedBytes,
+    write: {
+      update: { name: documentPath, fields },
+      // Masked-but-omitted csv/csvGzipBase64 clears a stale encoding field.
+      updateMask: { fieldPaths: updateFields }
+    }
+  };
+}
 
-  const csvRowCount = Math.max((rows || []).length - 1, 0);
-  Logger.log(`同期開始: ${docId}`);
-  Logger.log(`CSV行数: ${csvRowCount}`);
-  Logger.log(`Firestore保存先: ${CONFIG.collectionName}/${docId}`);
-  Logger.log(`保存形式: ${useCompression ? "gzip-base64" : "plain"}`);
-  Logger.log(`CSVサイズ: ${rawBytes} bytes -> ${storedBytes} bytes`);
-  Logger.log(`syncedAt: ${syncedAt}`);
+function commitFirestoreWrites(prepared) {
+  if (!prepared.length) {
+    throw new Error("Firestoreに書き込むデータがありません。");
+  }
 
+  const accessToken = getAccessToken();
+  const url =
+    `https://firestore.googleapis.com/v1/projects/${CONFIG.firebaseProjectId}` +
+    "/databases/(default)/documents:commit";
   const response = UrlFetchApp.fetch(url, {
-    method: "patch",
+    method: "post",
     contentType: "application/json",
-    headers: {
-      Authorization: `Bearer ${accessToken}`
-    },
-    payload: JSON.stringify(payload),
+    headers: { Authorization: `Bearer ${accessToken}` },
+    payload: JSON.stringify({ writes: prepared.map(({ write }) => write) }),
     muteHttpExceptions: true
   });
-
   const status = response.getResponseCode();
 
   if (status < 200 || status >= 300) {
-    Logger.log(`Firestore保存失敗: ${docId}, status=${status}`);
+    Logger.log(`Firestore一括保存失敗: status=${status}`);
     throw new Error(
-      `Firestore保存失敗: ${docId}\n` +
-      `status: ${status}\n` +
-      response.getContentText()
+      `Firestore一括保存失敗: HTTP ${status}。全巻の変更は確定していません。`
     );
   }
 
-  Logger.log(`Firestore保存成功: ${CONFIG.collectionName}/${docId}`);
-  return {
-    storageMode: useCompression ? "gzip-base64" : "plain",
-    rawBytes,
-    storedBytes
-  };
+  // An HTTP success is not enough to assert that every requested write
+  // was acknowledged. Avoid silently reporting success on malformed responses.
+  let result;
+  try {
+    result = JSON.parse(response.getContentText());
+  } catch (error) {
+    throw new Error("Firestore応答の解析に失敗。書込済みの可能性があるため、再実行前に本番データを確認してください。");
+  }
+  if (!Array.isArray(result.writeResults) || result.writeResults.length !== prepared.length) {
+    throw new Error("Firestore一括保存の応答件数が不一致。再実行前に本番データを確認してください。");
+  }
+  Logger.log(`Firestore一括保存成功: ${prepared.map(({ docId }) => docId).join(", ")}`);
 }
 
 function getAccessToken() {
