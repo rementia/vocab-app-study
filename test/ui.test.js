@@ -391,6 +391,27 @@ for (const answer of [
   assert.strictEqual(loadedWord, "abandon", "answered multiple choice must load the correct word's IPA");
 }
 
+// Regression: on moving to a new question, getMultipleChoiceQuestion clears the
+// previous answer during rendering. Neither stale IPA nor answered styling may persist.
+const nextChoiceContext = makeMultipleChoiceContext({
+  multipleChoiceMode: true,
+  multipleChoiceAnswer: { selectedText: "abandon", correctText: "abandon", isCorrect: true }
+});
+const nextChoiceState = { ...nextChoiceContext.getState() };
+nextChoiceContext.getState = () => ({ ...nextChoiceState });
+nextChoiceContext.callbacks.getCurrentWord = () => ({ word: "expand", meaning: "広げる" });
+nextChoiceContext.callbacks.getMultipleChoiceQuestion = () => {
+  nextChoiceState.multipleChoiceAnswer = null;
+  return { options: multipleChoiceOptions };
+};
+let nextChoicePronunciationLoads = 0;
+nextChoiceContext.callbacks.loadPronunciation = () => { nextChoicePronunciationLoads += 1; };
+nextChoiceContext.dom.pronunciationEl.textContent = "/previous/";
+renderCurrentWord(nextChoiceContext);
+assert.strictEqual(nextChoicePronunciationLoads, 0, "new unanswered question must not load IPA using stale answer state");
+assert.strictEqual(nextChoiceContext.dom.pronunciationEl.textContent, "", "new unanswered question must clear prior IPA");
+assert.strictEqual(document.body.classList.contains("mode-multiple-choice-answered"), false, "new unanswered question must not retain answered CSS state");
+
 const morphemeChoiceContext = makeMultipleChoiceContext({
   multipleChoiceMode: true,
   morphemeAnalysisMode: true
