@@ -170,7 +170,8 @@ export function renderCurrentWord(context) {
   updateMorphemeButton(context);
   updateMorphemeAnalysisPanel(context);
   updateCurrentStateMeta(context);
-  if (isMultipleChoicePresentationActive(state) && !state.multipleChoiceAnswer) {
+  const pronunciationState = getState(context);
+  if (isMultipleChoicePresentationActive(pronunciationState) && !pronunciationState.multipleChoiceAnswer) {
     if (dom.pronunciationEl) dom.pronunciationEl.textContent = "";
   } else {
     callbacks.loadPronunciation(current.word);
@@ -518,9 +519,13 @@ export function renderMultipleChoice(context) {
 
   if (!dom.multipleChoicePanelEl || !dom.multipleChoiceOptionsEl) return;
 
+  // Generating a new question also clears the previous answer. Do this before
+  // applying the answered CSS class or deciding whether to reveal the IPA.
+  const question = isPresentationActive ? callbacks.getMultipleChoiceQuestion?.() : null;
+  const latestState = getState(context);
   if (typeof document !== "undefined") {
     document.body.classList.toggle("mode-multiple-choice", isPresentationActive);
-    document.body.classList.toggle("mode-multiple-choice-answered", isPresentationActive && Boolean(state.multipleChoiceAnswer));
+    document.body.classList.toggle("mode-multiple-choice-answered", isPresentationActive && Boolean(latestState.multipleChoiceAnswer));
   }
 
   dom.multipleChoicePanelEl.hidden = !isPresentationActive;
@@ -534,8 +539,6 @@ export function renderMultipleChoice(context) {
     return;
   }
 
-  const question = callbacks.getMultipleChoiceQuestion?.();
-  const latestState = getState(context);
   if (dom.unknownChoiceBtnEl) {
     dom.unknownChoiceBtnEl.disabled = !question || Boolean(latestState.multipleChoiceAnswer);
     dom.unknownChoiceBtnEl.classList.toggle(
