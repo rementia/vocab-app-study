@@ -10,7 +10,9 @@ export function bindKeyboardEvents({
   selectPreviousSearchResult,
   closeSidebar,
   toggleSidebar,
-  toggleRandomMode
+  toggleRandomMode,
+  activateMultipleChoiceOption,
+  answerMultipleChoiceUnknown
 }) {
   const handlers = {
     prevWord,
@@ -24,7 +26,9 @@ export function bindKeyboardEvents({
     selectPreviousSearchResult,
     closeSidebar,
     toggleSidebar,
-    toggleRandomMode
+    toggleRandomMode,
+    activateMultipleChoiceOption,
+    answerMultipleChoiceUnknown
   };
 
   document.addEventListener("keydown", (event) => {
@@ -77,6 +81,16 @@ function handleTextInputKeydown(event, handlers) {
 
 function handleAppShortcutKeydown(event, handlers) {
   if (isModifiedShortcut(event)) return;
+
+  if (/^[1-5]$/.test(event.key)) {
+    if (event.defaultPrevented || event.repeat || event.shiftKey || event.target?.isContentEditable) return;
+
+    const handled = event.key === "5"
+      ? handlers.answerMultipleChoiceUnknown?.()
+      : handlers.activateMultipleChoiceOption?.(Number(event.key) - 1);
+    if (handled) event.preventDefault();
+    return;
+  }
 
   if (event.key === "ArrowLeft") {
     preventAndRun(event, handlers.prevWord);

@@ -566,6 +566,12 @@ export function renderMultipleChoice(context) {
     button.className = "multiple-choice-option";
     button.textContent = isRevealed && option.secondaryText ? option.secondaryText : option.text;
     button.dataset.choiceIndex = String(optionIndex);
+    const shortcut = String(optionIndex + 1);
+    button.dataset.choiceShortcut = shortcut;
+    button.setAttribute("aria-keyshortcuts", shortcut);
+    button.title = isAnswered
+      ? `${shortcut} キーでこの選択肢の訳語を切替`
+      : `${shortcut} キーで回答`;
 
     if (isAnswered) {
       if (option.text === latestState.multipleChoiceAnswer.correctText) {

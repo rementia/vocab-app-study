@@ -50,7 +50,7 @@ import {
   applySidebarState as uiApplySidebarState,
   updateAuthUI as uiUpdateAuthUI,
   updateMorphemeButton as uiUpdateMorphemeButton
-} from './ui.js?v=20261019-1';
+} from './ui.js?v=20261113-1';
 import {
   buildFavoriteEntries,
   isFavorite,
@@ -78,7 +78,7 @@ import {
   isSwipeAllowedTarget,
   handleViewportChange,
   resetSwipeElementState
-} from './events.js?v=20260924-2';
+} from './events.js?v=20261113-1';
 import {
   initNavigation,
   moveToIndex as navMoveToIndex,
@@ -349,7 +349,9 @@ async function init() {
     selectPreviousSearchResult,
     closeSidebar,
     toggleSidebar,
-    toggleRandomMode
+    toggleRandomMode,
+    activateMultipleChoiceOption,
+    answerMultipleChoiceUnknown: handleMultipleChoiceUnknownClick
   });
   setupAuthListener();
   initPronunciation({
@@ -659,7 +661,20 @@ function handleMultipleChoiceOptionClick(event) {
   }
 
   multipleChoiceSuppressClickButton = null;
+  applyMultipleChoiceOption(button);
+}
 
+function activateMultipleChoiceOption(choiceIndex) {
+  if (!multipleChoiceMode || morphemeAnalysisMode || multipleChoicePanelEl?.hidden) return false;
+
+  const button = multipleChoiceOptionsEl?.children[choiceIndex];
+  if (!button) return false;
+
+  applyMultipleChoiceOption(button);
+  return true;
+}
+
+function applyMultipleChoiceOption(button) {
   const question = getMultipleChoiceQuestion();
   const current = getCurrentWord();
   if (!question || !current) return;
@@ -695,9 +710,11 @@ function handleMultipleChoiceOptionClick(event) {
   scheduleSpeechSync();
 }
 function handleMultipleChoiceUnknownClick() {
+  if (!multipleChoiceMode || morphemeAnalysisMode || unknownChoiceBtnEl?.hidden) return false;
+
   const question = getMultipleChoiceQuestion();
   const current = getCurrentWord();
-  if (!question || !current || multipleChoiceAnswer) return;
+  if (!question || !current || multipleChoiceAnswer) return false;
 
   multipleChoiceAnswer = {
     wordId: current.id,
@@ -711,6 +728,7 @@ function handleMultipleChoiceUnknownClick() {
   finishReviewStatsChange();
   loadPronunciation(current.word);
   scheduleSpeechSync();
+  return true;
 }
 
 function handleMultipleChoiceEtymologyOpen(event) {

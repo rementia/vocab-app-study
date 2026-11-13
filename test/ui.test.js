@@ -368,6 +368,10 @@ assert.strictEqual(activeChoiceContext.dom.wordDetailMetaEl.hidden, true, "word 
 assert.strictEqual(activeChoiceContext.dom.multipleChoicePanelEl.hidden, false, "multiple choice panel should be visible when mode is on");
 assert.strictEqual(activeChoiceContext.dom.multipleChoiceOptionsEl.children.length, 4, "multiple choice mode should render four option buttons");
 assert.deepStrictEqual(
+  activeChoiceContext.dom.multipleChoiceOptionsEl.children.map((button) => button.attributes["aria-keyshortcuts"]),
+  ["1", "2", "3", "4"]
+);
+assert.deepStrictEqual(
   activeChoiceContext.dom.multipleChoiceOptionsEl.children.map((button) => button.textContent),
   ["abandon", "expand", "permit", "protect"]
 );

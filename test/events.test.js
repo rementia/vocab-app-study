@@ -48,7 +48,7 @@ function makeCalls() {
   };
 }
 
-function bindWithCalls(calls, clearSearchResult = false) {
+function bindWithCalls(calls, clearSearchResult = false, activateMultipleChoiceOption, answerMultipleChoiceUnknown) {
   bindKeyboardEvents({
     prevWord: () => calls.prevWord++,
     nextWord: () => calls.nextWord++,
@@ -64,7 +64,9 @@ function bindWithCalls(calls, clearSearchResult = false) {
     selectPreviousSearchResult: () => calls.previousSearch++,
     closeSidebar: () => calls.closeSidebar++,
     toggleSidebar: () => calls.toggleSidebar++,
-    toggleRandomMode: () => calls.random++
+    toggleRandomMode: () => calls.random++,
+    activateMultipleChoiceOption,
+    answerMultipleChoiceUnknown
   });
 }
 
@@ -76,7 +78,9 @@ function dispatchKey({
   ctrlKey = false,
   metaKey = false,
   altKey = false,
-  isComposing = false
+  isComposing = false,
+  repeat = false,
+  defaultPrevented = false
 }) {
   let prevented = false;
   keydownHandler({
@@ -88,6 +92,8 @@ function dispatchKey({
     metaKey,
     altKey,
     isComposing,
+    repeat,
+    defaultPrevented,
     preventDefault() {
       prevented = true;
     }
@@ -157,6 +163,38 @@ assert.strictEqual(dispatchKey({ key: "+", ctrlKey: true }), false);
 assert.strictEqual(dispatchKey({ key: "0", ctrlKey: true }), false);
 assert.strictEqual(dispatchKey({ key: "f", ctrlKey: true }), false);
 assert.strictEqual(calls.favorite, 0, "Ctrl+F should keep browser find behavior");
+
+const activatedOptions = [];
+let choiceAvailable = true;
+let unknownAvailable = true;
+bindWithCalls(calls, false, (index) => {
+  if (!choiceAvailable) return false;
+  activatedOptions.push(index);
+  return true;
+}, () => {
+  if (!unknownAvailable) return false;
+  unknownAvailable = false;
+  return true;
+});
+
+for (const key of ["1", "2", "3", "4"]) {
+  assert.strictEqual(dispatchKey({ key }), true);
+}
+assert.strictEqual(dispatchKey({ key: "3", code: "Numpad3" }), true);
+assert.strictEqual(dispatchKey({ key: "1", repeat: true }), false);
+assert.strictEqual(dispatchKey({ key: "1", ctrlKey: true }), false);
+assert.strictEqual(dispatchKey({ key: "1", shiftKey: true }), false);
+assert.strictEqual(dispatchKey({ key: "1", isComposing: true }), false);
+assert.strictEqual(dispatchKey({ key: "1", defaultPrevented: true }), false);
+assert.strictEqual(dispatchKey({ key: "1", target: input }), false);
+assert.strictEqual(dispatchKey({ key: "1", target: { isContentEditable: true } }), false);
+assert.strictEqual(dispatchKey({ key: "5", target: input }), false);
+assert.strictEqual(dispatchKey({ key: "5", repeat: true }), false);
+assert.strictEqual(dispatchKey({ key: "5" }), true);
+assert.strictEqual(dispatchKey({ key: "5" }), false);
+choiceAvailable = false;
+assert.strictEqual(dispatchKey({ key: "1" }), false);
+assert.deepStrictEqual(activatedOptions, [0, 1, 2, 3, 2]);
 
 assert.deepStrictEqual(
   getSwipeIntent(80, 10),
