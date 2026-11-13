@@ -50,7 +50,7 @@ import {
   applySidebarState as uiApplySidebarState,
   updateAuthUI as uiUpdateAuthUI,
   updateMorphemeButton as uiUpdateMorphemeButton
-} from './ui.js?v=20261113-1';
+} from './ui.js?v=20261113-2';
 import {
   buildFavoriteEntries,
   isFavorite,
@@ -78,7 +78,7 @@ import {
   isSwipeAllowedTarget,
   handleViewportChange,
   resetSwipeElementState
-} from './events.js?v=20261113-1';
+} from './events.js?v=20261113-2';
 import {
   initNavigation,
   moveToIndex as navMoveToIndex,
@@ -665,13 +665,31 @@ function handleMultipleChoiceOptionClick(event) {
 }
 
 function activateMultipleChoiceOption(choiceIndex) {
-  if (!multipleChoiceMode || morphemeAnalysisMode || multipleChoicePanelEl?.hidden) return false;
-
-  const button = multipleChoiceOptionsEl?.children[choiceIndex];
+  const button = getVisibleMultipleChoiceButton(choiceIndex);
   if (!button) return false;
 
-  applyMultipleChoiceOption(button);
-  return true;
+  if (!multipleChoiceAnswer) {
+    applyMultipleChoiceOption(button);
+    return true;
+  }
+
+  const question = multipleChoiceQuestion;
+  const answer = multipleChoiceAnswer;
+  return (isLongPress) => {
+    const currentButton = getVisibleMultipleChoiceButton(choiceIndex);
+    if (!currentButton || multipleChoiceQuestion !== question || multipleChoiceAnswer !== answer) return;
+
+    if (isLongPress) {
+      openMultipleChoiceEtymology(question.options[choiceIndex]?.analysisItem);
+    } else {
+      applyMultipleChoiceOption(currentButton);
+    }
+  };
+}
+
+function getVisibleMultipleChoiceButton(choiceIndex) {
+  if (!multipleChoiceMode || morphemeAnalysisMode || multipleChoicePanelEl?.hidden) return null;
+  return multipleChoiceOptionsEl?.children[choiceIndex] || null;
 }
 
 function applyMultipleChoiceOption(button) {
@@ -732,7 +750,10 @@ function handleMultipleChoiceUnknownClick() {
 }
 
 function handleMultipleChoiceEtymologyOpen(event) {
-  const item = event?.detail?.item;
+  openMultipleChoiceEtymology(event?.detail?.item);
+}
+
+function openMultipleChoiceEtymology(item) {
   if (!item?.word || !multipleChoiceAnswer) return;
 
   setMorphemeAnalysisTarget(item);

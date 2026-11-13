@@ -25,9 +25,19 @@ globalThis.HTMLTextAreaElement = MockTextArea;
 globalThis.HTMLSelectElement = MockSelect;
 
 let keydownHandler = null;
+let keyupHandler = null;
+let focusinHandler = null;
+let blurHandler = null;
 globalThis.document = {
+  defaultView: {
+    addEventListener(type, handler) {
+      if (type === "blur") blurHandler = handler;
+    }
+  },
   addEventListener(type, handler) {
     if (type === "keydown") keydownHandler = handler;
+    if (type === "keyup") keyupHandler = handler;
+    if (type === "focusin") focusinHandler = handler;
   }
 };
 
@@ -195,6 +205,49 @@ assert.strictEqual(dispatchKey({ key: "5" }), false);
 choiceAvailable = false;
 assert.strictEqual(dispatchKey({ key: "1" }), false);
 assert.deepStrictEqual(activatedOptions, [0, 1, 2, 3, 2]);
+
+const presses = [];
+const timers = new Map();
+const realSetTimeout = globalThis.setTimeout;
+const realClearTimeout = globalThis.clearTimeout;
+let nextTimer = 0;
+globalThis.setTimeout = (callback, delay) => {
+  assert.strictEqual(delay, 500);
+  timers.set(++nextTimer, callback);
+  return nextTimer;
+};
+globalThis.clearTimeout = (id) => timers.delete(id);
+
+bindWithCalls(calls, false, (index) => (isLongPress) => presses.push([index, isLongPress]));
+
+assert.strictEqual(dispatchKey({ key: "3", code: "Digit3" }), true);
+assert.deepStrictEqual(presses, [], "an answered question waits for key release or the long-press timer");
+keyupHandler({ key: "3", code: "Digit3" });
+assert.deepStrictEqual(presses, [[2, false]]);
+assert.strictEqual(timers.size, 0);
+
+dispatchKey({ key: "4", code: "Numpad4" });
+dispatchKey({ key: "4", code: "Numpad4", repeat: true });
+assert.strictEqual(timers.size, 1);
+const fireLongPress = timers.get(nextTimer);
+timers.delete(nextTimer);
+fireLongPress();
+keyupHandler({ key: "4", code: "Numpad4" });
+assert.deepStrictEqual(presses, [[2, false], [3, true]], "long press should suppress the release action");
+
+for (const cancel of [
+  () => dispatchKey({ key: "ArrowRight" }),
+  () => focusinHandler({ target: input }),
+  () => blurHandler()
+]) {
+  dispatchKey({ key: "1" });
+  cancel();
+  keyupHandler({ key: "1" });
+  assert.strictEqual(timers.size, 0);
+}
+assert.deepStrictEqual(presses, [[2, false], [3, true]]);
+globalThis.setTimeout = realSetTimeout;
+globalThis.clearTimeout = realClearTimeout;
 
 assert.deepStrictEqual(
   getSwipeIntent(80, 10),

@@ -570,7 +570,7 @@ export function renderMultipleChoice(context) {
     button.dataset.choiceShortcut = shortcut;
     button.setAttribute("aria-keyshortcuts", shortcut);
     button.title = isAnswered
-      ? `${shortcut} キーでこの選択肢の訳語を切替`
+      ? `${shortcut} キーの短押しで訳語切替、長押しで語源解析`
       : `${shortcut} キーで回答`;
 
     if (isAnswered) {

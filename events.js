@@ -1,3 +1,5 @@
+const CHOICE_KEY_LONG_PRESS_MS = 500;
+
 export function bindKeyboardEvents({
   prevWord,
   nextWord,
@@ -20,16 +22,34 @@ export function bindKeyboardEvents({
     speakWord,
     handleToggleFavoriteCurrentWord,
     handleToggleDifficultCurrentWord,
-          focusSearch,
+    focusSearch,
     clearSearch,
     selectNextSearchResult,
     selectPreviousSearchResult,
     closeSidebar,
     toggleSidebar,
-    toggleRandomMode,
-    activateMultipleChoiceOption,
-    answerMultipleChoiceUnknown
+    toggleRandomMode
   };
+
+  let choicePress = null;
+
+  function cancelChoicePress() {
+    if (!choicePress) return;
+    clearTimeout(choicePress.timer);
+    choicePress = null;
+  }
+
+  document.defaultView?.addEventListener("blur", cancelChoicePress);
+  document.addEventListener("focusin", (event) => {
+    if (isTextInputTarget(event.target) || event.target?.isContentEditable) cancelChoicePress();
+  });
+  document.addEventListener("keyup", (event) => {
+    if (!choicePress || choicePress.key !== (event.code || event.key)) return;
+
+    const { finish } = choicePress;
+    cancelChoicePress();
+    if (!event.isComposing && !event.shiftKey && !isModifiedShortcut(event)) finish(false);
+  });
 
   document.addEventListener("keydown", (event) => {
     if (event.isComposing) return;
@@ -39,6 +59,27 @@ export function bindKeyboardEvents({
       return;
     }
 
+    if (/^[1-5]$/.test(event.key)) {
+      if (isModifiedShortcut(event) || event.defaultPrevented || event.repeat || event.shiftKey || event.target?.isContentEditable) return;
+
+      const result = event.key === "5"
+        ? answerMultipleChoiceUnknown?.()
+        : activateMultipleChoiceOption?.(Number(event.key) - 1);
+      if (!result) return;
+      event.preventDefault();
+
+      cancelChoicePress();
+      if (typeof result === "function") {
+        const timer = setTimeout(() => {
+          choicePress = null;
+          result(true);
+        }, CHOICE_KEY_LONG_PRESS_MS);
+        choicePress = { key: event.code || event.key, finish: result, timer };
+      }
+      return;
+    }
+
+    if (!event.repeat) cancelChoicePress();
     handleAppShortcutKeydown(event, handlers);
   });
 }
@@ -81,16 +122,6 @@ function handleTextInputKeydown(event, handlers) {
 
 function handleAppShortcutKeydown(event, handlers) {
   if (isModifiedShortcut(event)) return;
-
-  if (/^[1-5]$/.test(event.key)) {
-    if (event.defaultPrevented || event.repeat || event.shiftKey || event.target?.isContentEditable) return;
-
-    const handled = event.key === "5"
-      ? handlers.answerMultipleChoiceUnknown?.()
-      : handlers.activateMultipleChoiceOption?.(Number(event.key) - 1);
-    if (handled) event.preventDefault();
-    return;
-  }
 
   if (event.key === "ArrowLeft") {
     preventAndRun(event, handlers.prevWord);
