@@ -58,7 +58,7 @@ function makeCalls() {
   };
 }
 
-function bindWithCalls(calls, clearSearchResult = false, activateMultipleChoiceOption, answerMultipleChoiceUnknown) {
+function bindWithCalls(calls, clearSearchResult = false, activateMultipleChoiceOption, answerMultipleChoiceUnknown, closeMorphemeAnalysisMode) {
   bindKeyboardEvents({
     prevWord: () => calls.prevWord++,
     nextWord: () => calls.nextWord++,
@@ -73,6 +73,7 @@ function bindWithCalls(calls, clearSearchResult = false, activateMultipleChoiceO
     selectNextSearchResult: () => calls.nextSearch++,
     selectPreviousSearchResult: () => calls.previousSearch++,
     closeSidebar: () => calls.closeSidebar++,
+    closeMorphemeAnalysisMode,
     toggleSidebar: () => calls.toggleSidebar++,
     toggleRandomMode: () => calls.random++,
     activateMultipleChoiceOption,
@@ -165,6 +166,23 @@ assert.strictEqual(inputWithText.blurred, false, "Escape should keep focus when 
 
 assert.strictEqual(dispatchKey({ key: "ArrowRight", isComposing: true }), false);
 assert.strictEqual(calls.nextWord, 0, "IME composing keys should be ignored");
+
+calls = makeCalls();
+let analysisOpen = true;
+bindWithCalls(calls, true, undefined, undefined, () => {
+  if (!analysisOpen) return false;
+  analysisOpen = false;
+  return true;
+});
+assert.strictEqual(dispatchKey({ key: "Escape", target: new MockInput() }), true);
+assert.strictEqual(calls.clearSearch, 1);
+assert.strictEqual(analysisOpen, true);
+assert.strictEqual(dispatchKey({ key: "Escape" }), true);
+assert.strictEqual(analysisOpen, false);
+assert.strictEqual(dispatchKey({ key: "Escape", repeat: true }), true);
+assert.strictEqual(calls.closeSidebar, 0);
+assert.strictEqual(dispatchKey({ key: "Escape" }), true);
+assert.strictEqual(calls.closeSidebar, 1);
 
 calls = makeCalls();
 bindWithCalls(calls);

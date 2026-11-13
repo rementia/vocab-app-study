@@ -11,6 +11,7 @@ export function bindKeyboardEvents({
   selectNextSearchResult,
   selectPreviousSearchResult,
   closeSidebar,
+  closeMorphemeAnalysisMode,
   toggleSidebar,
   toggleRandomMode,
   activateMultipleChoiceOption,
@@ -27,6 +28,7 @@ export function bindKeyboardEvents({
     selectNextSearchResult,
     selectPreviousSearchResult,
     closeSidebar,
+    closeMorphemeAnalysisMode,
     toggleSidebar,
     toggleRandomMode
   };
@@ -154,7 +156,8 @@ function handleAppShortcutKeydown(event, handlers) {
   }
 
   if (event.key === "Escape") {
-    preventAndRun(event, handlers.closeSidebar);
+    event.preventDefault();
+    if (!event.repeat && !handlers.closeMorphemeAnalysisMode?.()) handlers.closeSidebar();
     return;
   }
 

@@ -78,7 +78,7 @@ import {
   isSwipeAllowedTarget,
   handleViewportChange,
   resetSwipeElementState
-} from './events.js?v=20261113-2';
+} from './events.js?v=20261113-3';
 import {
   initNavigation,
   moveToIndex as navMoveToIndex,
@@ -348,6 +348,7 @@ async function init() {
     selectNextSearchResult,
     selectPreviousSearchResult,
     closeSidebar,
+    closeMorphemeAnalysisMode,
     toggleSidebar,
     toggleRandomMode,
     activateMultipleChoiceOption,
@@ -1967,11 +1968,12 @@ function toggleMorphemeAnalysisMode() {
 }
 
 function closeMorphemeAnalysisMode() {
-  if (!morphemeAnalysisMode) return;
+  if (!morphemeAnalysisMode) return false;
   morphemeAnalysisMode = false;
   saveMorphemeAnalysisModeState(morphemeAnalysisMode);
   updateMorphemeButton();
   renderCurrentWord();
+  return true;
 }
 
 function toggleAutoPlay() {
