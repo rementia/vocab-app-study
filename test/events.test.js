@@ -58,7 +58,7 @@ function makeCalls() {
   };
 }
 
-function bindWithCalls(calls, clearSearchResult = false, activateMultipleChoiceOption, answerMultipleChoiceUnknown, closeMorphemeAnalysisMode) {
+function bindWithCalls(calls, clearSearchResult = false, activateMultipleChoiceOption, answerMultipleChoiceUnknown, closeMorphemeAnalysisMode, analysisShortcuts = {}) {
   bindKeyboardEvents({
     prevWord: () => calls.prevWord++,
     nextWord: () => calls.nextWord++,
@@ -77,7 +77,8 @@ function bindWithCalls(calls, clearSearchResult = false, activateMultipleChoiceO
     toggleSidebar: () => calls.toggleSidebar++,
     toggleRandomMode: () => calls.random++,
     activateMultipleChoiceOption,
-    answerMultipleChoiceUnknown
+    answerMultipleChoiceUnknown,
+    ...analysisShortcuts
   });
 }
 
@@ -183,6 +184,32 @@ assert.strictEqual(dispatchKey({ key: "Escape", repeat: true }), true);
 assert.strictEqual(calls.closeSidebar, 0);
 assert.strictEqual(dispatchKey({ key: "Escape" }), true);
 assert.strictEqual(calls.closeSidebar, 1);
+
+const analysisScrolls = [];
+let analysisVisible = false;
+bindWithCalls(makeCalls(), false, undefined, undefined, undefined, {
+  openMorphemeAnalysis() {
+    if (analysisVisible) return false;
+    analysisVisible = true;
+    return true;
+  },
+  scrollMorphemeAnalysis(direction) {
+    if (!analysisVisible) return false;
+    analysisScrolls.push(direction);
+    return true;
+  }
+});
+assert.strictEqual(dispatchKey({ key: "ArrowDown" }), false);
+assert.strictEqual(dispatchKey({ key: "e", target: input }), false);
+assert.strictEqual(dispatchKey({ key: "e", ctrlKey: true }), false);
+assert.strictEqual(dispatchKey({ key: "e", repeat: true }), false);
+assert.strictEqual(analysisVisible, false);
+assert.strictEqual(dispatchKey({ key: "e" }), true);
+assert.strictEqual(dispatchKey({ key: "e" }), false);
+assert.strictEqual(dispatchKey({ key: "ArrowDown", repeat: true }), true);
+assert.strictEqual(dispatchKey({ key: "ArrowUp" }), true);
+assert.strictEqual(dispatchKey({ key: "ArrowDown", target: input }), false);
+assert.deepStrictEqual(analysisScrolls, [1, -1]);
 
 calls = makeCalls();
 bindWithCalls(calls);

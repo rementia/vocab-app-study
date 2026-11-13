@@ -12,6 +12,8 @@ export function bindKeyboardEvents({
   selectPreviousSearchResult,
   closeSidebar,
   closeMorphemeAnalysisMode,
+  openMorphemeAnalysis,
+  scrollMorphemeAnalysis,
   toggleSidebar,
   toggleRandomMode,
   activateMultipleChoiceOption,
@@ -29,6 +31,8 @@ export function bindKeyboardEvents({
     selectPreviousSearchResult,
     closeSidebar,
     closeMorphemeAnalysisMode,
+    openMorphemeAnalysis,
+    scrollMorphemeAnalysis,
     toggleSidebar,
     toggleRandomMode
   };
@@ -124,6 +128,16 @@ function handleTextInputKeydown(event, handlers) {
 
 function handleAppShortcutKeydown(event, handlers) {
   if (isModifiedShortcut(event)) return;
+
+  if (event.key.toLowerCase() === "e" || event.key === "ArrowUp" || event.key === "ArrowDown") {
+    if (event.defaultPrevented || event.shiftKey || event.target?.isContentEditable) return;
+
+    const handled = event.key.toLowerCase() === "e"
+      ? !event.repeat && handlers.openMorphemeAnalysis?.()
+      : handlers.scrollMorphemeAnalysis?.(event.key === "ArrowUp" ? -1 : 1);
+    if (handled) event.preventDefault();
+    return;
+  }
 
   if (event.key === "ArrowLeft") {
     preventAndRun(event, handlers.prevWord);

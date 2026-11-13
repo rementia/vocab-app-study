@@ -78,7 +78,7 @@ import {
   isSwipeAllowedTarget,
   handleViewportChange,
   resetSwipeElementState
-} from './events.js?v=20261113-3';
+} from './events.js?v=20261113-4';
 import {
   initNavigation,
   moveToIndex as navMoveToIndex,
@@ -349,6 +349,8 @@ async function init() {
     selectPreviousSearchResult,
     closeSidebar,
     closeMorphemeAnalysisMode,
+    openMorphemeAnalysis,
+    scrollMorphemeAnalysis,
     toggleSidebar,
     toggleRandomMode,
     activateMultipleChoiceOption,
@@ -1973,6 +1975,24 @@ function closeMorphemeAnalysisMode() {
   saveMorphemeAnalysisModeState(morphemeAnalysisMode);
   updateMorphemeButton();
   renderCurrentWord();
+  return true;
+}
+
+function openMorphemeAnalysis() {
+  if (morphemeAnalysisMode || !getCurrentWord()) return false;
+
+  setMorphemeAnalysisTarget(null);
+  setPronunciationTargetOverride(null);
+  toggleMorphemeAnalysisMode();
+  return true;
+}
+
+function scrollMorphemeAnalysis(direction) {
+  if (!morphemeAnalysisMode || !morphemeAnalysisPanelEl || morphemeAnalysisPanelEl.hidden) return false;
+
+  const content = morphemeAnalysisPanelEl.querySelector(".morpheme-analysis-content");
+  const scrollArea = content?.scrollHeight > content?.clientHeight ? content : morphemeAnalysisPanelEl;
+  scrollArea.scrollTop += direction * 48;
   return true;
 }
 
