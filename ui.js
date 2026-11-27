@@ -170,7 +170,8 @@ export function renderCurrentWord(context) {
   updateMorphemeButton(context);
   updateMorphemeAnalysisPanel(context);
   updateCurrentStateMeta(context);
-  if (isMultipleChoicePresentationActive(state)) {
+  const pronunciationState = getState(context);
+  if (isMultipleChoicePresentationActive(pronunciationState) && !pronunciationState.multipleChoiceAnswer) {
     if (dom.pronunciationEl) dom.pronunciationEl.textContent = "";
   } else {
     callbacks.loadPronunciation(current.word);
@@ -518,8 +519,13 @@ export function renderMultipleChoice(context) {
 
   if (!dom.multipleChoicePanelEl || !dom.multipleChoiceOptionsEl) return;
 
+  // Generating a new question also clears the previous answer. Do this before
+  // applying the answered CSS class or deciding whether to reveal the IPA.
+  const question = isPresentationActive ? callbacks.getMultipleChoiceQuestion?.() : null;
+  const latestState = getState(context);
   if (typeof document !== "undefined") {
     document.body.classList.toggle("mode-multiple-choice", isPresentationActive);
+    document.body.classList.toggle("mode-multiple-choice-answered", isPresentationActive && Boolean(latestState.multipleChoiceAnswer));
   }
 
   dom.multipleChoicePanelEl.hidden = !isPresentationActive;
@@ -533,8 +539,6 @@ export function renderMultipleChoice(context) {
     return;
   }
 
-  const question = callbacks.getMultipleChoiceQuestion?.();
-  const latestState = getState(context);
   if (dom.unknownChoiceBtnEl) {
     dom.unknownChoiceBtnEl.disabled = !question || Boolean(latestState.multipleChoiceAnswer);
     dom.unknownChoiceBtnEl.classList.toggle(
@@ -562,6 +566,12 @@ export function renderMultipleChoice(context) {
     button.className = "multiple-choice-option";
     button.textContent = isRevealed && option.secondaryText ? option.secondaryText : option.text;
     button.dataset.choiceIndex = String(optionIndex);
+    const shortcut = String(optionIndex + 1);
+    button.dataset.choiceShortcut = shortcut;
+    button.setAttribute("aria-keyshortcuts", shortcut);
+    button.title = isAnswered
+      ? `${shortcut} キーの短押しで訳語切替、長押しで語源解析`
+      : `${shortcut} キーで回答`;
 
     if (isAnswered) {
       if (option.text === latestState.multipleChoiceAnswer.correctText) {

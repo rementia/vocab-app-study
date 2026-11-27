@@ -25,9 +25,19 @@ globalThis.HTMLTextAreaElement = MockTextArea;
 globalThis.HTMLSelectElement = MockSelect;
 
 let keydownHandler = null;
+let keyupHandler = null;
+let focusinHandler = null;
+let blurHandler = null;
 globalThis.document = {
+  defaultView: {
+    addEventListener(type, handler) {
+      if (type === "blur") blurHandler = handler;
+    }
+  },
   addEventListener(type, handler) {
     if (type === "keydown") keydownHandler = handler;
+    if (type === "keyup") keyupHandler = handler;
+    if (type === "focusin") focusinHandler = handler;
   }
 };
 
@@ -48,7 +58,7 @@ function makeCalls() {
   };
 }
 
-function bindWithCalls(calls, clearSearchResult = false) {
+function bindWithCalls(calls, clearSearchResult = false, activateMultipleChoiceOption, answerMultipleChoiceUnknown, closeMorphemeAnalysisMode, analysisShortcuts = {}) {
   bindKeyboardEvents({
     prevWord: () => calls.prevWord++,
     nextWord: () => calls.nextWord++,
@@ -63,8 +73,12 @@ function bindWithCalls(calls, clearSearchResult = false) {
     selectNextSearchResult: () => calls.nextSearch++,
     selectPreviousSearchResult: () => calls.previousSearch++,
     closeSidebar: () => calls.closeSidebar++,
+    closeMorphemeAnalysisMode,
     toggleSidebar: () => calls.toggleSidebar++,
-    toggleRandomMode: () => calls.random++
+    toggleRandomMode: () => calls.random++,
+    activateMultipleChoiceOption,
+    answerMultipleChoiceUnknown,
+    ...analysisShortcuts
   });
 }
 
@@ -76,7 +90,9 @@ function dispatchKey({
   ctrlKey = false,
   metaKey = false,
   altKey = false,
-  isComposing = false
+  isComposing = false,
+  repeat = false,
+  defaultPrevented = false
 }) {
   let prevented = false;
   keydownHandler({
@@ -88,6 +104,8 @@ function dispatchKey({
     metaKey,
     altKey,
     isComposing,
+    repeat,
+    defaultPrevented,
     preventDefault() {
       prevented = true;
     }
@@ -151,12 +169,130 @@ assert.strictEqual(dispatchKey({ key: "ArrowRight", isComposing: true }), false)
 assert.strictEqual(calls.nextWord, 0, "IME composing keys should be ignored");
 
 calls = makeCalls();
+let analysisOpen = true;
+bindWithCalls(calls, true, undefined, undefined, () => {
+  if (!analysisOpen) return false;
+  analysisOpen = false;
+  return true;
+});
+assert.strictEqual(dispatchKey({ key: "Escape", target: new MockInput() }), true);
+assert.strictEqual(calls.clearSearch, 1);
+assert.strictEqual(analysisOpen, true);
+assert.strictEqual(dispatchKey({ key: "Escape" }), true);
+assert.strictEqual(analysisOpen, false);
+assert.strictEqual(dispatchKey({ key: "Escape", repeat: true }), true);
+assert.strictEqual(calls.closeSidebar, 0);
+assert.strictEqual(dispatchKey({ key: "Escape" }), true);
+assert.strictEqual(calls.closeSidebar, 1);
+
+const analysisScrolls = [];
+let analysisVisible = false;
+bindWithCalls(makeCalls(), false, undefined, undefined, undefined, {
+  openMorphemeAnalysis() {
+    if (analysisVisible) return false;
+    analysisVisible = true;
+    return true;
+  },
+  scrollMorphemeAnalysis(direction) {
+    if (!analysisVisible) return false;
+    analysisScrolls.push(direction);
+    return true;
+  }
+});
+assert.strictEqual(dispatchKey({ key: "ArrowDown" }), false);
+assert.strictEqual(dispatchKey({ key: "e", target: input }), false);
+assert.strictEqual(dispatchKey({ key: "e", ctrlKey: true }), false);
+assert.strictEqual(dispatchKey({ key: "e", repeat: true }), false);
+assert.strictEqual(analysisVisible, false);
+assert.strictEqual(dispatchKey({ key: "e" }), true);
+assert.strictEqual(dispatchKey({ key: "e" }), false);
+assert.strictEqual(dispatchKey({ key: "ArrowDown", repeat: true }), true);
+assert.strictEqual(dispatchKey({ key: "ArrowUp" }), true);
+assert.strictEqual(dispatchKey({ key: "ArrowDown", target: input }), false);
+assert.deepStrictEqual(analysisScrolls, [1, -1]);
+
+calls = makeCalls();
 bindWithCalls(calls);
 assert.strictEqual(dispatchKey({ key: "-", ctrlKey: true }), false);
 assert.strictEqual(dispatchKey({ key: "+", ctrlKey: true }), false);
 assert.strictEqual(dispatchKey({ key: "0", ctrlKey: true }), false);
 assert.strictEqual(dispatchKey({ key: "f", ctrlKey: true }), false);
 assert.strictEqual(calls.favorite, 0, "Ctrl+F should keep browser find behavior");
+
+const activatedOptions = [];
+let choiceAvailable = true;
+let unknownAvailable = true;
+bindWithCalls(calls, false, (index) => {
+  if (!choiceAvailable) return false;
+  activatedOptions.push(index);
+  return true;
+}, () => {
+  if (!unknownAvailable) return false;
+  unknownAvailable = false;
+  return true;
+});
+
+for (const key of ["1", "2", "3", "4"]) {
+  assert.strictEqual(dispatchKey({ key }), true);
+}
+assert.strictEqual(dispatchKey({ key: "3", code: "Numpad3" }), true);
+assert.strictEqual(dispatchKey({ key: "1", repeat: true }), false);
+assert.strictEqual(dispatchKey({ key: "1", ctrlKey: true }), false);
+assert.strictEqual(dispatchKey({ key: "1", shiftKey: true }), false);
+assert.strictEqual(dispatchKey({ key: "1", isComposing: true }), false);
+assert.strictEqual(dispatchKey({ key: "1", defaultPrevented: true }), false);
+assert.strictEqual(dispatchKey({ key: "1", target: input }), false);
+assert.strictEqual(dispatchKey({ key: "1", target: { isContentEditable: true } }), false);
+assert.strictEqual(dispatchKey({ key: "5", target: input }), false);
+assert.strictEqual(dispatchKey({ key: "5", repeat: true }), false);
+assert.strictEqual(dispatchKey({ key: "5" }), true);
+assert.strictEqual(dispatchKey({ key: "5" }), false);
+choiceAvailable = false;
+assert.strictEqual(dispatchKey({ key: "1" }), false);
+assert.deepStrictEqual(activatedOptions, [0, 1, 2, 3, 2]);
+
+const presses = [];
+const timers = new Map();
+const realSetTimeout = globalThis.setTimeout;
+const realClearTimeout = globalThis.clearTimeout;
+let nextTimer = 0;
+globalThis.setTimeout = (callback, delay) => {
+  assert.strictEqual(delay, 500);
+  timers.set(++nextTimer, callback);
+  return nextTimer;
+};
+globalThis.clearTimeout = (id) => timers.delete(id);
+
+bindWithCalls(calls, false, (index) => (isLongPress) => presses.push([index, isLongPress]));
+
+assert.strictEqual(dispatchKey({ key: "3", code: "Digit3" }), true);
+assert.deepStrictEqual(presses, [], "an answered question waits for key release or the long-press timer");
+keyupHandler({ key: "3", code: "Digit3" });
+assert.deepStrictEqual(presses, [[2, false]]);
+assert.strictEqual(timers.size, 0);
+
+dispatchKey({ key: "4", code: "Numpad4" });
+dispatchKey({ key: "4", code: "Numpad4", repeat: true });
+assert.strictEqual(timers.size, 1);
+const fireLongPress = timers.get(nextTimer);
+timers.delete(nextTimer);
+fireLongPress();
+keyupHandler({ key: "4", code: "Numpad4" });
+assert.deepStrictEqual(presses, [[2, false], [3, true]], "long press should suppress the release action");
+
+for (const cancel of [
+  () => dispatchKey({ key: "ArrowRight" }),
+  () => focusinHandler({ target: input }),
+  () => blurHandler()
+]) {
+  dispatchKey({ key: "1" });
+  cancel();
+  keyupHandler({ key: "1" });
+  assert.strictEqual(timers.size, 0);
+}
+assert.deepStrictEqual(presses, [[2, false], [3, true]]);
+globalThis.setTimeout = realSetTimeout;
+globalThis.clearTimeout = realClearTimeout;
 
 assert.deepStrictEqual(
   getSwipeIntent(80, 10),

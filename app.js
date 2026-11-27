@@ -50,7 +50,7 @@ import {
   applySidebarState as uiApplySidebarState,
   updateAuthUI as uiUpdateAuthUI,
   updateMorphemeButton as uiUpdateMorphemeButton
-} from './ui.js?v=20260924-2';
+} from './ui.js?v=20261113-2';
 import {
   buildFavoriteEntries,
   isFavorite,
@@ -78,7 +78,7 @@ import {
   isSwipeAllowedTarget,
   handleViewportChange,
   resetSwipeElementState
-} from './events.js?v=20260924-2';
+} from './events.js?v=20261113-4';
 import {
   initNavigation,
   moveToIndex as navMoveToIndex,
@@ -348,8 +348,13 @@ async function init() {
     selectNextSearchResult,
     selectPreviousSearchResult,
     closeSidebar,
+    closeMorphemeAnalysisMode,
+    openMorphemeAnalysis,
+    scrollMorphemeAnalysis,
     toggleSidebar,
-    toggleRandomMode
+    toggleRandomMode,
+    activateMultipleChoiceOption,
+    answerMultipleChoiceUnknown: handleMultipleChoiceUnknownClick
   });
   setupAuthListener();
   initPronunciation({
@@ -659,7 +664,38 @@ function handleMultipleChoiceOptionClick(event) {
   }
 
   multipleChoiceSuppressClickButton = null;
+  applyMultipleChoiceOption(button);
+}
 
+function activateMultipleChoiceOption(choiceIndex) {
+  const button = getVisibleMultipleChoiceButton(choiceIndex);
+  if (!button) return false;
+
+  if (!multipleChoiceAnswer) {
+    applyMultipleChoiceOption(button);
+    return true;
+  }
+
+  const question = multipleChoiceQuestion;
+  const answer = multipleChoiceAnswer;
+  return (isLongPress) => {
+    const currentButton = getVisibleMultipleChoiceButton(choiceIndex);
+    if (!currentButton || multipleChoiceQuestion !== question || multipleChoiceAnswer !== answer) return;
+
+    if (isLongPress) {
+      openMultipleChoiceEtymology(question.options[choiceIndex]?.analysisItem);
+    } else {
+      applyMultipleChoiceOption(currentButton);
+    }
+  };
+}
+
+function getVisibleMultipleChoiceButton(choiceIndex) {
+  if (!multipleChoiceMode || morphemeAnalysisMode || multipleChoicePanelEl?.hidden) return null;
+  return multipleChoiceOptionsEl?.children[choiceIndex] || null;
+}
+
+function applyMultipleChoiceOption(button) {
   const question = getMultipleChoiceQuestion();
   const current = getCurrentWord();
   if (!question || !current) return;
@@ -695,9 +731,11 @@ function handleMultipleChoiceOptionClick(event) {
   scheduleSpeechSync();
 }
 function handleMultipleChoiceUnknownClick() {
+  if (!multipleChoiceMode || morphemeAnalysisMode || unknownChoiceBtnEl?.hidden) return false;
+
   const question = getMultipleChoiceQuestion();
   const current = getCurrentWord();
-  if (!question || !current || multipleChoiceAnswer) return;
+  if (!question || !current || multipleChoiceAnswer) return false;
 
   multipleChoiceAnswer = {
     wordId: current.id,
@@ -711,10 +749,14 @@ function handleMultipleChoiceUnknownClick() {
   finishReviewStatsChange();
   loadPronunciation(current.word);
   scheduleSpeechSync();
+  return true;
 }
 
 function handleMultipleChoiceEtymologyOpen(event) {
-  const item = event?.detail?.item;
+  openMultipleChoiceEtymology(event?.detail?.item);
+}
+
+function openMultipleChoiceEtymology(item) {
   if (!item?.word || !multipleChoiceAnswer) return;
 
   setMorphemeAnalysisTarget(item);
@@ -1928,11 +1970,30 @@ function toggleMorphemeAnalysisMode() {
 }
 
 function closeMorphemeAnalysisMode() {
-  if (!morphemeAnalysisMode) return;
+  if (!morphemeAnalysisMode) return false;
   morphemeAnalysisMode = false;
   saveMorphemeAnalysisModeState(morphemeAnalysisMode);
   updateMorphemeButton();
   renderCurrentWord();
+  return true;
+}
+
+function openMorphemeAnalysis() {
+  if (morphemeAnalysisMode || !getCurrentWord()) return false;
+
+  setMorphemeAnalysisTarget(null);
+  setPronunciationTargetOverride(null);
+  toggleMorphemeAnalysisMode();
+  return true;
+}
+
+function scrollMorphemeAnalysis(direction) {
+  if (!morphemeAnalysisMode || !morphemeAnalysisPanelEl || morphemeAnalysisPanelEl.hidden) return false;
+
+  const content = morphemeAnalysisPanelEl.querySelector(".morpheme-analysis-content");
+  const scrollArea = content?.scrollHeight > content?.clientHeight ? content : morphemeAnalysisPanelEl;
+  scrollArea.scrollTop += direction * 48;
+  return true;
 }
 
 function toggleAutoPlay() {

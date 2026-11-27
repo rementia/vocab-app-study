@@ -13,7 +13,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <link rel="stylesheet" href="styles.css?v=20260925-2" />
+  <link rel="stylesheet" href="styles.css?v=20261113-1" />
   <link rel="stylesheet" href="landscapeControlsFix.css?v=20260905-2" />
 </head>
 <body class="loading">
@@ -113,6 +113,8 @@
           <button
             class="control-btn morpheme-btn"
             id="morphemeBtn"
+            aria-keyshortcuts="E"
+            title="E キーで現在の単語の語源解析を開く"
             aria-label="語源解析"
             aria-pressed="false"
           >
@@ -234,6 +236,8 @@
             class="main-btn unknown-choice-btn"
             id="unknownChoiceBtn"
             type="button"
+            data-choice-shortcut="5"
+            aria-keyshortcuts="5"
             hidden
           >
             わからない
@@ -262,6 +266,6 @@
     </main>
   </div>
 
-  <script type="module" src="bootstrap.js?v=20261002-1"></script>
+  <script type="module" src="bootstrap.js?v=20261113-4"></script>
 </body>
 </html>

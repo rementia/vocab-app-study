@@ -361,16 +361,60 @@ assert.strictEqual(inactiveChoiceContext.dom.multipleChoiceOptionsEl.children.le
 
 const activeChoiceContext = makeMultipleChoiceContext({ multipleChoiceMode: true });
 renderCurrentWord(activeChoiceContext);
+assert.strictEqual(document.body.classList.contains("mode-multiple-choice-answered"), false, "unanswered choice must keep IPA hidden through CSS state");
 assert.strictEqual(activeChoiceContext.dom.wordEl.textContent, "abandon", "multiple choice question should be shown as the current word");
 assert.strictEqual(activeChoiceContext.dom.meaningEl.textContent, "", "normal meaning should be hidden in multiple choice mode");
 assert.strictEqual(activeChoiceContext.dom.wordDetailMetaEl.hidden, true, "word detail metadata should be hidden during multiple choice prompts");
 assert.strictEqual(activeChoiceContext.dom.multipleChoicePanelEl.hidden, false, "multiple choice panel should be visible when mode is on");
 assert.strictEqual(activeChoiceContext.dom.multipleChoiceOptionsEl.children.length, 4, "multiple choice mode should render four option buttons");
 assert.deepStrictEqual(
+  activeChoiceContext.dom.multipleChoiceOptionsEl.children.map((button) => button.attributes["aria-keyshortcuts"]),
+  ["1", "2", "3", "4"]
+);
+assert.deepStrictEqual(
   activeChoiceContext.dom.multipleChoiceOptionsEl.children.map((button) => button.textContent),
   ["abandon", "expand", "permit", "protect"]
 );
 assert.strictEqual(activeChoiceContext.dom.multipleChoiceFeedbackEl.textContent, "", "multiple choice should not show text feedback before answering");
+
+// Regression: IPA stays hidden before answering and becomes visible after either outcome.
+let pendingChoicePronunciationLoads = 0;
+activeChoiceContext.callbacks.loadPronunciation = () => { pendingChoicePronunciationLoads += 1; };
+renderCurrentWord(activeChoiceContext);
+assert.strictEqual(pendingChoicePronunciationLoads, 0, "IPA must stay hidden before answering");
+assert.strictEqual(activeChoiceContext.dom.pronunciationEl.textContent, "", "pre-answer IPA must be blank");
+for (const answer of [
+  { selectedText: "abandon", correctText: "abandon", isCorrect: true },
+  { selectedText: "expand", correctText: "abandon", isCorrect: false },
+  { selectedText: null, correctText: "abandon", isCorrect: false, answerType: "unknown" }
+]) {
+  const answeredContext = makeMultipleChoiceContext({ multipleChoiceMode: true, multipleChoiceAnswer: answer });
+  let loadedWord = "";
+  answeredContext.callbacks.loadPronunciation = (word) => { loadedWord = word; };
+  renderCurrentWord(answeredContext);
+  assert.strictEqual(loadedWord, "abandon", "answered multiple choice must load the correct word's IPA");
+}
+
+// Regression: on moving to a new question, getMultipleChoiceQuestion clears the
+// previous answer during rendering. Neither stale IPA nor answered styling may persist.
+const nextChoiceContext = makeMultipleChoiceContext({
+  multipleChoiceMode: true,
+  multipleChoiceAnswer: { selectedText: "abandon", correctText: "abandon", isCorrect: true }
+});
+const nextChoiceState = { ...nextChoiceContext.getState() };
+nextChoiceContext.getState = () => ({ ...nextChoiceState });
+nextChoiceContext.callbacks.getCurrentWord = () => ({ word: "expand", meaning: "広げる" });
+nextChoiceContext.callbacks.getMultipleChoiceQuestion = () => {
+  nextChoiceState.multipleChoiceAnswer = null;
+  return { options: multipleChoiceOptions };
+};
+let nextChoicePronunciationLoads = 0;
+nextChoiceContext.callbacks.loadPronunciation = () => { nextChoicePronunciationLoads += 1; };
+nextChoiceContext.dom.pronunciationEl.textContent = "/previous/";
+renderCurrentWord(nextChoiceContext);
+assert.strictEqual(nextChoicePronunciationLoads, 0, "new unanswered question must not load IPA using stale answer state");
+assert.strictEqual(nextChoiceContext.dom.pronunciationEl.textContent, "", "new unanswered question must clear prior IPA");
+assert.strictEqual(document.body.classList.contains("mode-multiple-choice-answered"), false, "new unanswered question must not retain answered CSS state");
 
 const morphemeChoiceContext = makeMultipleChoiceContext({
   multipleChoiceMode: true,
@@ -392,6 +436,7 @@ const correctChoiceContext = makeMultipleChoiceContext({
   multipleChoiceAnswer: { selectedText: "abandon", correctText: "abandon", isCorrect: true }
 });
 renderMultipleChoice(correctChoiceContext);
+assert.strictEqual(document.body.classList.contains("mode-multiple-choice-answered"), true, "answered choice must expose IPA through CSS state");
 const correctButtons = correctChoiceContext.dom.multipleChoiceOptionsEl.children;
 assert.strictEqual(correctChoiceContext.dom.multipleChoiceFeedbackEl.textContent, "", "correct answer should not show text feedback");
 assert.strictEqual(correctButtons[0].classList.contains("is-correct"), true, "correct option should get correct class");

@@ -417,6 +417,14 @@ textarea,
 }
 
 @media (hover: hover) and (pointer: fine) {
+  .multiple-choice-option::before,
+  .unknown-choice-btn::before {
+    content: attr(data-choice-shortcut) / "";
+    display: inline-block;
+    margin-inline-end: 0.5em;
+    opacity: 0.75;
+  }
+
   .multiple-choice-option:hover {
     background: var(--hover-bg);
   }
@@ -449,7 +457,7 @@ body.mode-multiple-choice #meaning {
   display: none;
 }
 
-body.mode-multiple-choice #pronunciation {
+body.mode-multiple-choice:not(.mode-multiple-choice-answered) #pronunciation {
   display: none;
 }
 
