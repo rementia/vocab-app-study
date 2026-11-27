@@ -37,12 +37,12 @@ The `csv` field is required by the web app. The `syncedAt` field is optional, bu
 1. Open Google Apps Script from the vocabulary spreadsheet.
 2. Paste `Code.gs` into the Apps Script editor.
 3. Set `CONFIG.firebaseProjectId`.
-4. Choose the sheet layout in `CONFIG.mode`.
+4. Choose the sheet layout in `CONFIG.mode`, and set `CONFIG.sourceSheetName` to the exact intended tab for single-sheet mode. When set, a missing or invalid tab aborts synchronization rather than falling back to another tab. If left blank, synchronization requires exactly one valid candidate tab.
 5. Set Script Properties:
    - `CLIENT_EMAIL = service account JSON client_email`
    - `PRIVATE_KEY = service account JSON private_key`
-   - `SYNC_TOKEN = a server-side secret only if you retain the legacy doPost endpoint; never copy this into browser JavaScript or GitHub`
-6. Run `dryRun()` to confirm row counts without writing to Firestore.
+   - `SYNC_TOKEN` is **not required** for routine editor-run synchronization. Leave it deleted. Do not re-enable legacy remote synchronization without a reviewed server-side authentication design.
+6. Run `dryRun()` to confirm row counts **without writing to Google Sheets or Firestore** (requires the proposed Apps Script version to be deployed).
 7. Run `syncAllVolumesToFirestore()` or `syncVol1()` / `syncVol2()` / `syncVol3()` / `syncVol4()`.
 8. Approve the required Apps Script permissions.
 9. Check the Apps Script execution log for target volume, CSV row count, Firestore destination, `syncedAt`, and success or failure.
@@ -57,7 +57,7 @@ If a real private key was committed even once, removing it from the repository i
 
 The current `index.html` → `bootstrap.js` → `app.js` flow does not invoke the Apps Script Web App. The `単語更新` button only reloads Firestore. For routine personal sync, use the Apps Script editor to run `syncAllVolumesToFirestore()` after checking source data, then reload the app.
 
-The legacy `doPost()` endpoint accepts `SYNC_TOKEN` from a request and, when valid, runs a privileged Firestore sync using service credentials stored in Script Properties. If the Web App is deployed to execute **as the owner** with access **to everyone**, a leaked token may allow others to start that privileged operation. Do not expose the token or privileged Web App URL in frontend code, a public repository, documentation or issues.
+The legacy `doPost()` endpoint is disabled by default in the revised `Code.gs` (`CONFIG.enableLegacyWebAppSync = false`), even if somebody accidentally restores `SYNC_TOKEN`. Re-enabling this retired path is not recommended without a reviewed server-side authentication design; the browser app does not depend on it. Only if explicitly re-enabled would the endpoint accept `SYNC_TOKEN` from a request and run privileged Firestore sync using service credentials stored in Script Properties. If the Web App is deployed to execute **as the owner** with access **to everyone**, a leaked token may allow others to start that privileged operation. Do not expose the token or privileged Web App URL in frontend code, a public repository, documentation or issues.
 
 Before maintaining or re-enabling remote calls, verify the actual deployed script version, allowed callers, access settings and dependencies. Use a server-side authorization design that does not rely on a browser-distributed shared token. Treat any historically exposed token as compromised and rotate/revoke it in the actual Apps Script environment, after planning updates for legitimate callers. Git history and old Hosting releases may continue to contain historical values.
 
@@ -72,7 +72,6 @@ If Firestore returns `403` or an authorization error, check:
 - `CONFIG.firebaseProjectId`
 - Script Properties `CLIENT_EMAIL`
 - Script Properties `PRIVATE_KEY`
-- Script Properties `SYNC_TOKEN`
 - whether `PRIVATE_KEY` keeps `\n` line breaks correctly
 - Firestore IAM permissions for the service account
 
@@ -120,6 +119,29 @@ The Apps Script manages a stable `id` column in Google Sheets before exporting C
 - If `id` is missing or blank in CSV, the web app falls back to the old word-derived key.
 
 In Google Sheets, hide and protect the `id` column so normal vocabulary edits do not accidentally change word identity. Changing an existing `id` can disconnect favorites, difficult words, and review history from that word.
+
+## Production rollout and backup
+
+Before deploying modified Apps Script code, follow the [backup, preflight, rollback and recovery checklist](../docs/sync-rollout-and-recovery.md). A nonpublic **Sheets six-tab** backup is available as of 2026-10-12, and a nonpublic **Firestore four-document** JSON backup was successfully validated on 2026-10-14 (5,758 rows, valid plain/gzip data, no duplicate IDs, owner-only). **Actual Firestore restoration and user-state backup are not tested**; the original Firestore sync timestamp was 2026-10-08. Recheck freshness before any write. Never run the original Apps Script v4 `dryRun()` (it may write IDs into Sheets).
+
+## Validation and failure boundaries
+
+- The revised script validates unknown volume levels, cross-volume duplicate IDs, missing classifications, and empty target volumes before starting a normal sync. An invalid or empty volume aborts rather than overwriting Firestore with incomplete data.
+- After preflighting all four CSV payloads, a full sync uses Firestore REST `documents:commit` with a masked write for each volume. Firestore applies all four document writes atomically: if any fails, none are committed. Single-volume sync uses the same endpoint with one write.
+- All actual synchronization runs (including single-volume and legacy remote calls) take an Apps Script **script lock** before reading source data, saving generated IDs, or committing to Firestore. Contention aborts safely after a 30-second attempt, and the lock is released on success or failure. This prevents overlapping sync jobs in this Apps Script project, **not** simultaneous manual spreadsheet edits or syncs from other projects. `dryRun()` remains read-only and does not lock.
+- `dryRun()` is a no-write preview: it does not create the `id` column or persist generated IDs to Google Sheets, and it does not change Firestore.
+- Google Sheets stable-ID writes are still separate, non-atomic cell updates. The script now checks every target cell before writing, and flushes and verifies each saved ID before any Firestore commit. If a Sheets write fails or its readback differs, the script aborts **before** Firestore sync. Already-written IDs may remain in Sheets and can be reused on a later run; the Sheets and Firestore updates are not one cross-service transaction. Back up both systems before production rollout and verify each volume after sync.
+- Changes to this GitHub code do **not** automatically replace the active Apps Script editor project or its existing deployed Web App version. Validate the actual Apps Script installation separately before applying them.
+
+## Firebase Security Rules: repository versus production
+
+The GitHub `firestore.rules` file is an **outdated historical reference** and must **not be deployed**. On 2026-10-12 the owner supplied a Firebase Console Rules screenshot showing that `privateWords` can be read only by two allowlisted Firebase UIDs, and `privateUsers` requires both allowlisting and matching the requested user ID. The live screen also contained a separate `portfolioUsers` self-access rule. UID values are intentionally not written into this public repository. The console image does not by itself establish that an unpublished draft was not being edited; confirm the rules are published before relying on them.
+
+To reduce accidental permission widening, `firebase.json` in this draft now configures **Hosting only** and intentionally omits the `firestore` deployment target. Neither the GitHub Hosting workflows nor routine `firebase deploy` with this config will deploy the outdated `firestore.rules`. A regression test blocks reintroducing that target. Keep production rules in Firebase Console until a separately approved, verified rules-management workflow exists.
+
+Before production approval, open Firebase Console > Firestore Database > Rules and confirm the **published** active version, not an unsaved editor draft. The historical source is **less restrictive** than the console screenshot: `privateWords/{vol}` in the old file allows any authenticated user to read; `privateUsers/{uid}` lacks the separate two-UID allowlist; `portfolioUsers` is missing. A deliberate production change needs a separately reviewed, authorized deployment and access test. This draft PR does not deploy rules or change access.
+
+Deleting the previously exposed Apps Script `SYNC_TOKEN` property should make the version-controlled `validateSyncToken()` reject legacy Web App POST requests, but the **actual deployed Apps Script version must be checked separately**. Source-code tests do not prove revocation in production; do not test by triggering a privileged full sync on live data.
 
 ## Firebase Console Check
 

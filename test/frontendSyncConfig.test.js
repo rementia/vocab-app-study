@@ -26,4 +26,12 @@ assert.doesNotMatch(
   "The study app must not depend on the excluded legacy sync configuration"
 );
 
+// Production Firestore Rules are more restrictive than the historical source
+// file. Never attach that stale file to ordinary Firebase CLI deployments.
+assert.equal(
+  Object.hasOwn(hosting, "firestore"),
+  false,
+  "Deploy config must not include stale Firestore Rules: preserve production access policy"
+);
+
 console.log("Browser-side sync configuration security guard passed.");
